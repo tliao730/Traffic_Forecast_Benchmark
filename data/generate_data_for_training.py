@@ -43,9 +43,12 @@ def generate_train_val_test(args):
     years = args.years.split('_')
     df = pd.DataFrame()
     for y in years:
-        df_tmp = pd.read_hdf(args.dataset + '/' + args.dataset + '_his_' + y + '.h5')
-        df = df.append(df_tmp)
+        df_tmp = pd.read_hdf(args.dataset + '/' + args.dataset + '_his_raw_' + y + '.h5')
+        df = pd.concat([df, df_tmp])
     print('original data shape:', df.shape)
+
+    df = df.resample('15T').mean().round(0)
+    print('resampled data shape:', df.shape)
 
     seq_length_x, seq_length_y = args.seq_length_x, args.seq_length_y
     x_offsets = np.arange(-(seq_length_x - 1), 1, 1)
