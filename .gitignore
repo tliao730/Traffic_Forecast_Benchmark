@@ -165,4 +165,7 @@ cython_debug/
 *.npy
 *.npz
 *.pt
-
+*.arrow
+data/*/*.csv
+data/ca/largest.zip
+data/ca/df
