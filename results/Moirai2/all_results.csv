@@ -1,0 +1,2 @@
+dataset,model,eval_metrics/MSE[mean],eval_metrics/MSE[0.5],eval_metrics/MAE[0.5],eval_metrics/MASE[0.5],eval_metrics/MAPE[0.5],eval_metrics/sMAPE[0.5],eval_metrics/MSIS,eval_metrics/RMSE[mean],eval_metrics/NRMSE[mean],eval_metrics/ND[0.5],eval_metrics/mean_weighted_sum_quantile_loss,domain,num_variates
+sd/15T/short,moirai_small,2355.602160812292,2355.602160812292,27.595904488844635,0.6734859219810514,0.21287160327247343,0.17713422287811956,5.915375793011327,48.534546055488065,0.2263427861295108,0.1286945982893907,0.10396587240120947,Transport,1
