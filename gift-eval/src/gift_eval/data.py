@@ -54,7 +54,27 @@ PRED_LENGTH_MAP = {
 }
 
 CUSTOM_PRED_LENGTH_MAP = {
-    ("sd", "15T"): 12,
+    ("sd", "T"): 12,
+    ("ca", "T"): 12,
+    ("gba", "T"): 12,
+    ("gla", "T"): 12,
+
+}
+
+# Custom prediction length map for specific (dataset, freq, term) combinations
+CUSTOM_TERM_PRED_LENGTH_MAP = {
+    ("sd", "T", "short"): 3,
+    ("sd", "T", "medium"): 6,
+    ("sd", "T", "long"): 12,
+    ("ca", "T", "short"): 3,
+    ("ca", "T", "medium"): 6,
+    ("ca", "T", "long"): 12,
+    ("gba", "T", "short"): 3,
+    ("gba", "T", "medium"): 6,
+    ("gba", "T", "long"): 12,
+    ("gla", "T", "short"): 3,
+    ("gla", "T", "medium"): 6,
+    ("gla", "T", "long"): 12,
 }
 
 TFB_PRED_LENGTH_MAP = {
@@ -137,6 +157,13 @@ class Dataset:
     def prediction_length(self) -> int:
         freq_name = to_offset(self.freq).name
         dataset_prefix = self.name.split("/")[0].lower()
+        term_str = self.term.value
+        
+        # First check if there's a custom term-specific prediction length
+        if (dataset_prefix, freq_name, term_str) in CUSTOM_TERM_PRED_LENGTH_MAP:
+            return CUSTOM_TERM_PRED_LENGTH_MAP[(dataset_prefix, freq_name, term_str)]
+        
+        # Otherwise use the original logic with multiplier
         if (dataset_prefix, freq_name) in CUSTOM_PRED_LENGTH_MAP:
             base_len = CUSTOM_PRED_LENGTH_MAP[(dataset_prefix, freq_name)]
         else:
