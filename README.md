@@ -19,7 +19,12 @@ In LargeST we also provide comprehensive metadata for all sensors, which are lis
 
 
 ## 1. Data Preparation
-In this section, we will outline the procedure for preparing the CA dataset, followed by an explanation of how the GLA, GBA, and SD datasets can be derived from CA. Please follow these instructions step by step.
+In this section, we will outline the procedure for preparing the CA dataset, followed by an explanation of how the GLA, GBA, and SD datasets can be derived from CA. The data is organized into two main folders:
+
+- **`data/`**: Contains raw data and processed datasets for baseline model training
+- **`data/gift_eval_datasets/`**: Contains processed datasets specifically formatted for GIFT evaluation framework
+
+Please follow these instructions step by step.
 
 ### 1.1 Download the CA Dataset
 We host the CA dataset on Kaggle: https://www.kaggle.com/datasets/liuxu77/largest. There are a total of 7 files in this link. Among them, 5 files in .h5 format contain the traffic flow raw data from 2017 to 2021, 1 file in .csv format provides the metadata for all sensors, and 1 file in .npy format represents the adjacency matrix constructed based on road network distances.
@@ -34,19 +39,50 @@ kaggle datasets download liuxu77/largest
 Note that the traffic flow raw data of the CA dataset require additional processing (described in Section 1.2 and 1.3), while the metadata and adjacency matrix are ready to be used.
 
 ### 1.2 Process Traffic Flow Data of CA
-We provide a jupyter notebook `process_ca_his.ipynb` in the folder `data/ca` to process and generate a cleaned version of the flow data. Please go through this notebook.
+We provide a jupyter notebook `process_ca_his.ipynb` in the folder `data_analysis/ca` to process and generate a cleaned version of the flow data. Please go through this notebook.
 
-### 1.3 Generate Traffic Flow Data for Training
-Please go to the `data` folder, and use the command below to generate the flow data for model training in our manuscript.
+### 1.3 Generate Traffic Flow Data for Baseline Model Training
+Please go to the `data_analysis` folder, and use the command below to generate the flow data for baseline model training in our manuscript.
 ```
 python generate_data_for_training.py --dataset ca --years 2019
 ```
 The processed data are stored in `data/ca/2019`. We also support the utilization of data from multiple years. For example, changing the years argument to 2018_2019 to generate two years of data.
 
 ### 1.4 Generate Other Sub-Datasets
-We describe the generation of the GLA dataset as an example. Please first go through all the cells in the provided jupyter notebook `generate_gla_dataset.ipynb` in the folder `data/gla`. Then, use the command below to generate traffic flow data for model training.
+We describe the generation of the GLA dataset as an example. Please first go through all the cells in the provided jupyter notebook `generate_gla_dataset.ipynb` in the folder `data_analysis/gla`. Then, use the command below to generate traffic flow data for model training.
 ```
 python generate_data_for_training.py --dataset gla --years 2019
+```
+
+### 1.5 Generate Data for GIFT Evaluation
+To evaluate foundation models using the GIFT framework, you need to generate a separate set of processed datasets. These datasets are stored in the `data/gift_eval_datasets/` directory and are formatted as HuggingFace Arrow datasets for compatibility with GIFT.
+
+Please go to the `data_analysis` folder and use the command below:
+```bash
+python generate_data_for_gift_eval.py --dataset ca --years 2019 --freq 15T --tod 1 --dow 1 --overwrite
+```
+
+**Arguments:**
+- `--dataset`: Dataset name (ca, gla, gba, or sd)
+- `--years`: Years to use (e.g., 2019 or 2018_2019 for multiple years)
+- `--freq`: Sampling frequency in pandas offset format (e.g., 15T for 15 minutes, 1H for 1 hour)
+- `--tod`: Include time-of-day features (1 for yes, 0 for no)
+- `--dow`: Include day-of-week features (1 for yes, 0 for no)
+- `--output_dir`: Output directory (default: ./gift_eval_datasets)
+- `--overwrite`: Overwrite existing dataset if it exists
+
+The processed GIFT evaluation dataset will be saved to `data/gift_eval_datasets/{dataset}/{years}/{freq}/`.
+
+**Example for other datasets:**
+```bash
+# Generate GLA dataset for GIFT evaluation
+python generate_data_for_gift_eval.py --dataset gla --years 2019 --freq 15T --overwrite
+
+# Generate GBA dataset with hourly frequency
+python generate_data_for_gift_eval.py --dataset gba --years 2019 --freq 1H --overwrite
+
+# Generate SD dataset using multiple years
+python generate_data_for_gift_eval.py --dataset sd --years 2018_2019 --freq 15T --overwrite
 ```
 
 
