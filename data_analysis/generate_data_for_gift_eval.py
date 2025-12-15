@@ -1,10 +1,11 @@
-import os
 import argparse
+import os
 import shutil
 
 import numpy as np
 import pandas as pd
 from datasets import Dataset, Features, Sequence, Value
+
 
 class StandardScaler:
     def __init__(self, mean, std):
@@ -88,11 +89,11 @@ def generate_train_val_test(args):
     years = args.years.split('_')
     df = pd.DataFrame()
     for y in years:
-        data_path = os.path.join(args.dataset, f"{args.dataset}_his_raw_{y}.h5")
+        data_path = os.path.join(args.dataset, f"{args.dataset}_his_{y}.h5")
         df_tmp = pd.read_hdf(data_path)
         df = pd.concat([df, df_tmp])
     print('original data shape:', df.shape)
-    import pdb; pdb.set_trace()
+    # import pdb; pdb.set_trace()
     df = df.resample(args.freq).mean().round(0)
     df = df.sort_index()
     num_samples = len(df)

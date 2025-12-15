@@ -43,7 +43,8 @@ def generate_train_val_test(args):
     years = args.years.split('_')
     df = pd.DataFrame()
     for y in years:
-        df_tmp = pd.read_hdf(args.dataset + '/' + args.dataset + '_his_raw_' + y + '.h5')
+        # df_tmp = pd.read_hdf(args.dataset + '/' + args.dataset + '_his_raw_' + y + '.h5')
+        df_tmp = pd.read_hdf(args.dataset + '/' + args.dataset + '_his_' + y + '.h5')
         df = pd.concat([df, df_tmp])
     print('original data shape:', df.shape)
 
