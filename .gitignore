@@ -160,7 +160,7 @@ cython_debug/
 #.idea/
 
 *.h5
-*.json
+
 *.hdf5
 *.npy
 *.npz
