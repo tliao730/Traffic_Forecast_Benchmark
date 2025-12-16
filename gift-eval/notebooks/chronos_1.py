@@ -3,6 +3,12 @@
 # 
 # This notebook shows how to run Chronos and Chronos-Bolt models on the gift-eval benchmark.
 # 
+# **IMPORTANT: Run this script from the gift-eval/notebooks/ directory:**
+# ```bash
+# cd gift-eval/notebooks
+# python chronos_1.py
+# ```
+# 
 # Make sure you download the gift-eval benchmark and set the `GIFT-EVAL` environment variable correctly before running this notebook.
 # 
 # We will use the `Dataset` class to load the data and run the model. If you have not already please check out the [dataset.ipynb](./dataset.ipynb) notebook to learn more about the `Dataset` class. We are going to just run the model on two datasets for brevity. But feel free to run on any dataset by changing the `short_datasets` and `med_long_datasets` variables below.
@@ -35,12 +41,22 @@ med_long_datasets = "sd/2019/15T gba/2019/15T gla/2019/15T ca/2019/15T"
 all_datasets = list(set(short_datasets.split() + med_long_datasets.split()))
 
 # Determine the correct path for dataset_properties.json
-if os.path.exists("./notebooks/dataset_properties.json"):
-    dataset_properties_map = json.load(open("./notebooks/dataset_properties.json"))
-elif os.path.exists("./dataset_properties.json"):
-    dataset_properties_map = json.load(open("./dataset_properties.json"))
-else:
-    dataset_properties_map = json.load(open("dataset_properties.json"))
+# This script should be run from gift-eval/notebooks/ directory
+script_dir = os.path.dirname(os.path.abspath(__file__))
+dataset_properties_path = os.path.join(script_dir, "dataset_properties.json")
+
+if not os.path.exists(dataset_properties_path):
+    # Fallback to trying relative paths
+    if os.path.exists("./dataset_properties.json"):
+        dataset_properties_path = "./dataset_properties.json"
+    elif os.path.exists("./notebooks/dataset_properties.json"):
+        dataset_properties_path = "./notebooks/dataset_properties.json"
+    else:
+        raise FileNotFoundError(
+            "dataset_properties.json not found. Make sure you're running this script from gift-eval/notebooks/ directory."
+        )
+
+dataset_properties_map = json.load(open(dataset_properties_path))
 
 # Add properties for new datasets (ca, gba, gla)
 if 'ca' not in dataset_properties_map:
@@ -238,9 +254,11 @@ from gift_eval.data import Dataset
 # Iterate over all available datasets
 
 model_name = "chronos_bolt_base"
-output_dir = f"../results/{model_name}"
+# Output directory relative to gift-eval/notebooks/
+output_dir = os.path.join("..", "results", model_name)
 # Ensure the output directory exists
 os.makedirs(output_dir, exist_ok=True)
+print(f"Results will be saved to: {os.path.abspath(output_dir)}")
 
 # Define the path for the CSV file
 csv_file_path = os.path.join(output_dir, "all_results.csv")
@@ -370,7 +388,8 @@ for ds_num, ds_name in enumerate(all_datasets):
 # %%
 import pandas as pd
 
-df = pd.read_csv(f"../results/{model_name}/all_results.csv")
+results_file = os.path.join("..", "results", model_name, "all_results.csv")
+df = pd.read_csv(results_file)
 df
 
 # %%

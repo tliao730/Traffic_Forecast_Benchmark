@@ -4,6 +4,10 @@ This is the official repository of our NeurIPS 2023 DB Track paper [LargeST: A B
 
 <img src='img/overview.png' width='780px'>
 
+---
+
+📚 **Documentation:** See [`DOCUMENTATION_INDEX.md`](DOCUMENTATION_INDEX.md) for a complete guide to all available documentation.
+
 In LargeST we also provide comprehensive metadata for all sensors, which are listed below.
 | Attribute |                 Description                     |  Possible Range of Values
 |   :---    |                    :---                         |          :---
@@ -19,6 +23,9 @@ In LargeST we also provide comprehensive metadata for all sensors, which are lis
 
 
 ## 1. Data Preparation
+
+📖 **Quick Start:** See [`QUICKSTART.md`](QUICKSTART.md) for essential commands only.
+
 In this section, we will outline the procedure for preparing the CA dataset, followed by an explanation of how the GLA, GBA, and SD datasets can be derived from CA. The data is organized into two main folders:
 
 - **`data/`**: Contains raw data and processed datasets for baseline model training
@@ -112,7 +119,22 @@ You may first go through the implementations of various baselines in our reposit
 The LargeST benchmark dataset is released under a CC BY-NC 4.0 International License: https://creativecommons.org/licenses/by-nc/4.0. Our code implementation is released under the MIT License: https://opensource.org/licenses/MIT. The license of any specific baseline methods used in our codebase should be verified on their official repositories. Here we would also like to express our gratitude to the authors of baselines for releasing their code.
 
 
-## 5. Citation
+## 5. Running Foundation Models (Chronos)
+
+For instructions on running Chronos-1, Chronos-Bolt, and Chronos-2 foundation models on the LargeST dataset:
+
+📖 **Quick Reference:** [`QUICKSTART.md`](QUICKSTART.md) - Essential commands only
+
+📖 **Detailed Guide:** [`RUNNING_FOUNDATION_MODELS.md`](RUNNING_FOUNDATION_MODELS.md) - Complete instructions with:
+- Full data preparation pipeline
+- Step-by-step model running instructions
+- Environment setup and configuration
+- Troubleshooting common issues
+- Path references and directory structure
+
+📖 **Chronos-Specific:** [`gift-eval/README_CHRONOS.md`](gift-eval/README_CHRONOS.md) - Quick reference for Chronos models
+
+## 6. Citation
 If you find our work useful in your research, please cite:
 ```
 @inproceedings{liu2023largest,

@@ -3,6 +3,12 @@
 # 
 # **The following notebook is only intended to reproduce GIFT-Eval results using a GluonTS-style predictor interface. For practical usage, we recommend using the simpler interface of Chronos-2 as described in the [Github repo](https://github.com/amazon-science/chronos-forecasting).**
 # 
+# **IMPORTANT: Run this script from the gift-eval/ directory:**
+# ```bash
+# cd gift-eval
+# python notebooks/chronos-2.py
+# ```
+# 
 # Make sure you download the gift-eval benchmark and set the `GIFT-EVAL` environment variable correctly before running this notebook.
 # 
 # We will use the `Dataset` class to load the data and run the model. If you have not already please check out the [dataset.ipynb](./dataset.ipynb) notebook to learn more about the `Dataset` class. We are going to just run the model on two datasets for brevity. But feel free to run on any dataset by changing the `SHORT_DATASETS` and `MED_LONG_DATASETS` variables below.
@@ -22,6 +28,21 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
+# Set GIFT_EVAL environment variable if not already set
+if 'GIFT_EVAL' not in os.environ:
+    # Default path assuming script is run from gift-eval/ directory
+    default_gift_eval_path = os.path.abspath(
+        os.path.join(os.path.dirname(__file__), "..", "..", "data", "gift_eval_datasets")
+    )
+    if os.path.exists(default_gift_eval_path):
+        os.environ['GIFT_EVAL'] = default_gift_eval_path
+        print(f"Set GIFT_EVAL to: {default_gift_eval_path}")
+    else:
+        print("Warning: GIFT_EVAL environment variable not set and default path not found.")
+        print(f"Tried: {default_gift_eval_path}")
+else:
+    print(f"Using GIFT_EVAL: {os.environ['GIFT_EVAL']}")
+
 #SHORT_DATASETS = "m4_yearly m4_quarterly m4_monthly m4_weekly m4_daily m4_hourly electricity/15T electricity/H electricity/D electricity/W solar/10T solar/H solar/D solar/W hospital covid_deaths us_births/D us_births/M us_births/W saugeenday/D saugeenday/M saugeenday/W temperature_rain_with_missing kdd_cup_2018_with_missing/H kdd_cup_2018_with_missing/D car_parts_with_missing restaurant hierarchical_sales/D hierarchical_sales/W LOOP_SEATTLE/5T LOOP_SEATTLE/H LOOP_SEATTLE/D SZ_TAXI/15T SZ_TAXI/H M_DENSE/H M_DENSE/D ett1/15T ett1/H ett1/D ett1/W ett2/15T ett2/H ett2/D ett2/W jena_weather/10T jena_weather/H jena_weather/D bitbrains_fast_storage/5T bitbrains_fast_storage/H bitbrains_rnd/5T bitbrains_rnd/H bizitobs_application bizitobs_service bizitobs_l2c/5T bizitobs_l2c/H"
 SHORT_DATASETS = "" #"gba/2019/15T gla/2019/15T ca/2019/15T sd/2019/15T"
 #MED_LONG_DATASETS = "electricity/15T electricity/H solar/10T solar/H kdd_cup_2018_with_missing/H LOOP_SEATTLE/5T LOOP_SEATTLE/H SZ_TAXI/15T M_DENSE/H ett1/15T ett1/H ett2/15T ett2/H jena_weather/10T jena_weather/H bitbrains_fast_storage/5T bitbrains_rnd/5T bizitobs_application bizitobs_service bizitobs_l2c/5T bizitobs_l2c/H"
@@ -30,7 +51,34 @@ MED_LONG_DATASETS = "gba/2019/15T gla/2019/15T ca/2019/15T sd/2019/15T"
 # Get union of short and med_long datasets
 all_datasets = list(set(SHORT_DATASETS.split() + MED_LONG_DATASETS.split()))
 
-dataset_properties_map = json.load(open("./notebooks/dataset_properties.json"))
+# Determine the correct path for dataset_properties.json
+# This script should be run from gift-eval/ directory
+script_dir = os.path.dirname(os.path.abspath(__file__))
+dataset_properties_path = os.path.join(script_dir, "dataset_properties.json")
+
+if not os.path.exists(dataset_properties_path):
+    # Fallback to trying relative paths based on run directory
+    if os.path.exists("./notebooks/dataset_properties.json"):
+        dataset_properties_path = "./notebooks/dataset_properties.json"
+    elif os.path.exists("./dataset_properties.json"):
+        dataset_properties_path = "./dataset_properties.json"
+    else:
+        raise FileNotFoundError(
+            "dataset_properties.json not found. Make sure you're running this script from gift-eval/ directory "
+            "using: python notebooks/chronos-2.py"
+        )
+
+dataset_properties_map = json.load(open(dataset_properties_path))
+
+# Add properties for new datasets (ca, gba, gla, sd) if not present
+if 'ca' not in dataset_properties_map:
+    dataset_properties_map['ca'] = {"frequency": "15T", "domain": "Transport", "num_variates": 1}
+if 'gba' not in dataset_properties_map:
+    dataset_properties_map['gba'] = {"frequency": "15T", "domain": "Transport", "num_variates": 1}
+if 'gla' not in dataset_properties_map:
+    dataset_properties_map['gla'] = {"frequency": "15T", "domain": "Transport", "num_variates": 1}
+if 'sd' not in dataset_properties_map:
+    dataset_properties_map['sd'] = {"frequency": "15T", "domain": "Transport", "num_variates": 1}
 
 from gluonts.ev.metrics import (
     MAE,
@@ -197,8 +245,9 @@ from gluonts.time_feature import get_seasonality
 from gift_eval.data import Dataset
 
 model_name = "s3://autogluon/chronos-2"
-# CSV output path (relative to this notebook). Use os.path.join for portability.
-output_dir = os.path.join("..", "results", "chronos-2", "all_results.csv")
+# CSV output path (relative to gift-eval/ directory). Use os.path.join for portability.
+output_dir = os.path.join("results", "chronos-2", "all_results.csv")
+print(f"Results will be saved to: {os.path.abspath(output_dir)}")
 pretty_names = {
     "saugeenday": "saugeen",
     "temperature_rain_with_missing": "temperature_rain",
@@ -323,12 +372,13 @@ for result_metrics, ds_config, domain, num_variates in all_results:
     )
 results_df = pd.DataFrame(result_df_rows).sort_values(by="dataset")
 # Ensure the output directory exists
-os.makedirs(os.path.dirname(output_dir), exist_ok=True)
+output_dir_abs = os.path.abspath(output_dir)
+os.makedirs(os.path.dirname(output_dir_abs), exist_ok=True)
 
 # Append to CSV instead of overwriting. If the file doesn't exist, write the header.
-write_header = not os.path.exists(output_dir)
-results_df.to_csv(output_dir, index=False, mode="a", header=write_header)
-logger.info(f"Results have been written (appended={not write_header}) to {output_dir}.")
+write_header = not os.path.exists(output_dir_abs)
+results_df.to_csv(output_dir_abs, index=False, mode="a", header=write_header)
+logger.info(f"Results have been written (appended={not write_header}) to {output_dir_abs}.")
 
 
 
