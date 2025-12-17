@@ -159,20 +159,15 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 
-*.h5
-
-*.hdf5
-*.npy
-*.npz
-*.pt
-*.arrow
-data/*/*.csv
-data/ca/largest.zip
-data/ca/df
-data/*
-data/*/*
-data/gba/generate_gba_dataset_2018.ipynb
-data/gba/generate_gba_dataset_2018.ipynb
-data/gba/generate_gba_dataset.ipynb
-data/gba/generate_gba_dataset_2018.ipynb
-data/sd/generate_sd_dataset.ipynb
+.vscode
+data
+data_analysis/ca/*
+!data_analysis/ca/process_ca_his.py
+data_analysis/gba/*
+!data_analysis/gba/process_gba_his.py
+data_analysis/gla/*
+!data_analysis/gla/process_gla_his.py
+data_analysis/sd/*
+!data_analysis/sd/process_sd_his.py
+data_analysis/gift_eval_datasets/*
+results

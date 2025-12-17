@@ -1,0 +1,16 @@
+[project]
+name = "trafficfm"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "chronos-forecasting>=2.2.0",
+    "dotenv>=0.9.9",
+    "kaggle==1.7.4.5",
+    "salesforce-gift-eval",
+    "tables>=3.10.1",
+]
+
+[tool.uv.sources]
+salesforce-gift-eval = { path = "gift-eval", editable = true }
