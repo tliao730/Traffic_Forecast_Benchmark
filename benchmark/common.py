@@ -3,9 +3,17 @@ import json
 import logging
 import os
 
+import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
+from typing import Optional
+from gift_eval.data import Dataset
 from config import (
     dataset_properties_path,
+    default_plot_dataset,
+    default_plot_quantile,
+    default_plot_sample_idx,
+    default_plot_term,
     gift_eval_datasets_path,
     med_long_datasets,
     result_root,
@@ -75,6 +83,16 @@ def setup_dataset():
         }
 
     return short_datasets, med_long_datasets, all_datasets, dataset_properties_map
+
+
+def get_prediction_length(term):
+    """Get prediction length based on term type."""
+    term_to_length = {
+        "short": 3,
+        "medium": 6,
+        "long": 12,
+    }
+    return term_to_length.get(term, 3)
 
 
 def get_metrics():
@@ -161,6 +179,133 @@ def show_results(model_name):
     print(df)
 
 
+def plot_forecast_vs_truth(
+    predictor_factory,
+    dataset_name: Optional[str] = None,
+    term: Optional[str] = None,
+    sample_idx: Optional[int] = None,
+    quantile: Optional[float] = None,
+    save_path: Optional[str] = None,
+    history_length: Optional[int] = None,
+):
+    """
+    Plot history, forecast and residuals (prediction - ground truth) for one test series.
+
+    Args:
+        predictor_factory: Callable that takes a dataset and returns a predictor (same as eval uses).
+        dataset_name: Name used by Dataset (e.g., "sd/2019/15T"). Uses default from config if None.
+        term: One of "short", "medium", "long". Uses default from config if None.
+        sample_idx: Which sample in the dataset's test set to plot. Uses default from config if None.
+        quantile: Which quantile to show as the main forecast line. Uses default from config if None.
+        save_path: If provided, saves the figure instead of showing it.
+        history_length: Number of historical points to show in the plot. If None, shows all history.
+    """
+    # Set up GIFT_EVAL environment variable
+    os.environ["GIFT_EVAL"] = gift_eval_datasets_path
+    
+    # Use defaults from config if not provided
+    dataset_name = dataset_name or default_plot_dataset
+    term = term or default_plot_term
+    sample_idx = sample_idx if sample_idx is not None else default_plot_sample_idx
+    quantile = quantile if quantile is not None else default_plot_quantile
+    # Align with eval's univariate handling
+    probe_ds = Dataset(name=dataset_name, term=term, to_univariate=False)
+    to_univariate = False if probe_ds.target_dim == 1 else True
+    dataset = Dataset(name=dataset_name, term=term, to_univariate=to_univariate)
+    
+    # Override dataset's prediction_length with our custom values
+    prediction_length = get_prediction_length(term)
+    dataset.prediction_length = prediction_length
+
+    predictor = predictor_factory(dataset)
+
+    # Convert test_data to list to allow indexing
+    test_data_list = list(dataset.test_data)
+    series_data = test_data_list[sample_idx]
+    
+    # Handle tuple format (input, label) from test_data
+    if isinstance(series_data, tuple):
+        series = series_data[0]  # Extract the input dict from tuple
+    else:
+        series = series_data
+    
+    forecast = predictor.predict([series])[0]
+
+    history_full = np.asarray(series["target"], dtype=float)
+    if prediction_length > len(history_full):
+        raise ValueError("prediction_length is longer than the available history.")
+
+    future_truth = history_full[-prediction_length:]
+    
+    # Print experiment settings
+    print("\n" + "="*60)
+    print("Experiment Settings:")
+    print(f"  Dataset: {dataset_name}")
+    print(f"  Term: {term}")
+    print(f"  Sample Index: {sample_idx}")
+    print(f"  Total History Length: {len(history_full)}")
+    print(f"  Prediction Length: {prediction_length}")
+    print(f"  Quantile: {quantile}")
+    if history_length is not None:
+        print(f"  Displayed History Length: {history_length}")
+    else:
+        print(f"  Displayed History Length: All ({len(history_full)})")
+    print("="*60 + "\n")
+    
+    # Determine how much history to show
+    if history_length is not None:
+        # Show only the last `history_length` points (including the prediction horizon)
+        start_idx = max(0, len(history_full) - history_length)
+        history = history_full[start_idx:]
+        offset = start_idx
+    else:
+        # Show all history
+        history = history_full
+        offset = 0
+    
+    history_idx = np.arange(offset, offset + len(history))
+    horizon_idx = np.arange(len(history_full) - prediction_length, len(history_full))
+
+    q_key = str(quantile)
+    pred = forecast.quantile(q_key)
+    lower = forecast.quantile("0.1")
+    upper = forecast.quantile("0.9")
+
+    fig, (ax_forecast, ax_resid) = plt.subplots(
+        2, 1, figsize=(12, 6), sharex=True, constrained_layout=True
+    )
+
+    ax_forecast.plot(history_idx, history, label="history + truth", color="black")
+    ax_forecast.plot(horizon_idx, pred, label=f"pred q{quantile}", color="tab:blue")
+    ax_forecast.fill_between(
+        horizon_idx, lower, upper, color="tab:blue", alpha=0.15, label="p10-p90"
+    )
+    ax_forecast.axvline(
+        len(history_full) - prediction_length - 0.5, color="gray", linestyle="--", linewidth=1
+    )
+    ax_forecast.set_ylabel("value")
+    ax_forecast.legend(loc="upper left")
+    
+    # Enhanced title with experiment settings
+    title = f"Dataset: {dataset_name} | Term: {term} | Sample: {sample_idx}\n"
+    title += f"Prediction Length: {prediction_length} | Total History: {len(history_full)}"
+    if history_length is not None:
+        title += f" | Displayed: {history_length}"
+    ax_forecast.set_title(title, fontsize=10)
+
+    residuals = pred - future_truth
+    ax_resid.axhline(0.0, color="gray", linewidth=1)
+    ax_resid.bar(horizon_idx, residuals, width=0.8, color="tab:orange")
+    ax_resid.set_ylabel("pred - truth")
+    ax_resid.set_xlabel(f"time index (prediction horizon: {prediction_length} steps)")
+
+    if save_path:
+        plt.savefig(save_path, bbox_inches="tight")
+    else:
+        plt.show()
+    plt.close(fig)
+
+
 def eval(model_name, model_path, predictor_factory, batch_size=1024):
     short_datasets, med_long_datasets, all_datasets, dataset_properties_map = (
         setup_dataset()
@@ -222,7 +367,10 @@ def eval(model_name, model_path, predictor_factory, batch_size=1024):
             )
             dataset = Dataset(name=ds_name, term=term, to_univariate=to_univariate)
             season_length = get_seasonality(dataset.freq)
-            print(f"Prediction length: {dataset.prediction_length}")
+            prediction_length = get_prediction_length(term)
+            # Override dataset's prediction_length with our custom values
+            dataset.prediction_length = prediction_length
+            print(f"Prediction length: {prediction_length}")
             print(f"Dataset size: {len(dataset.test_data)}")
 
             predictor = predictor_factory(dataset)
