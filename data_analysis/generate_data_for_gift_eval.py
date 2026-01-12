@@ -89,7 +89,24 @@ def generate_train_val_test(args):
     years = args.years.split('_')
     df = pd.DataFrame()
     for y in years:
-        data_path = os.path.join(args.dataset, f"{args.dataset}_his_{y}.h5")
+        # Prefer processed file name, fallback to raw if needed.
+        processed_name = f"{args.dataset}_his_{y}.h5"
+        raw_name = f"{args.dataset}_his_raw_{y}.h5"
+        processed_path = os.path.join(args.dataset, processed_name)
+        raw_path = os.path.join(args.dataset, raw_name)
+
+        if os.path.exists(processed_path):
+            data_path = processed_path
+        elif os.path.exists(raw_path):
+            data_path = raw_path
+        else:
+            raise FileNotFoundError(
+                f"Cannot find input file for dataset='{args.dataset}', year='{y}'. "
+                f"Tried: '{processed_path}' and '{raw_path}'. "
+                "Tip: run this script from the 'data/' directory, "
+                "or ensure the expected files exist."
+            )
+
         df_tmp = pd.read_hdf(data_path)
         df = pd.concat([df, df_tmp])
     print('original data shape:', df.shape)
@@ -101,34 +118,43 @@ def generate_train_val_test(args):
     num_val = round(num_samples * 0.2)
 
     train = df.iloc[:num_train]
-    test = df.iloc[num_train + num_val:]
+    val = df.iloc[num_train : num_train + num_val]
+    test = df.iloc[num_train + num_val :]
 
     if test.empty:
         raise ValueError('Test split is empty. Check the provided years or split ratios.')
 
-    # mean = train.mean()
-    # std = train.std().replace(0, 1.0)
-    # scaler = StandardScaler(mean.values, std.values)
-    # test_scaled = scaler.transform(test.values).astype(np.float32)
-    # test_df = pd.DataFrame(test_scaled, index=test.index, columns=df.columns)
-    test_df = test
-    print('after scaling, test data shape:', test_df.shape)
-    test_start_idx = num_train + num_val
-    print('test start index in original data:', test_start_idx)
-    print('test start timestamp:', test_df.index[0])
+    def _save_split(split_name: str, split_df: pd.DataFrame, output_path: str):
+        if split_df.empty:
+            raise ValueError(f"{split_name} split is empty. Check years/freq/split ratios.")
 
-    time_features = build_time_features(
-        test_df.index, bool(args.tod), bool(args.dow)
-    )
+        time_features = build_time_features(
+            split_df.index, bool(args.tod), bool(args.dow)
+        )
+        prepare_output_dir(output_path, args.overwrite)
+        records = build_records(split_df, args.freq, time_features)
+        dataset = save_as_arrow(records, output_path, time_features is not None)
+        print(
+            f"Saved {split_name} HuggingFace dataset with {dataset.num_rows} series to '{output_path}'."
+        )
 
-    output_path = os.path.join(args.output_dir, args.dataset, args.years, args.freq)
-    prepare_output_dir(output_path, args.overwrite)
-    records = build_records(test_df, args.freq, time_features)
-    dataset = save_as_arrow(records, output_path, time_features is not None)
-    #import pdb; pdb.set_trace()
-    print(
-        f"Saved HuggingFace dataset with {dataset.num_rows} series to '{output_path}'."
+    # NOTE:
+    # - Keep the existing (legacy) output path for test unchanged.
+    # - Save train/val as separate datasets alongside it.
+    output_test = os.path.join(args.output_dir, args.dataset, args.years, args.freq)
+    output_train = os.path.join(
+        args.output_dir, f"{args.dataset}_train", args.years, args.freq
     )
+    output_val = os.path.join(
+        args.output_dir, f"{args.dataset}_val", args.years, args.freq
+    )
+    print('train/val/test shapes:', train.shape, val.shape, test.shape)
+    print('test start index in original data:', num_train + num_val)
+    print('test start timestamp:', test.index[0])
+
+    #_save_split('test', test, output_test)
+    _save_split('train', train, output_train)
+    _save_split('val', val, output_val)
 
 
 if __name__ == '__main__':
