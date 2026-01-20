@@ -134,7 +134,32 @@ For instructions on running Chronos-1, Chronos-Bolt, and Chronos-2 foundation mo
 
 📖 **Chronos-Specific:** [`gift-eval/README_CHRONOS.md`](gift-eval/README_CHRONOS.md) - Quick reference for Chronos models
 
-## 6. Citation
+## 6. SHAP Interpretability Analysis
+
+We provide tools for analyzing which historical time points are most important for forecasting using SHAP (SHapley Additive exPlanations). This helps understand how traditional ML models (Ridge) and foundation models (Moirai2) utilize temporal information differently.
+
+📖 **Full Documentation:** [`interpret/README.md`](interpret/README.md) - Complete guide with:
+- Quick start instructions for data preparation
+- Running Ridge and Moirai2 SHAP analysis
+- Understanding output visualizations
+- Configuration options and customization
+- Computational requirements and tips
+
+**Key Features:**
+- Analyze 5 context lengths × 4 prediction horizons (20 configurations)
+- Compare traditional ML vs. transformer attention patterns
+- Visualize temporal importance and time window analysis
+- Generate detailed per-sample predictions with SHAP values
+
+**Quick Start:**
+```bash
+cd interpret
+python prepare_shap_data.py          # Step 1: Prepare data
+python shap_inter.py                 # Step 2: Ridge analysis
+python moirai2_shap_inter.py         # Step 3: Moirai2 analysis
+```
+
+## 7. Citation
 If you find our work useful in your research, please cite:
 ```
 @inproceedings{liu2023largest,
