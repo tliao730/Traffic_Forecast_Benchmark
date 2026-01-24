@@ -171,3 +171,6 @@ data_analysis/sd/*
 !data_analysis/sd/process_sd_his.py
 data_analysis/gift_eval_datasets/*
 results
+gift-eval/*
+gift-eval
+gift-eval/*/*
