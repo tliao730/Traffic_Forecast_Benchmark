@@ -4,6 +4,7 @@ import os
 
 import pandas as pd
 from config import device, med_long_datasets, short_datasets
+from common import get_prediction_length
 from dotenv import load_dotenv
 from gift_eval.data import Dataset
 from gluonts.ev.metrics import (MAE, MAPE, MASE, MSE, MSIS, ND, NRMSE, RMSE,
@@ -152,6 +153,11 @@ for ds_num, ds_name in enumerate(all_datasets):
         # Initialize the dataset
         to_univariate = False
         dataset = Dataset(name=ds_name, term=term, to_univariate=to_univariate)
+
+        # Override dataset's prediction_length with our custom values
+        prediction_length = get_prediction_length(term)
+        dataset.prediction_length = prediction_length
+        print(f"Using custom prediction length: {prediction_length} (term: {term})")
 
         # set the Moirai hyperparameter according to each dataset, then create the predictor
         model.hparams.prediction_length = dataset.prediction_length

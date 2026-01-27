@@ -10,6 +10,12 @@ import numpy as np
 import pandas as pd
 from dotenv import load_dotenv
 
+# Import common functions (need to add this early for get_prediction_length)
+script_dir = os.path.dirname(os.path.abspath(__file__))
+if script_dir not in sys.path:
+    sys.path.insert(0, script_dir)
+from common import get_prediction_length
+
 # Get the directory where this script is located
 script_dir = os.path.dirname(os.path.abspath(__file__))
 
@@ -241,6 +247,11 @@ for ds_num, ds_name in enumerate(all_datasets):
             else True
         )
         dataset = Dataset(name=ds_name, term=term, to_univariate=to_univariate)
+        
+        # Override dataset's prediction_length with our custom values
+        prediction_length = get_prediction_length(term)
+        dataset.prediction_length = prediction_length
+        
         all_ds_tuples.append(
             (dataset.prediction_length, ds_config, ds_name, term, to_univariate)
         )
@@ -292,6 +303,11 @@ for entry in all_ds_tuples:
         continue
 
     dataset = Dataset(name=ds_name, term=term, to_univariate=to_univariate)
+    
+    # Override dataset's prediction_length with our custom values
+    dataset.prediction_length = prediction_length
+    print(f"Using custom prediction length: {prediction_length} (term: {term})")
+    
     season_length = get_seasonality(dataset.freq)
     print(f"Processing entry: {entry}")
     print(f"Dataset size: {len(dataset.test_data)}")

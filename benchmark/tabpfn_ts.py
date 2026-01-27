@@ -10,6 +10,12 @@ import pandas as pd
 import torch
 from dotenv import load_dotenv
 from gift_eval.data import Dataset, PRED_LENGTH_MAP
+
+# Import common functions
+script_dir = os.path.dirname(os.path.abspath(__file__))
+if script_dir not in sys.path:
+    sys.path.insert(0, script_dir)
+from common import get_prediction_length
 from gluonts.ev.metrics import (
     MAE,
     MAPE,
@@ -236,6 +242,12 @@ for ds_num, ds_name in enumerate(all_datasets):
             else True
         )
         dataset = Dataset(name=ds_name, term=term, to_univariate=to_univariate)
+        
+        # Override dataset's prediction_length with our custom values
+        prediction_length = get_prediction_length(term)
+        dataset.prediction_length = prediction_length
+        print(f"Using custom prediction length: {prediction_length} (term: {term})")
+        
         season_length = get_seasonality(dataset.freq)
         print(f"Dataset size: {len(dataset.test_data)}")
         predictor = TabPFNTSPredictor(
