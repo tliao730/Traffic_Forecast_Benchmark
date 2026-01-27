@@ -1,6 +1,6 @@
 import numpy as np
 import torch
-from common import eval, eval_time
+from common import eval, plot_forecast_vs_truth
 from gluonts.itertools import batcher
 from gluonts.model.forecast import QuantileForecast
 from uni2ts.model.moirai2 import Moirai2Forecast, Moirai2Module
@@ -44,16 +44,7 @@ class MoiraiQuantilePredictor:
                 # Generate forecast samples
                 forecast_quantiles = []
                 for batch in batcher(test_data_input, batch_size=self.batch_size):
-                    # Handle both dict and tuple formats
-                    past_target = []
-                    for entry in batch:
-                        if isinstance(entry, tuple):
-                            # Entry is (input_dict, label) tuple
-                            past_target.append(entry[0]["target"])
-                        else:
-                            # Entry is just a dict
-                            past_target.append(entry["target"])
-                    
+                    past_target = [entry["target"] for entry in batch]
                     forecasts = self.model.predict(past_target)
                     forecast_quantiles.append(forecasts)
                 forecast_quantiles = np.concatenate(forecast_quantiles)
@@ -67,16 +58,10 @@ class MoiraiQuantilePredictor:
         # Convert forecast samples into gluonts QuantileForecast objects
         quantile_forecasts = []
         for item, ts in zip(forecast_quantiles, test_data_input):
-            # Handle both dict and tuple formats
-            if isinstance(ts, tuple):
-                ts_dict = ts[0]  # Extract input dict from tuple
-            else:
-                ts_dict = ts
-            
-            forecast_start_date = ts_dict["start"] + len(ts_dict["target"])
+            forecast_start_date = ts["start"] + len(ts["target"])
             quantile_forecasts.append(
                 QuantileForecast(
-                    item_id=ts_dict.get("item_id", "unknown"),
+                    item_id=ts["item_id"],
                     forecast_arrays=item,
                     start_date=forecast_start_date,
                     forecast_keys=list(map(str, self.quantile_levels)),
@@ -100,8 +85,31 @@ def main():
             batch_size=64,
             device_str=device,
         )
-    #eval_time(model_name, model_path, predictor_factory)
-    eval(model_name, model_path, predictor_factory)
+
+    # eval(model_name, model_path, predictor_factory)
+
+    # Quick example: plot forecast vs truth for one test series
+    # Uses defaults from config.py (dataset_name, term, sample_idx, quantile)
+    plot_forecast_vs_truth(
+        predictor_factory,
+        history_length=200,  # Show only last 200 time steps (set to None for all)
+        save_path="forecast.png",  # set to None to show interactively
+    )
+    
+    # Or override specific parameters:
+    # plot_forecast_vs_truth(
+    #     predictor_factory,
+    #     dataset_name="ca/2019/15T",  # override default
+    #     sample_idx=5,  # override default
+    #     history_length=100,  # show last 100 points
+    #     save_path="forecast_ca.png",
+    # )
+    
+    # Or show all history (default behavior):
+    # plot_forecast_vs_truth(
+    #     predictor_factory,
+    #     save_path="forecast_full.png",
+    # )
 
 
 if __name__ == "__main__":

@@ -34,12 +34,13 @@ class EnsemblePredictor:
     """
     
     def __init__(self, models, prediction_length, season_length, 
-                 weights=None, strategy='mean'):
+                 weights=None, strategy='mean', n_jobs=-1):
         self.models = models
         self.prediction_length = prediction_length
         self.season_length = season_length
         self.weights = weights
         self.strategy = strategy
+        self.n_jobs = n_jobs
         self.count = 0
         
         # Validate inputs
@@ -140,7 +141,8 @@ class EnsemblePredictor:
                     history,
                     prediction_length,
                     model_name,
-                    season_length
+                    season_length,
+                    n_jobs=self.n_jobs
                 )
                 forecasts.append(forecast)
             except Exception as e:
@@ -187,6 +189,8 @@ def main():
     parser.add_argument('--weights', type=float, nargs='+',
                       default=None,
                       help='Weights for weighted average (must sum to 1)')
+    parser.add_argument('--n-jobs', type=int, default=-1,
+                      help='Number of CPU threads to use (-1 for all cores, 1 for single thread)')
     
     args = parser.parse_args()
     
@@ -206,6 +210,7 @@ def main():
         model_name = f"ensemble_{args.strategy}_{'_'.join(args.models)}"
     
     print(f"Evaluating ensemble model: {model_name}")
+    print(f"Using {args.n_jobs if args.n_jobs > 0 else 'all available'} CPU threads")
     print("Processing all time series (no sample limit)")
     
     def predictor_factory(dataset):
@@ -218,7 +223,8 @@ def main():
             prediction_length=dataset.prediction_length,
             season_length=season_length,
             weights=args.weights,
-            strategy=args.strategy
+            strategy=args.strategy,
+            n_jobs=args.n_jobs
         )
     
     # Use common.eval() which handles everything

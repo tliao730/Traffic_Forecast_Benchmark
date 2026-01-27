@@ -2,6 +2,7 @@ import csv
 import json
 import logging
 import os
+import time
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -304,6 +305,132 @@ def plot_forecast_vs_truth(
     else:
         plt.show()
     plt.close(fig)
+
+
+def eval_time(model_name, model_path, predictor_factory, estimation_samples=10):
+    """
+    Estimate the time needed to run evaluation on all datasets.
+    
+    Args:
+        model_name: Name of the model for display
+        model_path: Path to model for display
+        predictor_factory: Callable that takes a dataset and returns a predictor
+        estimation_samples: Number of samples to measure (default: 10)
+    
+    Returns:
+        dict: Dictionary with timing statistics for each dataset configuration
+    """
+    short_datasets, med_long_datasets, all_datasets, dataset_properties_map = (
+        setup_dataset()
+    )
+    
+    setup_logger()
+    
+    print(f"Estimating evaluation time for {model_name} from {model_path}")
+    print(f"Using {estimation_samples} samples per dataset for estimation")
+    print("="*70)
+    
+    timing_results = {
+        'model_name': model_name,
+        'model_path': model_path,
+        'estimation_samples': estimation_samples,
+        'datasets': {}
+    }
+    total_estimated_time = 0
+    
+    for ds_num, ds_name in enumerate(all_datasets):
+        ds_key = ds_name.split("/")[0]
+        print(f"\nDataset {ds_num + 1}/{len(all_datasets)}: {ds_name}")
+        
+        terms = ["short", "medium", "long"]
+        for term in terms:
+            if (term == "medium" or term == "long") and ds_name not in med_long_datasets.split():
+                continue
+            
+            if "/" in ds_name:
+                ds_key = ds_name.split("/")[0]
+                ds_freq = ds_name.split("/")[1]
+                ds_key = ds_key.lower()
+                pretty_names = {
+                    "saugeenday": "saugeen",
+                    "temperature_rain_with_missing": "temperature_rain",
+                    "kdd_cup_2018_with_missing": "kdd_cup_2018",
+                    "car_parts_with_missing": "car_parts",
+                }
+                ds_key = pretty_names.get(ds_key, ds_key)
+            else:
+                ds_key = ds_name.lower()
+                ds_freq = dataset_properties_map[ds_key]["frequency"]
+            
+            ds_config = f"{ds_key}/{ds_freq}/{term}"
+            
+            # Initialize the dataset
+            to_univariate = (
+                False
+                if Dataset(name=ds_name, term=term, to_univariate=False).target_dim == 1
+                else True
+            )
+            dataset = Dataset(name=ds_name, term=term, to_univariate=to_univariate)
+            prediction_length = get_prediction_length(term)
+            dataset.prediction_length = prediction_length
+            
+            num_test_samples = len(dataset.test_data)
+            measure_samples = min(estimation_samples, num_test_samples)
+            
+            print(f"  {term}: {num_test_samples} samples", end=" ")
+            
+            # Create predictor
+            predictor = predictor_factory(dataset)
+            
+            # Measure time for estimation samples
+            test_data_list = list(dataset.test_data)
+            start_time = time.time()
+            
+            for i in range(measure_samples):
+                _ = list(predictor.predict([test_data_list[i]]))
+            
+            elapsed_time = time.time() - start_time
+            avg_time_per_sample = elapsed_time / measure_samples
+            estimated_time = avg_time_per_sample * num_test_samples
+            
+            timing_results['datasets'][ds_config] = {
+                'num_samples': num_test_samples,
+                'measured_samples': measure_samples,
+                'avg_time_per_sample': avg_time_per_sample,
+                'estimated_total_seconds': estimated_time,
+                'estimated_total_minutes': estimated_time / 60,
+                'estimated_total_hours': estimated_time / 3600
+            }
+            
+            total_estimated_time += estimated_time
+            
+            print(f"→ {avg_time_per_sample:.4f}s/sample → ~{estimated_time:.1f}s (~{estimated_time/60:.1f}min)")
+    
+    # Add total statistics
+    timing_results['total'] = {
+        'total_seconds': total_estimated_time,
+        'total_minutes': total_estimated_time / 60,
+        'total_hours': total_estimated_time / 3600
+    }
+    
+    print("\n" + "="*70)
+    print("TOTAL ESTIMATED TIME:")
+    print(f"  {total_estimated_time:.2f} seconds")
+    print(f"  {total_estimated_time/60:.2f} minutes")
+    print(f"  {total_estimated_time/3600:.2f} hours")
+    print("="*70)
+    
+    # Save to JSON file
+    output_dir = f"{result_root}/{model_name}"
+    os.makedirs(output_dir, exist_ok=True)
+    json_file_path = os.path.join(output_dir, "time_estimation.json")
+    
+    with open(json_file_path, 'w') as f:
+        json.dump(timing_results, f, indent=2)
+    
+    print(f"\nTiming results saved to: {os.path.abspath(json_file_path)}")
+    
+    return timing_results
 
 
 def eval(model_name, model_path, predictor_factory, batch_size=1024):
