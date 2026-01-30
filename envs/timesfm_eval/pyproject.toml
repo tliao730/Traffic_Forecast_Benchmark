@@ -1,0 +1,25 @@
+[project]
+name = "timesfm-eval"
+version = "0.1.0"
+description = "Environment for TimesFM benchmark (timesfm + gift-eval)"
+requires-python = ">=3.10,<3.11"
+dependencies = [
+    # TimesFM: JAX backend (use Python 3.10.x). For PyTorch backend use Python 3.11.x and timesfm[torch]
+    "timesfm[pax]",
+    # Gift-eval package (pip install -e . in repo → we use git ref)
+    "salesforce-gift-eval @ git+https://github.com/DensoSVIC/gift-eval.git@traffic",
+    # Gift-eval / evaluation dependencies
+    "pandas>=2.0.0",
+    "gluonts~=0.15.1",
+    "numpy~=1.26.0",
+    "einops==0.7.*",
+    "python-dotenv==1.0.0",
+    "hydra-core==1.3",
+    "datasets~=2.17.1",
+    "orjson",
+    "matplotlib~=3.9.2",
+    "tsfeatures",
+    "ray",
+    "scipy~=1.11.3",
+    "tqdm",
+]
