@@ -190,8 +190,8 @@ TrafficFM/
   ```bash
   cd TrafficFM/benchmark
   uv run --project ../envs/kairos python kairos.py
-  uv run --project ../envs/flowstate python flowstate_new.py
-  uv run --project ../envs/feedforward python feedforward_new.py
+  uv run --project ../envs/flowstate python flowstate.py
+  uv run --project ../envs/feedforward python feedforward.py
   ```
 
   这样：
