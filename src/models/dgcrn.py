@@ -168,7 +168,11 @@ class DGCRN(BaseModel):
 
         outputs = None
         for i in range(self.seq_len):
-            Hidden_State, Cell_State = self.step(torch.squeeze(x[..., i]),
+            # x[..., i] shape: (b, n, f), ensure it's at least 2D for step()
+            x_step = x[..., i]
+            if x_step.dim() < 2:
+                x_step = x_step.unsqueeze(-1)
+            Hidden_State, Cell_State = self.step(x_step,
                                                  Hidden_State, Cell_State,
                                                  self.predefined_adj, 'encoder', i)
             if outputs is None:

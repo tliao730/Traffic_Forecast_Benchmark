@@ -54,7 +54,7 @@ def get_model_and_batches_for_eval_time(dataset_key, seq_len, horizon, estimatio
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
     args = argparse.Namespace(
         device=str(device), dataset=dataset_key, years='2019', model_name='dstagnn', seed=2023,
-        bs=1, seq_len=seq_len, horizon=horizon, input_dim=3, output_dim=1, mode='test',
+        bs=1, seq_len=seq_len, horizon=horizon, input_dim=1, output_dim=1, mode='test',
         max_epochs=100, patience=30, order=2, nb_block=2, nb_chev_filter=32, nb_time_filter=32,
         time_stride=1, d_model=512, d_k=32, n_head=3,
         lrate=1e-4, wdecay=0, clip_grad_value=0,
@@ -80,6 +80,8 @@ def get_model_and_batches_for_eval_time(dataset_key, seq_len, horizon, estimatio
     model.to(device)
     batches = []
     for i, (x, y) in enumerate(dataloader['test_loader'].get_iterator()):
+        if x.shape[-1] > 1:
+            x = x[..., :1]
         batches.append((x, y))
         if len(batches) >= estimation_samples:
             break
