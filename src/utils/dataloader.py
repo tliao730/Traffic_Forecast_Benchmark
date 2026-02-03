@@ -56,7 +56,7 @@ class DataLoader(object):
                 y = np.frombuffer(y_shared, dtype='f').reshape(y_shape)
 
                 array_size = len(idx_ind)
-                num_threads = len(idx_ind) // 2
+                num_threads = max(1, len(idx_ind) // 2)
                 chunk_size = array_size // num_threads
                 threads = []
                 for i in range(num_threads):
