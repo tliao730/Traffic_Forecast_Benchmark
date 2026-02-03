@@ -387,7 +387,11 @@ def eval_time(model_name, model_path, predictor_factory, estimation_samples=10):
             start_time = time.time()
             
             for i in range(measure_samples):
-                _ = list(predictor.predict([test_data_list[i]]))
+                item = test_data_list[i]
+                # test_data may yield (input_dict, label) tuples; predictor expects input dicts
+                if isinstance(item, tuple):
+                    item = item[0]
+                _ = list(predictor.predict([item]))
             
             elapsed_time = time.time() - start_time
             avg_time_per_sample = elapsed_time / measure_samples

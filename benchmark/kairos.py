@@ -10,7 +10,8 @@ from gluonts.model import Forecast
 from gluonts.model.forecast import SampleForecast
 from tqdm.auto import tqdm
 
-from common import eval
+import argparse
+from common import eval, eval_time
 
 # Load environment variables
 load_dotenv()
@@ -134,8 +135,14 @@ def main():
             prediction_length=dataset.prediction_length,
         )
 
-    # Delegate dataset loop, metrics and CSV writing to common.eval
-    eval(model_name, model_path, predictor_factory, batch_size=256)
+    parser = argparse.ArgumentParser(description="Kairos evaluation or time estimation")
+    parser.add_argument("--eval-time", action="store_true", help="Run eval_time (time estimation) only")
+    args = parser.parse_args()
+
+    if args.eval_time:
+        eval_time(model_name, model_path, predictor_factory)
+    else:
+        eval(model_name, model_path, predictor_factory, batch_size=256)
 
 
 if __name__ == "__main__":

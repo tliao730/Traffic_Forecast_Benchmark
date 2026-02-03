@@ -1,7 +1,13 @@
 import inspect
+import re
 from dataclasses import dataclass, field
 from typing import Iterator, List, Optional, Type
 import logging
+
+
+def _normalize_freq(freq: str) -> str:
+    """Replace deprecated 'T' (minute) with 'min' to avoid pandas FutureWarning."""
+    return re.sub(r"(\d*)T\b", r"\1min", freq)
 
 import numpy as np
 import pandas as pd
@@ -18,7 +24,8 @@ from statsforecast.models import (
     SeasonalNaive,
 )
 
-from common import eval
+import argparse
+from common import eval, eval_time
 from gluonts.time_feature import get_seasonality
 
 
@@ -93,10 +100,10 @@ class StatsForecastPredictor(RepresentablePredictor):
         if "season_length" in inspect.signature(self.ModelType.__init__).parameters:
             model_params["season_length"] = season_length
 
-        self.freq = freq
+        self.freq = _normalize_freq(freq)
         self.model = StatsForecast(
             models=[self.ModelType(**model_params)],
-            freq=freq,
+            freq=self.freq,
             fallback_model=SeasonalNaive(season_length=season_length),
             n_jobs=-1 if parallel else 1,
         )
@@ -145,7 +152,7 @@ class StatsForecastPredictor(RepresentablePredictor):
                     "ds": pd.date_range(
                         start=start.to_timestamp(),
                         periods=len(target),
-                        freq=start.freq,
+                        freq=self.freq,
                     ).to_numpy(),
                     "y": target,
                 }
@@ -242,7 +249,14 @@ def main():
             batch_size=512,
         )
 
-    eval(model_name, model_path, predictor_factory, batch_size=512)
+    parser = argparse.ArgumentParser(description="Naive/SeasonalNaive evaluation or time estimation")
+    parser.add_argument("--eval-time", action="store_true", help="Run eval_time (time estimation) only")
+    args = parser.parse_args()
+
+    if args.eval_time:
+        eval_time(model_name, model_path, predictor_factory)
+    else:
+        eval(model_name, model_path, predictor_factory, batch_size=512)
 
 
 if __name__ == "__main__":

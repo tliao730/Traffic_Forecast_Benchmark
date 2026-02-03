@@ -260,6 +260,8 @@ def main():
                       help='Model to use')
     parser.add_argument('--n-jobs', type=int, default=16,
                       help='Number of CPU threads to use (-1 for all cores, 1 for single thread)')
+    parser.add_argument('--eval-time', action='store_true',
+                      help='Run eval_time (time estimation) only')
     
     args = parser.parse_args()
     
@@ -281,20 +283,11 @@ def main():
             n_jobs=n_jobs
         )
     
-    # Use common.eval() which handles everything
-    # eval(
-    #     model_name=model_name,
-    #     model_path=f"sklearn/{model_name}",  # Descriptive path
-    #     predictor_factory=predictor_factory,
-    #     batch_size=1024
-    # )
-
-    eval_time(
-        model_name=model_name,
-        model_path=f"sklearn/{model_name}",  # Descriptive path
-        predictor_factory=predictor_factory,
-        estimation_samples=10
-    )
+    model_path = f"sklearn/{model_name}"
+    if args.eval_time:
+        eval_time(model_name, model_path, predictor_factory, estimation_samples=10)
+    else:
+        eval(model_name, model_path, predictor_factory, batch_size=1024)
 
 
 

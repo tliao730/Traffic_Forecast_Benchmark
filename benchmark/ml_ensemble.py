@@ -13,7 +13,7 @@ import warnings
 import numpy as np
 import pandas as pd
 from gluonts.model.forecast import SampleForecast
-from common import eval
+from common import eval, eval_time
 
 # Import the ML forecasting function from ml_methods
 from ml_methods import ml_forecast
@@ -191,6 +191,8 @@ def main():
                       help='Weights for weighted average (must sum to 1)')
     parser.add_argument('--n-jobs', type=int, default=-1,
                       help='Number of CPU threads to use (-1 for all cores, 1 for single thread)')
+    parser.add_argument('--eval-time', action='store_true',
+                      help='Run eval_time (time estimation) only')
     
     args = parser.parse_args()
     
@@ -227,13 +229,11 @@ def main():
             n_jobs=args.n_jobs
         )
     
-    # Use common.eval() which handles everything
-    eval(
-        model_name=model_name,
-        model_path=f"ensemble/{args.strategy}",
-        predictor_factory=predictor_factory,
-        batch_size=1024
-    )
+    model_path = f"ensemble/{args.strategy}"
+    if args.eval_time:
+        eval_time(model_name, model_path, predictor_factory, estimation_samples=10)
+    else:
+        eval(model_name, model_path, predictor_factory, batch_size=1024)
 
 
 if __name__ == "__main__":

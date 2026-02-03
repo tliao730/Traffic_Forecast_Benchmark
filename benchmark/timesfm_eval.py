@@ -1,3 +1,4 @@
+import argparse
 import logging
 import os
 import sys
@@ -11,7 +12,7 @@ from gluonts.model import Forecast
 from gluonts.model.forecast import QuantileForecast
 from tqdm.auto import tqdm
 
-from common import eval
+from common import eval, eval_time
 
 warnings.filterwarnings("ignore")
 
@@ -130,8 +131,14 @@ def main():
             ds_freq=dataset.freq,
         )
 
-    # Let common.eval handle datasets, metrics, and CSV writing
-    eval(model_name, model_path, predictor_factory, batch_size=1024)
+    parser = argparse.ArgumentParser(description="TimesFM evaluation or time estimation")
+    parser.add_argument("--eval-time", action="store_true", help="Run eval_time (time estimation) only")
+    args = parser.parse_args()
+
+    if args.eval_time:
+        eval_time(model_name, model_path, predictor_factory)
+    else:
+        eval(model_name, model_path, predictor_factory, batch_size=1024)
 
 
 if __name__ == "__main__":

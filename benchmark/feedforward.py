@@ -1,3 +1,4 @@
+import argparse
 import torch
 
 # PyTorch 2.6+ defaults weights_only=True; Lightning checkpoints need False to load.
@@ -7,7 +8,7 @@ def _patched_torch_load(*args, **kwargs):
     return _orig_torch_load(*args, **kwargs)
 torch.load = _patched_torch_load
 
-from common import eval
+from common import eval, eval_time
 from gluonts.torch.model.simple_feedforward import SimpleFeedForwardEstimator
 
 
@@ -35,9 +36,14 @@ def main():
         predictor = estimator.train(dataset.validation_dataset)
         return predictor
 
-    # Delegate the full benchmark loop to common.eval
-    # batch_size matches the original script's evaluate_model batch_size (512)
-    eval(model_name, model_path, predictor_factory, batch_size=512)
+    parser = argparse.ArgumentParser(description="Feedforward evaluation or time estimation")
+    parser.add_argument("--eval-time", action="store_true", help="Run eval_time (time estimation) only")
+    args = parser.parse_args()
+
+    if args.eval_time:
+        eval_time(model_name, model_path, predictor_factory)
+    else:
+        eval(model_name, model_path, predictor_factory, batch_size=512)
 
 
 if __name__ == "__main__":

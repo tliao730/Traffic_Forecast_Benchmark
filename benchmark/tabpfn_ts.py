@@ -2,13 +2,17 @@ import os
 import sys
 from typing import Iterator
 
-from common import eval
+import argparse
+from common import eval, eval_time
 from gluonts.model.forecast import Forecast
 
 # Try multiple possible locations for tabpfn-time-series
+_benchmark_dir = os.path.dirname(os.path.abspath(__file__))
+_trafficfm_root = os.path.dirname(_benchmark_dir)
 possible_paths = [
+    os.path.join(_trafficfm_root, "envs", "tabpfn_ts", "tabpfn-time-series"),  # env-specific install
     os.path.join(os.path.expanduser("~"), "tabpfn-time-series"),
-    os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "tabpfn-time-series"),
+    os.path.join(_trafficfm_root, "tabpfn-time-series"),
     "tabpfn-time-series",  # relative to current working directory
 ]
 
@@ -93,7 +97,14 @@ def main():
             context_length=4096,
         )
 
-    eval(model_name, model_path, predictor_factory, batch_size=1024)
+    parser = argparse.ArgumentParser(description="TabPFN-TS evaluation or time estimation")
+    parser.add_argument("--eval-time", action="store_true", help="Run eval_time (time estimation) only")
+    args = parser.parse_args()
+
+    if args.eval_time:
+        eval_time(model_name, model_path, predictor_factory)
+    else:
+        eval(model_name, model_path, predictor_factory, batch_size=1024)
 
 
 if __name__ == "__main__":

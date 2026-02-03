@@ -1,3 +1,4 @@
+import argparse
 import numpy as np
 import torch
 from common import eval, eval_time
@@ -100,8 +101,14 @@ def main():
             batch_size=64,
             device_str=device,
         )
-    #eval_time(model_name, model_path, predictor_factory)
-    eval(model_name, model_path, predictor_factory)
+    parser = argparse.ArgumentParser(description="Moirai2 evaluation or time estimation")
+    parser.add_argument("--eval-time", action="store_true", help="Run eval_time (time estimation) only")
+    args = parser.parse_args()
+
+    if args.eval_time:
+        eval_time(model_name, model_path, predictor_factory)
+    else:
+        eval(model_name, model_path, predictor_factory)
 
 
 if __name__ == "__main__":

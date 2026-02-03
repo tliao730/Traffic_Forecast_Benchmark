@@ -10,39 +10,29 @@ import torch
 # Set environment variable for CUDA
 os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
 
-# Try to find toto repository in common locations
-possible_toto_paths = [
-    os.path.join(os.path.expanduser("~"), "toto"),
-    os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "toto"),
-    "toto",  # relative to current working directory
-]
-
-toto_path = None
-for path in possible_toto_paths:
-    abs_path = os.path.abspath(path)
-    if os.path.exists(abs_path):
-        toto_path = abs_path
-        break
-
-if toto_path is None:
+# Toto path: set TOTO_PATH to your clone, or clone into envs/toto/toto
+_script_dir = os.path.dirname(os.path.abspath(__file__))
+_trafficfm_root = os.path.dirname(_script_dir)
+_default_toto = os.path.join(_trafficfm_root, "envs", "toto", "toto")
+toto_path = os.environ.get("TOTO_PATH", _default_toto)
+if os.path.isdir(toto_path):
+    if toto_path not in sys.path:
+        sys.path.insert(0, os.path.realpath(toto_path))
+else:
     raise FileNotFoundError(
-        "toto repository not found. Please clone it first:\n"
-        "  git clone https://github.com/DataDog/toto.git\n"
-        f"  Searched in: {', '.join(possible_toto_paths)}"
+        f"toto repository not found at {toto_path}. "
+        "Clone it: git clone https://github.com/DataDog/toto.git "
+        "or set TOTO_PATH to your clone path."
     )
-
-# Add toto to Python path
-if toto_path not in sys.path:
-    sys.path.insert(0, toto_path)
 
 from gluonts.dataset.split import split
 from gluonts.time_feature import get_seasonality
 #from inference.gluonts_predictor import Multivariate, TotoPredictor
 from toto.inference.gluonts_predictor import Multivariate, TotoPredictor
+from toto.model.toto import Toto
 
-from model.toto import Toto
-
-from common import eval
+import argparse
+from common import eval, eval_time
 from config import device
 
 DEFAULT_CONTEXT_LENGTH = 4096
@@ -294,8 +284,15 @@ def main():
         predictor._current_dataset = dataset
         return predictor
 
+    parser = argparse.ArgumentParser(description="Toto evaluation or time estimation")
+    parser.add_argument("--eval-time", action="store_true", help="Run eval_time (time estimation) only")
+    args = parser.parse_args()
+
     try:
-        eval(model_name, model_path, predictor_factory, batch_size=num_samples)
+        if args.eval_time:
+            eval_time(model_name, model_path, predictor_factory)
+        else:
+            eval(model_name, model_path, predictor_factory, batch_size=num_samples)
     finally:
         # Cleanup
         del model
