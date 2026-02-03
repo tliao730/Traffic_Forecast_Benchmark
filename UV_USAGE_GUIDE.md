@@ -189,9 +189,20 @@ TrafficFM/
 
   ```bash
   cd TrafficFM/benchmark
-  uv run --project ../envs/kairos python kairos.py
+  uv run --project ../envs/arima python arima.py
+  uv run --project ../envs/moirai python chronos_1.py
+  uv run --project ../envs/flowstate python feedforward.py
   uv run --project ../envs/flowstate python flowstate.py
-  uv run --project ../envs/feedforward python feedforward.py
+  uv run --project ../envs/kairos python kairos.py
+  uv run --project ../envs/moirai python moirai.py
+  uv run --project ../envs/moirai python moirai2.py
+  uv run --project ../envs/flowstate python naive.py
+  uv run --project ../envs/sundial python sundial.py
+  uv run --project ../envs/tabpfn_ts python tabpfn_ts.py
+  uv run --project ../envs/timesfm_eval python timesfm_eval.py
+  uv run --project ../envs/toto python toto.py
+  uv run --project ../envs/tabpfn_ts python ml_ensemble.py
+  uv run --project ../envs/tabpfn_ts python ml_methods.py
   ```
 
   这样：
