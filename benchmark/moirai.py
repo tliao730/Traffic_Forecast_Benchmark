@@ -1,213 +1,57 @@
-import csv
-import json
-import os
-
-import pandas as pd
-from config import device, med_long_datasets, short_datasets
-from common import get_prediction_length
+import argparse
 from dotenv import load_dotenv
-from gift_eval.data import Dataset
-from gluonts.ev.metrics import (MAE, MAPE, MASE, MSE, MSIS, ND, NRMSE, RMSE,
-                                SMAPE, MeanWeightedSumQuantileLoss)
-from gluonts.model import evaluate_model
-from gluonts.time_feature import get_seasonality
+
+from common import eval, eval_time
 from uni2ts.model.moirai import MoiraiForecast, MoiraiModule
 
-# Load environment variables
+# Load environment variables (for model caches, etc.)
 load_dotenv()
 
-# Get union of short and med_long datasets
-all_datasets = list(set(short_datasets.split() + med_long_datasets.split()))
 
-# Determine the correct path for dataset_properties.json
-script_dir = os.path.dirname(os.path.abspath(__file__))
-dataset_properties_path = os.path.join(script_dir, "dataset_properties.json")
+# Load Moirai module once and reuse across datasets
+_moirai_module = MoiraiModule.from_pretrained("Salesforce/moirai-1.0-R-small")
 
-if not os.path.exists(dataset_properties_path):
-    # Fallback to trying relative paths
-    if os.path.exists("./dataset_properties.json"):
-        dataset_properties_path = "./dataset_properties.json"
-    elif os.path.exists("./benchmark/dataset_properties.json"):
-        dataset_properties_path = "./benchmark/dataset_properties.json"
-    else:
-        raise FileNotFoundError(
-            "dataset_properties.json not found. Make sure you're running this script from benchmark/ directory."
+
+def main():
+    model_name = "moirai_small"
+    model_path = "Salesforce/moirai-1.0-R-small"
+
+    context_length = 4000
+    patch_size = 32
+    num_samples = 20
+
+    def predictor_factory(dataset):
+        """
+        Given a Dataset from common.eval, construct a Moirai GluonTS predictor.
+        This mirrors the behavior of the old moirai.py script:
+        - prediction_length is set per-term by common.eval
+        - target_dim and past_feat_dynamic_real_dim come from the Dataset
+        """
+        model = MoiraiForecast(
+            module=_moirai_module,
+            prediction_length=dataset.prediction_length,
+            context_length=context_length,
+            patch_size=patch_size,
+            num_samples=num_samples,
+            target_dim=dataset.target_dim,
+            feat_dynamic_real_dim=0,
+            past_feat_dynamic_real_dim=dataset.past_feat_dynamic_real_dim,
         )
 
-dataset_properties_map = json.load(open(dataset_properties_path))
-
-# Add properties for new datasets (ca, gba, gla, sd)
-if 'ca' not in dataset_properties_map:
-    dataset_properties_map['ca'] = {"frequency": "15T", "domain": "Transport", "num_variates": 1}
-if 'gba' not in dataset_properties_map:
-    dataset_properties_map['gba'] = {"frequency": "15T", "domain": "Transport", "num_variates": 1}
-if 'gla' not in dataset_properties_map:
-    dataset_properties_map['gla'] = {"frequency": "15T", "domain": "Transport", "num_variates": 1}
-if 'sd' not in dataset_properties_map:
-    dataset_properties_map['sd'] = {"frequency": "15T", "domain": "Transport", "num_variates": 1}
-
-# Instantiate the metrics
-metrics = [
-    MSE(forecast_type="mean"),
-    MSE(forecast_type=0.5),
-    MAE(),
-    MASE(),
-    MAPE(),
-    SMAPE(),
-    MSIS(),
-    RMSE(),
-    NRMSE(),
-    ND(),
-    MeanWeightedSumQuantileLoss(
-        quantile_levels=[0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
-    ),
-]
-
-# Load Moirai model
-model = MoiraiForecast(
-    module=MoiraiModule.from_pretrained(f"Salesforce/moirai-1.0-R-small"),
-    prediction_length=1,
-    context_length=4000,
-    patch_size=32,
-    num_samples=20,
-    target_dim=1,
-    feat_dynamic_real_dim=0,
-    past_feat_dynamic_real_dim=0,
-)
-
-model_name = "moirai_small"
-# Output directory relative to benchmark/
-output_dir = os.path.join("..", "results", model_name)
-# Ensure the output directory exists
-os.makedirs(output_dir, exist_ok=True)
-print(f"Results will be saved to: {os.path.abspath(output_dir)}")
-
-pretty_names = {
-    "saugeenday": "saugeen",
-    "temperature_rain_with_missing": "temperature_rain",
-    "kdd_cup_2018_with_missing": "kdd_cup_2018",
-    "car_parts_with_missing": "car_parts",
-}
-
-# Define the path for the CSV file
-csv_file_path = os.path.join(output_dir, "all_results.csv")
-
-# Check if file exists and read completed datasets
-done_datasets = []
-if os.path.exists(csv_file_path):
-    df_done = pd.read_csv(csv_file_path)
-    done_datasets = df_done["dataset"].values.tolist()
-    print(f"Found {len(done_datasets)} completed datasets.")
-else:
-    with open(csv_file_path, "w", newline="") as csvfile:
-        writer = csv.writer(csvfile)
-
-        # Write the header
-        writer.writerow(
-            [
-                "dataset",
-                "model",
-                "eval_metrics/MSE[mean]",
-                "eval_metrics/MSE[0.5]",
-                "eval_metrics/MAE[0.5]",
-                "eval_metrics/MASE[0.5]",
-                "eval_metrics/MAPE[0.5]",
-                "eval_metrics/sMAPE[0.5]",
-                "eval_metrics/MSIS",
-                "eval_metrics/RMSE[mean]",
-                "eval_metrics/NRMSE[mean]",
-                "eval_metrics/ND[0.5]",
-                "eval_metrics/mean_weighted_sum_quantile_loss",
-                "domain",
-                "num_variates",
-            ]
-        )
-
-for ds_num, ds_name in enumerate(all_datasets):
-    ds_key = ds_name.split("/")[0]
-    print(f"Processing dataset: {ds_name} ({ds_num + 1} of {len(all_datasets)})")
-    terms = ["short", "medium", "long"]
-    for term in terms:
-        if (
-            term == "medium" or term == "long"
-        ) and ds_name not in med_long_datasets.split():
-            continue
-
-        if "/" in ds_name:
-            ds_key = ds_name.split("/")[0]
-            ds_freq = ds_name.split("/")[1]
-            ds_key = ds_key.lower()
-            ds_key = pretty_names.get(ds_key, ds_key)
-        else:
-            ds_key = ds_name.lower()
-            ds_key = pretty_names.get(ds_key, ds_key)
-            ds_freq = dataset_properties_map[ds_key]["frequency"]
-
-        ds_config = f"{ds_key}/{ds_freq}/{term}"
-
-        # Skip if already completed
-        if ds_config in done_datasets:
-            print(f"Skipping already completed dataset: {ds_config}")
-            continue
-
-        # Initialize the dataset
-        to_univariate = False
-        dataset = Dataset(name=ds_name, term=term, to_univariate=to_univariate)
-
-        # Override dataset's prediction_length with our custom values
-        prediction_length = get_prediction_length(term)
-        dataset.prediction_length = prediction_length
-        print(f"Using custom prediction length: {prediction_length} (term: {term})")
-
-        # set the Moirai hyperparameter according to each dataset, then create the predictor
-        model.hparams.prediction_length = dataset.prediction_length
-        model.hparams.target_dim = dataset.target_dim
-        model.hparams.past_feat_dynamic_real_dim = dataset.past_feat_dynamic_real_dim
-
+        # In the old script, model.create_predictor(batch_size=64) was passed directly
         predictor = model.create_predictor(batch_size=64)
+        return predictor
 
-        season_length = get_seasonality(dataset.freq)
-        print(f"Dataset size: {len(dataset.test_data)}")
+    parser = argparse.ArgumentParser(description="Moirai evaluation or time estimation")
+    parser.add_argument("--eval-time", action="store_true", help="Run eval_time (time estimation) only")
+    args = parser.parse_args()
 
-        res = evaluate_model(
-            predictor,
-            test_data=dataset.test_data,
-            metrics=metrics,
-            batch_size=64,
-            axis=None,
-            mask_invalid_label=True,
-            allow_nan_forecast=False,
-            seasonality=season_length,
-        )
-
-        # Append the results to the CSV file
-        with open(csv_file_path, "a", newline="") as csvfile:
-            writer = csv.writer(csvfile)
-            writer.writerow(
-                [
-                    ds_config,
-                    model_name,
-                    res["MSE[mean]"][0],
-                    res["MSE[0.5]"][0],
-                    res["MAE[0.5]"][0],
-                    res["MASE[0.5]"][0],
-                    res["MAPE[0.5]"][0],
-                    res["sMAPE[0.5]"][0],
-                    res["MSIS"][0],
-                    res["RMSE[mean]"][0],
-                    res["NRMSE[mean]"][0],
-                    res["ND[0.5]"][0],
-                    res["mean_weighted_sum_quantile_loss"][0],
-                    dataset_properties_map[ds_key]["domain"],
-                    dataset_properties_map[ds_key]["num_variates"],
-                ]
-            )
-
-        print(f"Results for {ds_name} have been written to {csv_file_path}")
+    if args.eval_time:
+        eval_time(model_name, model_path, predictor_factory)
+    else:
+        eval(model_name, model_path, predictor_factory, batch_size=64)
 
 
-results_file = os.path.join("..", "results", model_name, "all_results.csv")
-df = pd.read_csv(results_file)
-print("\nFinal aggregated results:")
-print(df)
+if __name__ == "__main__":
+    main()
 

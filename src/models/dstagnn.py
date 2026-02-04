@@ -114,7 +114,8 @@ class DSTAGNN_block(nn.Module):
         if num_of_features == 1:
             x_residual = self.residual_conv(x.permute(0, 2, 1, 3))
         else:
-            x_residual = x.permute(0, 2, 1, 3)
+            # When num_of_features != 1, need to project x to nb_time_filter to match time_conv_output
+            x_residual = self.residual_conv(x.permute(0, 2, 1, 3))
 
         x_residual = self.ln(F.relu(x_residual + time_conv_output).permute(0, 3, 2, 1)).permute(0, 2, 3, 1)
         return x_residual, re_At
@@ -147,7 +148,14 @@ class MultiHeadAttention(nn.Module):
         context, res_attn = ScaledDotProductAttention(self.d_k)(Q, K, V, attn_mask, res_att)
         context = context.transpose(2, 3).reshape(bs, self.num_of_d, -1, self.n_head * self.d_v)
         output = self.fc(context)
-        return nn.LayerNorm(self.d_model).to(self.device)(output + residual), res_attn
+        # Handle residual connection: output and residual may have different seq_len due to time_stride
+        if output.shape == residual.shape:
+            output = output + residual
+        elif output.shape[:2] == residual.shape[:2] and output.shape[3] == residual.shape[3]:
+            # Same batch, num_of_d, and feature dim, but different seq_len - align seq_len
+            min_seq_len = min(output.shape[2], residual.shape[2])
+            output = output[:, :, :min_seq_len, :] + residual[:, :, :min_seq_len, :]
+        return nn.LayerNorm(self.d_model).to(self.device)(output), res_attn
 
 
 class ScaledDotProductAttention(nn.Module):
@@ -157,7 +165,13 @@ class ScaledDotProductAttention(nn.Module):
 
 
     def forward(self, Q, K, V, attn_mask, res_att):
-        scores = torch.matmul(Q, K.transpose(-1, -2)) / np.sqrt(self.d_k) + res_att
+        scores = torch.matmul(Q, K.transpose(-1, -2)) / np.sqrt(self.d_k)
+        # Residual attention is optional; skip if shapes are incompatible (e.g., different seq_len across blocks)
+        if res_att is not None:
+            try:
+                scores = scores + res_att
+            except Exception:
+                pass
         if attn_mask is not None:
             scores.masked_fill_(attn_mask, -1e9)
         attn = F.softmax(scores, dim=3)

@@ -1,9 +1,11 @@
 import os
 import argparse
+import logging
 import numpy as np
 
 import sys
 sys.path.append(os.path.abspath(__file__ + '/../../..'))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 
 import torch
 torch.set_num_threads(3)
@@ -45,7 +47,42 @@ def get_config():
     return args, log_dir, logger
 
 
+def get_model_and_batches_for_eval_time(dataset_key, seq_len, horizon, estimation_samples):
+    set_seed(2023)
+    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+    args = argparse.Namespace(
+        device=str(device), dataset=dataset_key, years='2019', model_name='sttn', seed=2023,
+        bs=1, seq_len=seq_len, horizon=horizon, input_dim=3, output_dim=1, mode='test',
+        max_epochs=100, patience=30, adj_type='doubletransition', blocks=2, mlp_expand=2,
+        hid_dim=32, end_dim=512, lrate=1e-3, wdecay=1e-4, dropout=0.1, clip_grad_value=5,
+    )
+    logger = logging.getLogger(__name__)
+    logger.setLevel(logging.WARNING)
+    data_path, adj_path, node_num = get_dataset_info(args.dataset)
+    adj_mx = load_adj_from_numpy(adj_path)
+    adj_mx = normalize_adj_mx(adj_mx, args.adj_type)
+    supports = [torch.tensor(i).to(device) for i in adj_mx]
+    dataloader, _ = load_dataset(data_path, args, logger)
+    model = STTN(node_num=node_num, input_dim=args.input_dim, output_dim=args.output_dim,
+                device=device, supports=supports, blocks=args.blocks, mlp_expand=args.mlp_expand,
+                hidden_channels=args.hid_dim, end_channels=args.end_dim, dropout=args.dropout)
+    model.to(device)
+    batches = []
+    for i, (x, y) in enumerate(dataloader['test_loader'].get_iterator()):
+        batches.append((x, y))
+        if len(batches) >= estimation_samples:
+            break
+    return model, batches
+
+
 def main():
+    if '--eval-time' in sys.argv:
+        import eval_time_common
+        eval_time_common.run_eval_time_for_experiment(
+            model_name='sttn', model_path='experiments/sttn',
+            get_model_and_batches_fn=get_model_and_batches_for_eval_time, estimation_samples=10,
+        )
+        return
     args, log_dir, logger = get_config()
     set_seed(args.seed)
     device = torch.device(args.device)

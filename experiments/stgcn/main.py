@@ -1,9 +1,11 @@
 import os
 import argparse
+import logging
 import numpy as np
 
 import sys
 sys.path.append(os.path.abspath(__file__ + '/../../..'))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 
 import torch
 torch.set_num_threads(3)
@@ -45,7 +47,46 @@ def get_config():
     return args, log_dir, logger
 
 
+def get_model_and_batches_for_eval_time(dataset_key, seq_len, horizon, estimation_samples):
+    set_seed(2023)
+    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+    args = argparse.Namespace(
+        device=str(device), dataset=dataset_key, years='2019', model_name='stgcn', seed=2023,
+        bs=1, seq_len=seq_len, horizon=horizon, input_dim=3, output_dim=1, mode='test',
+        max_epochs=100, patience=30, Kt=3, Ks=3, block_num=2, step_size=10, gamma=0.95,
+        lrate=1e-3, wdecay=5e-4, dropout=0.5, clip_grad_value=0,
+    )
+    logger = logging.getLogger(__name__)
+    logger.setLevel(logging.WARNING)
+    data_path, adj_path, node_num = get_dataset_info(args.dataset)
+    adj_mx = load_adj_from_numpy(adj_path)
+    adj_mx = adj_mx - np.eye(node_num)
+    gso = normalize_adj_mx(adj_mx, 'scalap')[0]
+    gso = torch.tensor(gso).to(device)
+    Ko = args.seq_len - (args.Kt - 1) * 2 * args.block_num
+    blocks = [[args.input_dim]] + [[64, 16, 64]] * args.block_num
+    blocks.append([128] if Ko == 0 else [128, 128])
+    blocks.append([args.horizon])
+    dataloader, _ = load_dataset(data_path, args, logger)
+    model = STGCN(node_num=node_num, input_dim=args.input_dim, output_dim=args.output_dim,
+                  gso=gso, blocks=blocks, Kt=args.Kt, Ks=args.Ks, dropout=args.dropout)
+    model.to(device)
+    batches = []
+    for i, (x, y) in enumerate(dataloader['test_loader'].get_iterator()):
+        batches.append((x, y))
+        if len(batches) >= estimation_samples:
+            break
+    return model, batches
+
+
 def main():
+    if '--eval-time' in sys.argv:
+        import eval_time_common
+        eval_time_common.run_eval_time_for_experiment(
+            model_name='stgcn', model_path='experiments/stgcn',
+            get_model_and_batches_fn=get_model_and_batches_for_eval_time, estimation_samples=10,
+        )
+        return
     args, log_dir, logger = get_config()
     set_seed(args.seed)
     device = torch.device(args.device)

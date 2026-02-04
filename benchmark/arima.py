@@ -4,6 +4,7 @@ ARIMA Model for Time Series Forecasting
 Uses pmdarima's auto_arima for automatic parameter selection.
 """
 
+import argparse
 import warnings
 import signal
 from contextlib import contextmanager
@@ -12,7 +13,7 @@ import numpy as np
 import pandas as pd
 from gluonts.model.forecast import SampleForecast
 from pmdarima import auto_arima
-from common import eval
+from common import eval, eval_time
 
 warnings.filterwarnings('ignore')
 
@@ -214,13 +215,24 @@ def main():
             timeout=30
         )
     
-    # Use common.eval() which handles everything
-    eval(
-        model_name=model_name,
-        model_path="pmdarima/auto_arima",
-        predictor_factory=predictor_factory,
-        batch_size=1024
-    )
+    parser = argparse.ArgumentParser(description="ARIMA evaluation or time estimation")
+    parser.add_argument("--eval-time", action="store_true", help="Run eval_time (time estimation) only")
+    args = parser.parse_args()
+
+    model_path = "pmdarima/auto_arima"
+    if args.eval_time:
+        eval_time(
+            model_name=model_name,
+            model_path=model_path,
+            predictor_factory=predictor_factory,
+        )
+    else:
+        eval(
+            model_name=model_name,
+            model_path=model_path,
+            predictor_factory=predictor_factory,
+            batch_size=1024
+        )
 
 
 if __name__ == "__main__":

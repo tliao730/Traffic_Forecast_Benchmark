@@ -1,7 +1,8 @@
+import argparse
 import numpy as np
 import torch
 from chronos import BaseChronosPipeline, ForecastType
-from common import eval
+from common import eval, eval_time
 from gluonts.itertools import batcher
 from gluonts.model.forecast import QuantileForecast, SampleForecast
 from tqdm import tqdm
@@ -75,6 +76,10 @@ class ChronosPredictor:
 
 
 def main():
+    parser = argparse.ArgumentParser(description="Chronos evaluation or time estimation")
+    parser.add_argument("--eval-time", action="store_true", help="Run eval_time (time estimation) only")
+    args = parser.parse_args()
+
     model_name = "chronos_bolt_base"
     model_path = "amazon/chronos-bolt-base"
     device = "cuda:0"
@@ -87,7 +92,10 @@ def main():
             device_map=device,
         )
 
-    eval(model_name, model_path, predictor_factory)
+    if args.eval_time:
+        eval_time(model_name, model_path, predictor_factory)
+    else:
+        eval(model_name, model_path, predictor_factory)
 
 
 if __name__ == "__main__":

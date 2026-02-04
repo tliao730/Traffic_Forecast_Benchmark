@@ -174,3 +174,9 @@ results
 gift-eval/*
 gift-eval
 gift-eval/*/*
+
+envs/flowstate/granite-tsfm/
+envs/kairos/Kairos/
+envs/tabpfn_ts/tabpfn-time-series/
+envs/toto/toto/
+temp.py

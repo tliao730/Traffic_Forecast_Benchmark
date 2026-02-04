@@ -1,0 +1,36 @@
+[project]
+name = "flowstate-env"
+version = "0.1.0"
+description = "Environment for FlowState model benchmark"
+requires-python = ">=3.10,<3.12"
+dependencies = [
+    # FlowState from granite-tsfm repository
+    "granite-tsfm @ git+https://github.com/ibm-granite/granite-tsfm.git",
+    # GIFT-EVAL requires pandas==2.0.0 (granite-tsfm wants >=2.2.0; overridden below)
+    "pandas==2.0.0",
+    # Gift-eval dependencies from official repo
+    "gluonts~=0.15.1",
+    "numpy~=1.26.0",
+    "einops==0.7.*",
+    "python-dotenv==1.0.0",
+    "hydra-core==1.3",
+    "datasets~=2.17.1",
+    "orjson",
+    "matplotlib~=3.9.2",
+    "tsfeatures",
+    "ray",
+    "scipy~=1.11.3",
+    # Gift-eval package from git (traffic branch)
+    "salesforce-gift-eval @ git+https://github.com/DensoSVIC/gift-eval.git@traffic",
+    # Additional dependencies that might be needed
+    "dotenv>=0.9.9",
+    # Baseline dependencies
+    "torch>=2.1",
+    "statsforecast",
+    "tensorboard",
+    "lightning>=2.0",
+]
+
+# Override: use pandas 2.0.0 for the whole tree (ignore granite-tsfm's pandas>=2.2.0).
+[tool.uv]
+override-dependencies = ["pandas==2.0.0"]

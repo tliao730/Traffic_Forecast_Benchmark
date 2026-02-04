@@ -80,7 +80,13 @@ class DCRNN(BaseModel):
 
         outputs = self.decoder(
             target, self.supports, context, teacher_forcing_ratio=teacher_forcing_ratio)
-        o = outputs[1:, :, :].permute(1, 0, 2).reshape(b, t, n, self.output_dim)
+        # outputs shape: (horizon+1, batch, nodes, output_dim) or (horizon+1, batch, nodes)
+        if outputs.dim() == 3:
+            # (horizon+1, batch, nodes) -> (horizon, batch, nodes) -> (batch, horizon, nodes) -> (batch, horizon, nodes, output_dim)
+            o = outputs[1:, :, :].permute(1, 0, 2).unsqueeze(-1)
+        else:
+            # (horizon+1, batch, nodes, output_dim) -> (horizon, batch, nodes, output_dim) -> (batch, horizon, nodes, output_dim)
+            o = outputs[1:, :, :, :].permute(1, 0, 2, 3)
         return o
 
 

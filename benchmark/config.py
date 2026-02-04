@@ -12,6 +12,7 @@ device = "cuda:0"
 #device = "cpu"
 
 # Default visualization settings
+
 default_plot_dataset = "sd/2019/15T"
 default_plot_term = "short"
 default_plot_sample_idx = 0
