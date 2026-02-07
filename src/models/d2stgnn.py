@@ -270,7 +270,7 @@ class DifForecast(nn.Module):
     def __init__(self, hidden_dim, forecast_hidden_dim=None, **model_args):
         super().__init__()
         self.k_t = model_args['k_t']
-        self.output_seq_len = model_args['seq_len']
+        self.output_seq_len = model_args.get('horizon', model_args['seq_len'])
         self.forecast_fc = nn.Linear(hidden_dim, forecast_hidden_dim)
         self.model_args = model_args
 
@@ -378,7 +378,7 @@ class TransformerLayer(nn.Module):
 class InhForecast(nn.Module):
     def __init__(self, hidden_dim, fk_dim, **model_args):
         super().__init__()
-        self.output_seq_len = model_args['seq_len']
+        self.output_seq_len = model_args.get('horizon', model_args['seq_len'])
         self.model_args = model_args
 
         self.forecast_fc = nn.Linear(hidden_dim, fk_dim)

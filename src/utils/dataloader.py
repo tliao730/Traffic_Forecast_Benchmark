@@ -7,6 +7,7 @@ import multiprocessing as mp
 
 class DataLoader(object):
     def __init__(self, data, idx, seq_len, horizon, bs, logger, pad_last_sample=False):
+        self.original_idx = idx.copy()
         if pad_last_sample:
             num_padding = (bs - (len(idx) % bs)) % bs
             idx_padding = np.repeat(idx[-1:], num_padding, axis=0)
@@ -16,7 +17,7 @@ class DataLoader(object):
         self.idx = idx
         self.size = len(idx)
         self.bs = bs
-        self.num_batch = int(self.size // self.bs)
+        self.num_batch = int(np.ceil(self.size / self.bs)) if self.bs > 0 else 0
         self.current_ind = 0
         logger.info('Sample num: ' + str(self.idx.shape[0]) + ', Batch num: ' + str(self.num_batch))
         
@@ -57,7 +58,7 @@ class DataLoader(object):
 
                 array_size = len(idx_ind)
                 num_threads = max(1, len(idx_ind) // 2)
-                chunk_size = array_size // num_threads
+                chunk_size = max(1, array_size // num_threads)
                 threads = []
                 for i in range(num_threads):
                     start_index = i * chunk_size
@@ -71,6 +72,48 @@ class DataLoader(object):
 
                 yield (x, y)
                 self.current_ind += 1
+
+        return _wrapper()
+
+
+    def get_iterator_with_idx(self, idx_override):
+        size = len(idx_override)
+        if size == 0:
+            return iter(())
+        num_batch = int(np.ceil(size / self.bs)) if self.bs > 0 else 0
+        current_ind = 0
+
+        def _wrapper():
+            nonlocal current_ind
+            while current_ind < num_batch:
+                start_ind = self.bs * current_ind
+                end_ind = min(size, self.bs * (current_ind + 1))
+                idx_ind = idx_override[start_ind: end_ind, ...]
+
+                x_shape = (len(idx_ind), self.seq_len, self.data.shape[1], self.data.shape[-1])
+                x_shared = mp.RawArray('f', int(np.prod(x_shape)))
+                x = np.frombuffer(x_shared, dtype='f').reshape(x_shape)
+
+                y_shape = (len(idx_ind), self.horizon, self.data.shape[1], 1)
+                y_shared = mp.RawArray('f', int(np.prod(y_shape)))
+                y = np.frombuffer(y_shared, dtype='f').reshape(y_shape)
+
+                array_size = len(idx_ind)
+                num_threads = max(1, len(idx_ind) // 2)
+                chunk_size = max(1, array_size // num_threads)
+                threads = []
+                for i in range(num_threads):
+                    start_index = i * chunk_size
+                    end_index = start_index + chunk_size if i < num_threads - 1 else array_size
+                    thread = threading.Thread(target=self.write_to_shared_array, args=(x, y, idx_ind, start_index, end_index))
+                    thread.start()
+                    threads.append(thread)
+
+                for thread in threads:
+                    thread.join()
+
+                yield (x, y)
+                current_ind += 1
 
         return _wrapper()
 
@@ -96,9 +139,23 @@ def load_dataset(data_path, args, logger):
     dataloader = {}
     for cat in ['train', 'val', 'test']:
         idx = np.load(os.path.join(data_path, args.years, 'idx_' + cat + '.npy'))
+        if cat == 'test':
+            test_stride_mode = getattr(args, 'test_stride_mode', 'fixed')
+            if test_stride_mode == 'fixed':
+                test_stride = max(1, int(getattr(args, 'test_stride', 1)))
+                if test_stride > 1:
+                    idx = idx[::test_stride]
+
+                test_num_windows = int(getattr(args, 'test_num_windows', 0))
+                if test_num_windows > 0:
+                    idx = idx[-test_num_windows:]
         dataloader[cat + '_loader'] = DataLoader(ptr['data'][..., :args.input_dim], idx, \
                                                  args.seq_len, args.horizon, args.bs, logger)
-
+        if cat == 'test':
+            dataloader[cat + '_loader'].test_stride_mode = getattr(args, 'test_stride_mode', 'fixed')
+            dataloader[cat + '_loader'].test_stride = int(getattr(args, 'test_stride', 1))
+            dataloader[cat + '_loader'].test_num_windows = int(getattr(args, 'test_num_windows', 0))
+    #import pdb; pdb.set_trace()
     scaler = StandardScaler(mean=ptr['mean'], std=ptr['std'])
     return dataloader, scaler
 

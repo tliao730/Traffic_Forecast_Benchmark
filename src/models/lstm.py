@@ -27,5 +27,5 @@ class LSTM(BaseModel):
 
         x = F.relu(self.end_linear1(x))
         x = self.end_linear2(x)
-        x = x.reshape(b, n, t, 1).transpose(1, 2)
+        x = x.reshape(b, n, self.horizon, 1).transpose(1, 2)
         return x

@@ -1,5 +1,6 @@
 import os
 import time
+import h5py
 import torch
 import numpy as np
 
@@ -164,14 +165,56 @@ class BaseEngine():
         preds = []
         labels = []
         with torch.no_grad():
-            for X, label in self._dataloader[mode + '_loader'].get_iterator():
-                # X (b, t, n, f), label (b, t, n, 1)
-                X, label = self._to_device(self._to_tensor([X, label]))
-                pred = self.model(X, label)
-                pred, label = self._inverse_transform([pred, label])
+            loader = self._dataloader[mode + '_loader']
+            if mode == 'test' and getattr(loader, 'test_stride_mode', 'fixed') == 'per_horizon':
+                test_mae = []
+                test_mape = []
+                test_rmse = []
 
-                preds.append(pred.squeeze(-1).cpu())
-                labels.append(label.squeeze(-1).cpu())
+                for i in range(self.model.horizon):
+                    stride = i + 1
+                    idx = loader.original_idx[::stride]
+                    test_num_windows = getattr(loader, 'test_num_windows', 0)
+                    if test_num_windows > 0:
+                        idx = idx[-test_num_windows:]
+
+                    preds_i = []
+                    labels_i = []
+                    for X, label in loader.get_iterator_with_idx(idx):
+                        # X (b, t, n, f), label (b, t, n, 1)
+                        X, label = self._to_device(self._to_tensor([X, label]))
+                        pred = self.model(X, label)
+                        pred, label = self._inverse_transform([pred, label])
+
+                        preds_i.append(pred.squeeze(-1).cpu())
+                        labels_i.append(label.squeeze(-1).cpu())
+
+                    preds_i = torch.cat(preds_i, dim=0)
+                    labels_i = torch.cat(labels_i, dim=0)
+
+                    mask_value = torch.tensor(0)
+                    if labels_i.min() < 1:
+                        mask_value = labels_i.min()
+
+                    res = compute_all_metrics(preds_i[:, i, :], labels_i[:, i, :], mask_value)
+                    log = 'Horizon {:d}, Test MAE: {:.4f}, Test RMSE: {:.4f}, Test MAPE: {:.4f}'
+                    self._logger.info(log.format(i + 1, res[0], res[2], res[1]))
+                    test_mae.append(res[0])
+                    test_mape.append(res[1])
+                    test_rmse.append(res[2])
+
+                log = 'Average Test MAE: {:.4f}, Test RMSE: {:.4f}, Test MAPE: {:.4f}'
+                self._logger.info(log.format(np.mean(test_mae), np.mean(test_rmse), np.mean(test_mape)))
+                return
+            else:
+                for X, label in loader.get_iterator():
+                    # X (b, t, n, f), label (b, t, n, 1)
+                    X, label = self._to_device(self._to_tensor([X, label]))
+                    pred = self.model(X, label)
+                    pred, label = self._inverse_transform([pred, label])
+
+                    preds.append(pred.squeeze(-1).cpu())
+                    labels.append(label.squeeze(-1).cpu())
 
         preds = torch.cat(preds, dim=0)
         labels = torch.cat(labels, dim=0)
@@ -202,3 +245,63 @@ class BaseEngine():
 
             log = 'Average Test MAE: {:.4f}, Test RMSE: {:.4f}, Test MAPE: {:.4f}'
             self._logger.info(log.format(np.mean(test_mae), np.mean(test_rmse), np.mean(test_mape)))
+
+
+    def predict_and_save(self, mode, save_path, time_index=None, node_ids=None, pred_horizon=None, num_windows=None):
+        if mode == 'test':
+            self.load_model(self._save_path)
+        self.model.eval()
+
+        preds = []
+        labels = []
+        with torch.no_grad():
+            for X, label in self._dataloader[mode + '_loader'].get_iterator():
+                X, label = self._to_device(self._to_tensor([X, label]))
+                pred = self.model(X, label)
+                pred, label = self._inverse_transform([pred, label])
+                preds.append(pred.squeeze(-1).cpu())
+                labels.append(label.squeeze(-1).cpu())
+
+        preds = torch.cat(preds, dim=0).numpy()
+        labels = torch.cat(labels, dim=0).numpy()
+        
+        # Limit to last N sliding windows if specified
+        if num_windows is not None and num_windows < len(preds):
+            preds = preds[-num_windows:]
+            labels = labels[-num_windows:]
+        
+        # Limit to first N prediction steps if specified
+        if pred_horizon is not None and pred_horizon < preds.shape[1]:
+            preds = preds[:, :pred_horizon, :]
+            labels = labels[:, :pred_horizon, :]
+
+        loader = self._dataloader[mode + '_loader']
+        sample_idx = loader.idx
+        y_offsets = loader.y_offsets
+        
+        # Adjust sample_idx and y_offsets based on num_windows and pred_horizon
+        if num_windows is not None and num_windows < len(sample_idx):
+            sample_idx = sample_idx[-num_windows:]
+        if pred_horizon is not None and pred_horizon < len(y_offsets):
+            y_offsets = y_offsets[:pred_horizon]
+
+        if node_ids is None:
+            node_ids = np.arange(preds.shape[-1], dtype=np.int64)
+
+        times = None
+        if time_index is not None:
+            time_index = np.asarray(time_index)
+            times = time_index[sample_idx[:, None] + y_offsets[None, :]]
+
+        save_dir = os.path.dirname(save_path)
+        if save_dir and not os.path.exists(save_dir):
+            os.makedirs(save_dir)
+
+        with h5py.File(save_path, 'w') as f:
+            f.create_dataset('pred', data=preds, compression='gzip')
+            f.create_dataset('true', data=labels, compression='gzip')
+            f.create_dataset('sample_idx', data=sample_idx, compression='gzip')
+            f.create_dataset('y_offsets', data=y_offsets, compression='gzip')
+            f.create_dataset('node_ids', data=node_ids, compression='gzip')
+            if times is not None:
+                f.create_dataset('times', data=times, compression='gzip')
