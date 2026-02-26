@@ -134,12 +134,21 @@ class StandardScaler():
 
 def load_dataset(data_path, args, logger):
     ptr = np.load(os.path.join(data_path, args.years, 'his.npz'))
-    logger.info('Data shape: ' + str(ptr['data'].shape))
-    
+    data = ptr['data']
+    logger.info('Data shape: ' + str(data.shape))
+
     dataloader = {}
     for cat in ['train', 'val', 'test']:
         idx = np.load(os.path.join(data_path, args.years, 'idx_' + cat + '.npy'))
         if cat == 'test':
+            # Align with benchmark: use only last X of timeline (gift_eval uses TEST_SPLIT=0.1)
+            test_split = float(getattr(args, 'test_split', 0) or 0)
+            if test_split > 0:
+                T = data.shape[0]
+                min_idx = int((1 - test_split) * T)
+                idx = idx[idx >= min_idx]
+                logger.info(f"test_split={test_split}: filtered to last {test_split*100:.0f}% of timeline ({len(idx)} samples, idx>={min_idx})")
+
             test_stride_mode = getattr(args, 'test_stride_mode', 'fixed')
             if test_stride_mode == 'fixed':
                 test_stride = max(1, int(getattr(args, 'test_stride', 1)))
@@ -149,7 +158,7 @@ def load_dataset(data_path, args, logger):
                 test_num_windows = int(getattr(args, 'test_num_windows', 0))
                 if test_num_windows > 0:
                     idx = idx[-test_num_windows:]
-        dataloader[cat + '_loader'] = DataLoader(ptr['data'][..., :args.input_dim], idx, \
+        dataloader[cat + '_loader'] = DataLoader(data[..., :args.input_dim], idx, \
                                                  args.seq_len, args.horizon, args.bs, logger)
         if cat == 'test':
             dataloader[cat + '_loader'].test_stride_mode = getattr(args, 'test_stride_mode', 'fixed')

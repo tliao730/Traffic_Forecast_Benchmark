@@ -82,6 +82,12 @@ def setup_dataset():
             "domain": "Transport",
             "num_variates": 1,
         }
+    if "crash_sd" not in dataset_properties_map:
+        dataset_properties_map["crash_sd"] = {
+            "frequency": "15T",
+            "domain": "Transport",
+            "num_variates": 1,
+        }
 
     return short_datasets, med_long_datasets, all_datasets, dataset_properties_map
 
@@ -437,7 +443,59 @@ def eval_time(model_name, model_path, predictor_factory, estimation_samples=10):
     return timing_results
 
 
-def eval(model_name, model_path, predictor_factory, batch_size=1024):
+def save_predictions_csv(predictor, test_data, output_path, ds_config, prediction_length, freq):
+    """
+    Save predictions and ground truth to CSV (compatible with analyze_predictions.py).
+    test_data yields (input_dict, label) or dict; label has future values.
+    """
+    import pandas as pd
+    from pandas.tseries.frequencies import to_offset
+
+    test_list = list(test_data)
+    forecasts = predictor.predict(test_list)
+
+    rows = []
+    freq_offset = to_offset(freq)
+    for sample_idx, (entry, fc) in enumerate(zip(test_list, forecasts)):
+        if isinstance(entry, tuple):
+            inp, label = entry
+        else:
+            inp, label = entry, None
+        item_id = inp.get("item_id", str(sample_idx))
+        start_raw = inp["start"]
+        if hasattr(start_raw, "to_timestamp"):
+            start = start_raw.to_timestamp()
+        else:
+            start = pd.Timestamp(start_raw)
+        # Ground truth: from label if tuple, else last pred_len of target (generate_instances format)
+        if label is not None:
+            if isinstance(label, dict) and "target" in label:
+                truth = np.asarray(label["target"]).flatten()
+            else:
+                truth = np.asarray(label).flatten()
+        else:
+            truth = np.asarray(inp["target"]).flatten()[-prediction_length:]
+        if len(truth) < prediction_length:
+            truth = np.pad(truth, (0, prediction_length - len(truth)), constant_values=np.nan)
+        pred_median = fc.quantile("0.5")
+        if pred_median.ndim > 1:
+            pred_median = pred_median[:, 0] if pred_median.shape[1] >= 1 else pred_median[:, 0]
+        pred_median = np.asarray(pred_median).flatten()[:prediction_length]
+        hist_len = len(np.asarray(inp["target"]).flatten())
+        for h in range(min(prediction_length, len(pred_median), len(truth))):
+            ts = start + (hist_len + h) * freq_offset
+            ts_str = ts.strftime("%Y-%m-%d %H:%M") if hasattr(ts, "strftime") else str(ts)
+            rows.append({"ds_config": ds_config, "sample_idx": sample_idx, "item_id": item_id,
+                        "timestamp": ts_str, "dim": 0, "stat": "truth", "value": float(truth[h])})
+            rows.append({"ds_config": ds_config, "sample_idx": sample_idx, "item_id": item_id,
+                        "timestamp": ts_str, "dim": 0, "stat": "mean", "value": float(pred_median[h])})
+    df = pd.DataFrame(rows)
+    os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
+    df.to_csv(output_path, index=False)
+    print(f"Saved predictions to {output_path} ({len(df)} rows)")
+
+
+def eval(model_name, model_path, predictor_factory, batch_size=1024, save_predictions_dir=None):
     short_datasets, med_long_datasets, all_datasets, dataset_properties_map = (
         setup_dataset()
     )
@@ -527,6 +585,21 @@ def eval(model_name, model_path, predictor_factory, batch_size=1024):
                 dataset_properties_map,
                 model_name,
             )
+
+            # Optionally save predictions and ground truth
+            if save_predictions_dir is not None:
+                pred_csv = os.path.join(
+                    save_predictions_dir,
+                    f"{ds_config.replace('/', '_')}_predictions.csv",
+                )
+                save_predictions_csv(
+                    predictor,
+                    dataset.test_data,
+                    pred_csv,
+                    ds_config,
+                    prediction_length,
+                    dataset.freq,
+                )
 
             print(f"Results for {ds_name} have been written to {csv_file_path}")
 

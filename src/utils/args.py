@@ -24,6 +24,8 @@ def get_public_config():
     parser.add_argument('--pretrained_path', type=str, default='',
                         help='load model weights before training')
     # test-time window control
+    parser.add_argument('--test_split', type=float, default=0,
+                        help='use only last X of timeline as test (0.1=align with benchmark/gift_eval; 0=use full idx_test)')
     parser.add_argument('--test_stride', type=int, default=1,
                         help='stride for selecting test windows (set to horizon for non-overlap predictions)')
     parser.add_argument('--test_num_windows', type=int, default=0,
@@ -31,4 +33,10 @@ def get_public_config():
     parser.add_argument('--test_stride_mode', type=str, default='fixed',
                         choices=['fixed', 'per_horizon'],
                         help='fixed: use test_stride for all horizons; per_horizon: stride = horizon index (1..H)')
+    parser.add_argument('--save_predictions', action='store_true',
+                        help='save predictions and ground truth to CSV (GNN experiments)')
+    parser.add_argument('--pred_out_dir', type=str, default='',
+                        help='directory for prediction CSV (default: results/ASTGCN/predictions)')
+    parser.add_argument('--pred_horizon', type=int, default=0,
+                        help='prediction horizon for saving (1-12, 0=use model horizon)')
     return parser

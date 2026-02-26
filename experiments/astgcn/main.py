@@ -39,7 +39,10 @@ def get_config():
     parser.add_argument('--clip_grad_value', type=float, default=5)
     args = parser.parse_args()
 
-    log_dir = './experiments/{}/{}/'.format(args.model_name, args.dataset)
+    if args.log_dir:
+        log_dir = args.log_dir.rstrip('/') + '/'
+    else:
+        log_dir = './experiments/{}/{}/'.format(args.model_name or 'astgcn', args.dataset)
     logger = get_logger(log_dir, __name__, 'record_s{}.log'.format(args.seed))
     logger.info(args)
     
@@ -91,7 +94,17 @@ def main():
     args, log_dir, logger = get_config()
     set_seed(args.seed)
     device = torch.device(args.device)
-    
+
+    # Align with benchmark (Moirai2/gift_eval): same test period and windowing
+    if getattr(args, 'save_predictions', False):
+        if getattr(args, 'test_num_windows', 0) <= 0:
+            args.test_num_windows = 192
+            logger.info("save_predictions: using test_num_windows=192")
+        args.test_split = 0.1  # gift_eval uses TEST_SPLIT=0.1 (last 10% of timeline)
+        pred_h = getattr(args, 'pred_horizon', 0) or 3
+        args.test_stride = pred_h
+        logger.info("Align with benchmark: test_split=0.1, test_stride=%d (last 10%% of timeline, non-overlapping)" % pred_h)
+
     data_path, adj_path, node_num = get_dataset_info(args.dataset)
     logger.info('Adj path: ' + adj_path)
     
@@ -111,6 +124,8 @@ def main():
     model = ASTGCN(node_num=node_num,
                    input_dim=args.input_dim,
                    output_dim=args.output_dim,
+                   seq_len=args.seq_len,
+                   horizon=args.horizon,
                    device=args.device,
                    cheb_poly=cheb_poly,
                    order=args.order,
@@ -145,6 +160,38 @@ def main():
         engine.train()
     else:
         engine.evaluate(args.mode)
+        if getattr(args, 'save_predictions', False):
+            _run_save_predictions(engine, args, data_path, logger)
+
+
+def _run_save_predictions(engine, args, data_path, logger):
+    """Save predictions and ground truth to CSV (192 windows, short horizon)."""
+    import pandas as pd
+
+    num_windows = getattr(args, 'test_num_windows', 192)
+    pred_horizon = getattr(args, 'pred_horizon', 0) or 3  # short term = 3
+
+    # Build time index from data (SD 2019 @ 15T)
+    ptr = np.load(os.path.join(data_path, args.years, 'his.npz'))
+    n_steps = ptr['data'].shape[0]
+    time_index = pd.date_range('2019-01-01', periods=n_steps, freq='15T')
+
+    out_dir = getattr(args, 'pred_out_dir', '') or 'results/ASTGCN/predictions'
+    ds_config = f"{args.dataset.lower()}/2019/short"
+    os.makedirs(out_dir, exist_ok=True)
+    h5_path = os.path.join(out_dir, f"astgcn_sd_pred_h{pred_horizon}.h5")
+    csv_path = os.path.join(out_dir, f"astgcn_sd_{ds_config.replace('/', '_')}_predictions.csv")
+
+    logger.info(f"Saving predictions: {num_windows} windows, horizon={pred_horizon}")
+    engine.predict_and_save(
+        mode='test',
+        save_path=h5_path,
+        time_index=time_index.values,
+        pred_horizon=pred_horizon,
+        num_windows=num_windows,
+        csv_path=csv_path,
+        ds_config=ds_config,
+    )
 
 
 if __name__ == "__main__":
