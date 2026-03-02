@@ -1,152 +1,152 @@
-## TrafficFM 项目下使用 `uv` 的环境管理指南
+## TrafficFM Project Guide for Environment Management with `uv`
 
-本指南总结了我们前面讨论的所有 `uv` 相关概念、命令和推荐工作流，特别适用于 `TrafficFM` 项目和你在 `benchmark/` 下运行不同模型时的需求。
+This guide summarizes all `uv`-related concepts, commands, and recommended workflows we discussed, tailored for the `TrafficFM` project and running different models under `benchmark/`.
 
 ---
 
-## 1. 核心概念与文件
+## 1. Core Concepts and Files
 
 - **`pyproject.toml`**
-  - 声明项目元数据和「需要哪些依赖」的配置文件。
-  - 由你或工具维护，是**源配置**。
+  - Config file that declares project metadata and "what dependencies are needed".
+  - Maintained by you or tools; it is the **source of truth**.
 
 - **`uv.lock`**
-  - 记录所有依赖及其精确版本（包括子依赖）的锁文件。
-  - 由 `uv` 自动生成/更新，用于**环境复现**。
+  - Lock file that records all dependencies and their exact versions (including transitive dependencies).
+  - Generated/updated automatically by `uv` for **environment reproducibility**.
 
-- **环境复现原则**
-  - 同一对 `pyproject.toml` + `uv.lock` 定义**一套环境**。
-  - 在这套环境中，**同一个包只能有一个版本**。
+- **Reproducibility Principle**
+  - The same pair of `pyproject.toml` + `uv.lock` defines **one environment**.
+  - In that environment, **each package can have only one version**.
 
 ---
 
-## 2. 基本工作流：已有项目（TrafficFM）
+## 2. Basic Workflow: Existing Project (TrafficFM)
 
-在 `TrafficFM` 根目录：
+In the `TrafficFM` root directory:
 
-- **创建/同步环境**
+- **Create/Sync Environment**
 
   ```bash
   cd TrafficFM
   uv sync
   ```
 
-  - 根据当前的 `pyproject.toml` / `uv.lock` 安装或更新依赖。
-  - 默认是「精准同步」，会移除环境中**不在锁文件里的多余包**。
+  - Installs or updates dependencies according to the current `pyproject.toml` / `uv.lock`.
+  - By default, it does an "exact sync" and **removes extra packages** in the environment that are not in the lock file.
 
-- **运行代码**
+- **Run Code**
 
   ```bash
   uv run benchmark/chronos_1.py
   ```
 
-  - 使用项目对应虚拟环境中的解释器和依赖。
+  - Uses the interpreter and dependencies from the project's virtual environment.
 
 ---
 
-## 3. 安装依赖的几种方式与差异
+## 3. Ways to Install Dependencies and Their Differences
 
-### 3.1 正式加入项目依赖（推荐）
+### 3.1 Add as Project Dependency (Recommended)
 
-- **添加运行依赖**
+- **Add runtime dependency**
 
   ```bash
-  uv add 包名
-  # 或固定版本
-  uv add "包名==1.2.3"
+  uv add package_name
+  # or pin a version
+  uv add "package_name==1.2.3"
   ```
 
-  作用：
-  - 修改 `pyproject.toml`（添加依赖）。
-  - 重新解算依赖并更新 `uv.lock`。
-  - 安装/更新虚拟环境中的包。
+  Effect:
+  - Modifies `pyproject.toml` (adds the dependency).
+  - Resolves dependencies and updates `uv.lock`.
+  - Installs/updates the package in the virtual environment.
 
-- **添加开发依赖**
+- **Add dev dependency**
 
   ```bash
   uv add --dev pytest
   ```
 
-### 3.2 临时安装（不写入 `.toml` / `.lock`）
+### 3.2 Temporary Install (Not Written to `.toml` / `.lock`)
 
-- **类似 `pip install` 的方式**
+- **Similar to `pip install`**
 
   ```bash
   uv pip install xgboost
   ```
 
-  特点：
-  - 在当前环境（通常是项目的虚拟环境）里安装包。
-  - **不会修改 `pyproject.toml` 和 `uv.lock`**。
-  - 适合本地临时试验。
+  Characteristics:
+  - Installs the package in the current environment (usually the project's virtual environment).
+  - **Does not modify `pyproject.toml` or `uv.lock`**.
+  - Suitable for local ad-hoc experiments.
 
-- **只在单次运行中额外带上某个包**
+- **Add a package only for a single run**
 
   ```bash
   uv run --with xgboost benchmark/chronos_1.py
   ```
 
-  特点：
-  - 本次运行临时加入 `xgboost` 作为依赖。
-  - 不写入 `pyproject.toml` / `uv.lock`，环境定义不被污染。
+  Characteristics:
+  - This run temporarily includes `xgboost` as a dependency.
+  - Does not write to `pyproject.toml` / `uv.lock`; environment definition stays clean.
 
 ---
 
-## 4. 恢复环境到干净状态
+## 4. Restore Environment to Clean State
 
-场景：你用 `uv pip install xgboost` 临时装了一个包，现在想让环境回到「只包含项目声明依赖」的状态。
+Scenario: You temporarily installed a package with `uv pip install xgboost` and now want the environment to return to a state that "contains only project-declared dependencies".
 
-- **在项目根目录执行：**
+- **In the project root directory, run:**
 
   ```bash
   uv sync
   ```
 
-行为：
-- 以 `uv.lock` 为标准，精准同步环境：
-  - 保留锁文件中列出的所有包和版本。
-  - **移除所有额外安装但不在锁文件中的包**（例如通过 `uv pip install` 临时装的）。
-- 注意：如果你显式使用了 `uv sync --inexact`，则不会移除“多余包”，但默认 `uv sync` 是会清理的。
+Behavior:
+- Syncs the environment exactly according to `uv.lock`:
+  - Keeps all packages and versions listed in the lock file.
+  - **Removes any extra packages** installed but not in the lock file (e.g., via `uv pip install`).
+- Note: If you use `uv sync --inexact`, extra packages will not be removed, but the default `uv sync` does clean them.
 
 ---
 
-## 5. 从临时可用版本迁移到正式锁定版本
+## 5. Migrate from Temporarily Used Version to Officially Locked Version
 
-场景：你通过 `uv pip install xgboost` 在 `.venv` 里装了一个版本，测试后确认这个版本是可用的，想把它写入 `pyproject.toml` 和 `uv.lock` 以便后续复现。
+Scenario: You installed a version of `xgboost` in `.venv` via `uv pip install`, verified it works, and want to record it in `pyproject.toml` and `uv.lock` for reproducibility.
 
-步骤：
+Steps:
 
-1. **查当前环境中这个包的版本**
+1. **Check the current version of this package in the environment**
 
    ```bash
    uv run python -m pip show xgboost
-   # 或
+   # or
    uv run python -m pip list | grep xgboost
    ```
 
-   记下版本号，例如 `2.0.3`。
+   Note the version, e.g. `2.0.3`.
 
-2. **用该版本号正式加入依赖**
+2. **Add it as an official dependency with that version**
 
    ```bash
    uv add "xgboost==2.0.3"
    ```
 
-   效果：
-   - `pyproject.toml` 中增加 `xgboost==2.0.3`。
-   - `uv.lock` 更新并锁定这个版本。
-   - 之后任何人 `uv sync` 都会使用 `xgboost==2.0.3`。
+   Result:
+   - `pyproject.toml` gains `xgboost==2.0.3`.
+   - `uv.lock` is updated and locks this version.
+   - Anyone running `uv sync` will get `xgboost==2.0.3`.
 
 ---
 
-## 6. 多个环境 / 多个模型的管理思路
+## 6. Managing Multiple Environments / Multiple Models
 
-### 6.1 同一个环境中的限制
+### 6.1 Constraints in a Single Environment
 
-- 一个 `pyproject.toml` + `uv.lock` 对应**一套环境**。
-- 在这一套环境里：
-  - **同一个包只能有一个版本**。
-  - 不能通过 `[project.optional-dependencies]` 同时锁定：
+- One `pyproject.toml` + `uv.lock` corresponds to **one environment**.
+- In that environment:
+  - **Each package can have only one version**.
+  - You cannot use `[project.optional-dependencies]` to lock both:
 
     ```toml
     [project.optional-dependencies]
@@ -154,18 +154,18 @@
     model_b = ["xgboost==2.1.3"]
     ```
 
-    这会在求解依赖时产生冲突。
+    This would cause a dependency resolution conflict.
 
-### 6.2 多套环境的标准做法
+### 6.2 Standard Approach for Multiple Environments
 
-要支持不同模型使用不兼容的包版本，需要**多套独立的 `uv` 项目**：
+To support different models with incompatible package versions, use **multiple separate uv projects**:
 
-- 每个项目目录各自包含：
+- Each project directory contains:
   - `pyproject.toml`
   - `uv.lock`
-  - 自己的虚拟环境
+  - Its own virtual environment
 
-在不修改 `benchmark/` 目录结构的前提下，可以在仓库中新增一个 `envs/` 目录，例如：
+Without changing the `benchmark/` directory layout, you can add an `envs/` directory in the repo, e.g.:
 
 ```text
 TrafficFM/
@@ -183,9 +183,9 @@ TrafficFM/
       uv.lock
 ```
 
-用法示例：
+Usage example:
 
-**推荐：在 `benchmark/` 下执行，用 `--project` 指定模型环境**（工作目录保持为 `benchmark/`，结果会正确写到 `TrafficFM/results/`）：
+**Recommended: Run from `benchmark/` with `--project` to specify the model environment** (working directory stays `benchmark/`, results are written correctly to `TrafficFM/results/`):
 
   ```bash
   cd TrafficFM/benchmark
@@ -205,46 +205,46 @@ TrafficFM/
   uv run --project ../envs/tabpfn_ts python ml_methods.py
   ```
 
-  这样：
-  - 当前目录是 `benchmark/`，脚本里的相对路径（如 `../results`）会解析到 `TrafficFM/results`，不会写到 `envs/results`。
-  - `--project ../envs/模型名` 指定用哪个模型的 uv 环境（依赖和 .venv）。
+  This way:
+  - The current directory is `benchmark/`, so relative paths in scripts (e.g. `../results`) resolve to `TrafficFM/results` instead of `envs/results`.
+  - `--project ../envs/model_name` specifies which model's uv environment (dependencies and .venv) to use.
 
-**不推荐：先 cd 到 env 再跑脚本**（工作目录变成 env 目录，`../results` 会变成 `envs/results`）：
+**Not recommended: cd into the env first, then run the script** (working directory becomes the env directory; `../results` would point to `envs/results`):
 
   ```bash
   cd TrafficFM/envs/chronos
   uv sync
-  uv run ../../benchmark/chronos_1.py   # 结果会写到 envs/results/
+  uv run ../../benchmark/chronos_1.py   # Results would be written to envs/results/
   ```
 
-这样：
-- `benchmark/` 下的脚本位置不变。
-- 每个模型对应一套完全独立的 `pyproject.toml` / `uv.lock` 和虚拟环境，可自由使用不同且互不兼容的依赖版本。
+Result:
+- Scripts under `benchmark/` stay in place.
+- Each model has its own independent `pyproject.toml` / `uv.lock` and virtual environment, so you can use different and incompatible dependency versions freely.
 
 ---
 
-## 7. 从 `requirements.txt` 迁移到 `uv` 项目
+## 7. Migrating from `requirements.txt` to uv Project
 
-如果某个环境原本是用 `requirements.txt` 管理的，可以迁移到 `uv` 项目模式：
+If an environment was originally managed with `requirements.txt`, you can migrate to uv project mode:
 
 ```bash
-# 在目标目录（将作为新项目根）创建最小 pyproject.toml
+# Create a minimal pyproject.toml in the target directory (which will be the new project root)
 uv init --bare
 
-# 从 requirements.txt 导入依赖并生成/更新 uv.lock
+# Import dependencies from requirements.txt and generate/update uv.lock
 uv add -r requirements.txt
 ```
 
-之后：
-- 使用 `uv add` / `uv remove` / `uv sync` 管理依赖。
-- `pyproject.toml` + `uv.lock` 取代 `requirements.txt` 作为环境定义和锁定的来源。
+After that:
+- Use `uv add` / `uv remove` / `uv sync` to manage dependencies.
+- `pyproject.toml` + `uv.lock` replace `requirements.txt` as the source of environment definition and locking.
 
 ---
 
-## 8. 推荐实践总结
+## 8. Recommended Practices Summary
 
-- **正式依赖**：用 `uv add` 写入 `pyproject.toml`，让 `uv.lock` 锁定版本。
-- **临时试验**：用 `uv pip install` 或 `uv run --with 包名`，测试通过后再按需转换为正式依赖。
-- **恢复环境**：任何时候想回到干净状态，在项目根目录执行 `uv sync`。
-- **多个互不兼容的环境**：使用多个目录（例如 `envs/模型名/`），每个目录一对 `pyproject.toml` + `uv.lock`。**推荐在 `benchmark/` 下执行**：`uv run --project ../envs/模型名 python 脚本.py`，这样工作目录是 `benchmark/`，结果会写到 `TrafficFM/results/`。
+- **Official dependencies**: Use `uv add` to write to `pyproject.toml` and let `uv.lock` pin versions.
+- **Temporary experiments**: Use `uv pip install` or `uv run --with package_name`; convert to official dependencies as needed after testing.
+- **Restore environment**: To return to a clean state at any time, run `uv sync` in the project root.
+- **Multiple incompatible environments**: Use multiple directories (e.g. `envs/model_name/`), each with its own `pyproject.toml` + `uv.lock`. **Recommended: run from `benchmark/`** with `uv run --project ../envs/model_name python script.py`, so the working directory is `benchmark/` and results go to `TrafficFM/results/`.
 
