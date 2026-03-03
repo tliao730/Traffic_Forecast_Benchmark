@@ -76,7 +76,9 @@ class BaseEngine():
     def load_model(self, save_path):
         filename = 'final_model_s{}.pt'.format(self._seed)
         self.model.load_state_dict(torch.load(
-            os.path.join(save_path, filename)))   
+            os.path.join(save_path, filename),
+            map_location=self._device,
+            weights_only=True))   
 
 
     def train_batch(self):
@@ -247,7 +249,17 @@ class BaseEngine():
             self._logger.info(log.format(np.mean(test_mae), np.mean(test_rmse), np.mean(test_mape)))
 
 
-    def predict_and_save(self, mode, save_path, time_index=None, node_ids=None, pred_horizon=None, num_windows=None):
+    def predict_and_save(
+        self,
+        mode,
+        save_path,
+        time_index=None,
+        node_ids=None,
+        pred_horizon=None,
+        num_windows=None,
+        csv_path=None,
+        ds_config=None,
+    ):
         if mode == 'test':
             self.load_model(self._save_path)
         self.model.eval()
@@ -304,4 +316,51 @@ class BaseEngine():
             f.create_dataset('y_offsets', data=y_offsets, compression='gzip')
             f.create_dataset('node_ids', data=node_ids, compression='gzip')
             if times is not None:
-                f.create_dataset('times', data=times, compression='gzip')
+                # h5py cannot store datetime64; convert to int64 (ns since epoch)
+                times_int = np.asarray(times).astype('int64')
+                f.create_dataset('times', data=times_int, compression='gzip')
+
+        if csv_path and ds_config and times is not None:
+            self._save_predictions_csv(
+                preds, labels, times, node_ids, ds_config, csv_path
+            )
+
+    def _save_predictions_csv(
+        self, preds, labels, times, node_ids, ds_config, csv_path
+    ):
+        """Save predictions to CSV (analyze_predictions compatible format)."""
+        import pandas as pd
+
+        num_samples, pred_len, num_nodes = preds.shape
+        rows = []
+        for i in range(num_samples):
+            for j in range(num_nodes):
+                for h in range(pred_len):
+                    ts = times[i, h]
+                    ts_str = pd.Timestamp(ts).strftime("%Y-%m-%d %H:%M")
+                    sid = i  # sample_idx 0..n-1 for compatibility
+                    nid = int(node_ids[j])
+                    rows.append({
+                        "ds_config": ds_config,
+                        "sample_idx": sid,
+                        "item_id": nid,
+                        "timestamp": ts_str,
+                        "dim": 0,
+                        "stat": "truth",
+                        "value": float(labels[i, h, j]),
+                    })
+                    rows.append({
+                        "ds_config": ds_config,
+                        "sample_idx": sid,
+                        "item_id": nid,
+                        "timestamp": ts_str,
+                        "dim": 0,
+                        "stat": "mean",
+                        "value": float(preds[i, h, j]),
+                    })
+        df = pd.DataFrame(rows)
+        os.makedirs(os.path.dirname(csv_path) or ".", exist_ok=True)
+        df.to_csv(csv_path, index=False)
+        self._logger.info(
+            f"Saved predictions to {csv_path} ({len(df)} rows)"
+        )

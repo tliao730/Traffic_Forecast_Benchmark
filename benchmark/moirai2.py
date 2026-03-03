@@ -1,4 +1,5 @@
 import argparse
+import os
 import numpy as np
 import torch
 from common import eval, eval_time
@@ -103,12 +104,32 @@ def main():
         )
     parser = argparse.ArgumentParser(description="Moirai2 evaluation or time estimation")
     parser.add_argument("--eval-time", action="store_true", help="Run eval_time (time estimation) only")
+    parser.add_argument(
+        "--save-predictions",
+        action="store_true",
+        help="Save all predictions and ground truth to CSV (in addition to metrics)",
+    )
+    parser.add_argument(
+        "--pred-out-dir",
+        type=str,
+        default=None,
+        help="Directory for prediction CSVs (default: result_root/Moirai2/predictions)",
+    )
     args = parser.parse_args()
 
     if args.eval_time:
         eval_time(model_name, model_path, predictor_factory)
     else:
-        eval(model_name, model_path, predictor_factory)
+        save_dir = args.pred_out_dir
+        if args.save_predictions and save_dir is None:
+            from config import result_root
+            save_dir = os.path.join(result_root, model_name, "predictions")
+        eval(
+            model_name,
+            model_path,
+            predictor_factory,
+            save_predictions_dir=save_dir if args.save_predictions else None,
+        )
 
 
 if __name__ == "__main__":
