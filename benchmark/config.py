@@ -15,7 +15,7 @@ short_datasets = "sd/2019/15T"
 med_long_datasets = "sd/2019/15T"
 
 device = "cuda:0"
-#device = "cpu"
+# device = "cpu"
 
 # Default visualization settings
 
