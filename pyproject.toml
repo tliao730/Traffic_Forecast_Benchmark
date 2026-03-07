@@ -5,13 +5,16 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
-    "chronos-forecasting>=2.2.0",
-    "dotenv>=0.9.9",
+    "datasets>=4.6.1",
+    # "chronos-forecasting>=2.2.0",
+    # "dotenv>=0.9.9",
     "kaggle==1.7.4.5",
-    "salesforce-gift-eval @ git+https://github.com/DensoSVIC/gift-eval.git@traffic",
-    "uni2ts @ git+https://github.com/DensoSVIC/uni2ts.git@traffic",
+    # "salesforce-gift-eval @ git+https://github.com/DensoSVIC/gift-eval.git@traffic",
+    # "uni2ts @ git+https://github.com/DensoSVIC/uni2ts.git@traffic",
+    # "tables>=3.10.1",
+    # "fastdtw>=0.3.4",
+    # "torchdiffeq>=0.2.3",
+    # "h5py>=3.15.1",
+    "pandas>=2.3.3",
     "tables>=3.10.1",
-    "fastdtw>=0.3.4",
-    "torchdiffeq>=0.2.3",
-    "h5py>=3.15.1",
 ]
