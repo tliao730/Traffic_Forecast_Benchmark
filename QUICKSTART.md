@@ -20,22 +20,22 @@ uv sync
 
 Download `LargeST` dataset, this raw dataset should be saved to `data/LargeSt/raw`
 ```bash
-./scripts/data/download_dataset.sh
+./scripts/data_processing/download_dataset.sh
 ```
 
 Process data based on regions, the processed data will be saved at `data/LargeST/[ca/gba/gla/sd]`
 ```bash
-uv run ./scripts/data/LargeST/process_dataset.py --year 2019
+uv run ./scripts/data_processing/LargeST/process_dataset.py --year 2019
 ```
 
 Generate dataset for GNN training, the dataset will be saved at `dataset/LargeST/baseline/[ca/gba/gla/sd]/[year]`
 ```bash
-uv run ./scripts/data/LargeST/generate_dataset_for_training.py --dataset sd --years 2019
+uv run ./scripts/data_processing/LargeST/generate_dataset_for_training.py --dataset sd --years 2019
 ```
 
 Generate dataset for Gift-eval, the dataset will be saved at `dataset/LargeST/gift_eval/[ca/gba/gla/sd]_[train_val]/[year]/[freqency]`
 ```bash
-uv run ./scripts/data/LargeST/generate_data_for_gift_eval.py --dataset sd --years 2019
+uv run ./scripts/data_processing/LargeST/generate_data_for_gift_eval.py --dataset sd --years 2019
 ```
 
 Run benchmark
