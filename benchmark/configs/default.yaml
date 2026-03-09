@@ -1,0 +1,21 @@
+# Default benchmark configuration.
+# Every key matches a BenchmarkConfig field.
+# Omit any key to keep the dataclass default.
+
+# Paths
+gift_eval_datasets_path: "../dataset/LargeST/gift_eval"
+dataset_properties_path: "./dataset_properties.json"
+result_root: "../results"
+
+# Datasets (space-separated names)
+short_datasets: "sd_val/2019/15T"
+med_long_datasets: "sd_val/2019/15T"
+
+# Device
+device: "cuda:0"
+
+# Visualisation defaults
+default_plot_dataset: "sd_val/2019/15T"
+default_plot_term: "short"
+default_plot_sample_idx: 0
+default_plot_quantile: 0.5

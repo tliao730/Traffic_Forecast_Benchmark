@@ -1,5 +1,6 @@
 import argparse
 import os
+
 import numpy as np
 import torch
 from common import eval, eval_time
@@ -55,7 +56,7 @@ class MoiraiQuantilePredictor:
                         else:
                             # Entry is just a dict
                             past_target.append(entry["target"])
-                    
+
                     forecasts = self.model.predict(past_target)
                     forecast_quantiles.append(forecasts)
                 forecast_quantiles = np.concatenate(forecast_quantiles)
@@ -74,7 +75,7 @@ class MoiraiQuantilePredictor:
                 ts_dict = ts[0]  # Extract input dict from tuple
             else:
                 ts_dict = ts
-            
+
             forecast_start_date = ts_dict["start"] + len(ts_dict["target"])
             quantile_forecasts.append(
                 QuantileForecast(
@@ -102,8 +103,13 @@ def main():
             batch_size=64,
             device_str=device,
         )
-    parser = argparse.ArgumentParser(description="Moirai2 evaluation or time estimation")
-    parser.add_argument("--eval-time", action="store_true", help="Run eval_time (time estimation) only")
+
+    parser = argparse.ArgumentParser(
+        description="Moirai2 evaluation or time estimation"
+    )
+    parser.add_argument(
+        "--eval-time", action="store_true", help="Run eval_time (time estimation) only"
+    )
     parser.add_argument(
         "--save-predictions",
         action="store_true",
@@ -122,8 +128,9 @@ def main():
     else:
         save_dir = args.pred_out_dir
         if args.save_predictions and save_dir is None:
-            from config import result_root
-            save_dir = os.path.join(result_root, model_name, "predictions")
+            from config import config
+
+            save_dir = os.path.join(config.result_root, model_name, "predictions")
         eval(
             model_name,
             model_path,

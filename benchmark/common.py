@@ -8,17 +8,7 @@ from typing import Optional
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from config import (
-    dataset_properties_path,
-    default_plot_dataset,
-    default_plot_quantile,
-    default_plot_sample_idx,
-    default_plot_term,
-    gift_eval_datasets_path,
-    med_long_datasets,
-    result_root,
-    short_datasets,
-)
+from config import config
 from gift_eval.data import Dataset
 from gluonts.ev.metrics import (
     MAE,
@@ -53,14 +43,16 @@ def setup_logger():
 
 
 def setup_dataset():
-    os.environ["GIFT_EVAL"] = gift_eval_datasets_path
+    os.environ["GIFT_EVAL"] = config.gift_eval_datasets_path
 
     # Get union of short and med_long datasets
-    all_datasets = list(set(short_datasets.split() + med_long_datasets.split()))
+    all_datasets = list(
+        set(config.short_datasets.split() + config.med_long_datasets.split())
+    )
 
-    if not os.path.exists(dataset_properties_path):
+    if not os.path.exists(config.dataset_properties_path):
         raise FileNotFoundError("dataset_properties.json not found.")
-    dataset_properties_map = json.load(open(dataset_properties_path))
+    dataset_properties_map = json.load(open(config.dataset_properties_path))
 
     # Add properties for new datasets (ca, gba, gla)
     if "ca" not in dataset_properties_map:
@@ -88,7 +80,12 @@ def setup_dataset():
             "num_variates": 1,
         }
 
-    return short_datasets, med_long_datasets, all_datasets, dataset_properties_map
+    return (
+        config.short_datasets,
+        config.med_long_datasets,
+        all_datasets,
+        dataset_properties_map,
+    )
 
 
 def get_prediction_length(term):
@@ -179,7 +176,7 @@ def write_result_to_csv(
 
 
 def show_results(model_name):
-    results_file = f"{result_root}/{model_name}/all_results.csv"
+    results_file = f"{config.result_root}/{model_name}/all_results.csv"
     df = pd.read_csv(results_file)
     print("\nFinal aggregated results:")
     print(df)
@@ -207,13 +204,15 @@ def plot_forecast_vs_truth(
         history_length: Number of historical points to show in the plot. If None, shows all history.
     """
     # Set up GIFT_EVAL environment variable
-    os.environ["GIFT_EVAL"] = gift_eval_datasets_path
+    os.environ["GIFT_EVAL"] = config.gift_eval_datasets_path
 
     # Use defaults from config if not provided
-    dataset_name = dataset_name or default_plot_dataset
-    term = term or default_plot_term
-    sample_idx = sample_idx if sample_idx is not None else default_plot_sample_idx
-    quantile = quantile if quantile is not None else default_plot_quantile
+    dataset_name = dataset_name or config.default_plot_dataset
+    term = term or config.default_plot_term
+    sample_idx = (
+        sample_idx if sample_idx is not None else config.default_plot_sample_idx
+    )
+    quantile = quantile if quantile is not None else config.default_plot_quantile
     # Align with eval's univariate handling
     probe_ds = Dataset(name=dataset_name, term=term, to_univariate=False)
     to_univariate = False if probe_ds.target_dim == 1 else True
@@ -439,7 +438,7 @@ def eval_time(model_name, model_path, predictor_factory, estimation_samples=10):
     print("=" * 70)
 
     # Save to JSON file
-    output_dir = f"{result_root}/{model_name}"
+    output_dir = f"{config.result_root}/{model_name}"
     os.makedirs(output_dir, exist_ok=True)
     json_file_path = os.path.join(output_dir, "time_estimation.json")
 
@@ -545,7 +544,7 @@ def eval(
 
     setup_logger()
 
-    output_dir = f"{result_root}/{model_name}"
+    output_dir = f"{config.result_root}/{model_name}"
     os.makedirs(output_dir, exist_ok=True)
     print(f"Results will be saved to: {os.path.abspath(output_dir)}")
 

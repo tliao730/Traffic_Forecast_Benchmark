@@ -33,12 +33,13 @@ Generate dataset for GNN training, the dataset will be saved at `dataset/LargeST
 uv run ./scripts/data/LargeST/generate_dataset_for_training.py --dataset sd --years 2019
 ```
 
-Generate dataset for Gift-eval, the dataset will be saved at `dataset/LargeST/gift_eval/[ca/gba/gla/sd]_[train_eval]/[year]/[freqency]`
+Generate dataset for Gift-eval, the dataset will be saved at `dataset/LargeST/gift_eval/[ca/gba/gla/sd]_[train_val]/[year]/[freqency]`
 ```bash
 uv run ./scripts/data/LargeST/generate_data_for_gift_eval.py --dataset sd --years 2019
 ```
 
 Run benchmark
 ```bash
-uv run --project benchmark/arima benchmark/arima/arima.py 
+cd benchmark
+uv run --project arima python -m arima.arima # run as module
 ```

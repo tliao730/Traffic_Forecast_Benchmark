@@ -1,0 +1,5 @@
+# All four traffic regions — short and medium/long terms.
+
+short_datasets: "sd/2019/15T gba/2019/15T gla/2019/15T ca/2019/15T"
+med_long_datasets: "sd/2019/15T gba/2019/15T gla/2019/15T ca/2019/15T"
+device: "cuda:0"
