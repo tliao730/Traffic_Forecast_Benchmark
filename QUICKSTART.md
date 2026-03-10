@@ -18,9 +18,21 @@ Install base dependencies
 uv sync
 ```
 
+Go to Kaggle -> Settings -> API, create a kaggle API token, then add it to `~/.kaggle/kaggle.json`
+```json
+{
+  "username": "USERNAME",
+  "key": "KAGGLE_API_KEY"
+}
+```
+Change the ownership
+```bash
+chmod 600 ~/.kaggle/kaggle.json
+```
+
 Download `LargeST` dataset, this raw dataset should be saved to `data/LargeSt/raw`
 ```bash
-./scripts/data_processing/download_dataset.sh
+./scripts/data_processing/LargeST/download_dataset.sh
 ```
 
 Process data based on regions, the processed data will be saved at `data/LargeST/[ca/gba/gla/sd]`
