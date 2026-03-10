@@ -1,0 +1,15 @@
+[project]
+name = "trafficfm"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "datasets==2.17.1",
+    "h5py>=3.16.0",
+    "kaggle==1.7.4.5",
+    "pandas>=2.3.3",
+    "pyyaml>=6.0.3",
+    "tables>=3.10.1",
+    "torch>=2.10.0",
+]

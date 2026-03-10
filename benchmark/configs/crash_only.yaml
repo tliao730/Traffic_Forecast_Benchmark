@@ -1,0 +1,5 @@
+# Crash-only experiment — San Diego crash dataset.
+
+short_datasets: "crash_sd/2019/15T"
+med_long_datasets: "crash_sd/2019/15T"
+device: "cuda:0"

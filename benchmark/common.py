@@ -3,23 +3,12 @@ import json
 import logging
 import os
 import time
+from typing import Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from typing import Optional
-from gift_eval.data import Dataset
-from config import (
-    dataset_properties_path,
-    default_plot_dataset,
-    default_plot_quantile,
-    default_plot_sample_idx,
-    default_plot_term,
-    gift_eval_datasets_path,
-    med_long_datasets,
-    result_root,
-    short_datasets,
-)
+from config import config
 from gift_eval.data import Dataset
 from gluonts.ev.metrics import (
     MAE,
@@ -54,14 +43,16 @@ def setup_logger():
 
 
 def setup_dataset():
-    os.environ["GIFT_EVAL"] = gift_eval_datasets_path
+    os.environ["GIFT_EVAL"] = config.gift_eval_datasets_path
 
     # Get union of short and med_long datasets
-    all_datasets = list(set(short_datasets.split() + med_long_datasets.split()))
+    all_datasets = list(
+        set(config.short_datasets.split() + config.med_long_datasets.split())
+    )
 
-    if not os.path.exists(dataset_properties_path):
+    if not os.path.exists(config.dataset_properties_path):
         raise FileNotFoundError("dataset_properties.json not found.")
-    dataset_properties_map = json.load(open(dataset_properties_path))
+    dataset_properties_map = json.load(open(config.dataset_properties_path))
 
     # Add properties for new datasets (ca, gba, gla)
     if "ca" not in dataset_properties_map:
@@ -89,7 +80,12 @@ def setup_dataset():
             "num_variates": 1,
         }
 
-    return short_datasets, med_long_datasets, all_datasets, dataset_properties_map
+    return (
+        config.short_datasets,
+        config.med_long_datasets,
+        all_datasets,
+        dataset_properties_map,
+    )
 
 
 def get_prediction_length(term):
@@ -180,7 +176,7 @@ def write_result_to_csv(
 
 
 def show_results(model_name):
-    results_file = f"{result_root}/{model_name}/all_results.csv"
+    results_file = f"{config.result_root}/{model_name}/all_results.csv"
     df = pd.read_csv(results_file)
     print("\nFinal aggregated results:")
     print(df)
@@ -208,18 +204,20 @@ def plot_forecast_vs_truth(
         history_length: Number of historical points to show in the plot. If None, shows all history.
     """
     # Set up GIFT_EVAL environment variable
-    os.environ["GIFT_EVAL"] = gift_eval_datasets_path
-    
+    os.environ["GIFT_EVAL"] = config.gift_eval_datasets_path
+
     # Use defaults from config if not provided
-    dataset_name = dataset_name or default_plot_dataset
-    term = term or default_plot_term
-    sample_idx = sample_idx if sample_idx is not None else default_plot_sample_idx
-    quantile = quantile if quantile is not None else default_plot_quantile
+    dataset_name = dataset_name or config.default_plot_dataset
+    term = term or config.default_plot_term
+    sample_idx = (
+        sample_idx if sample_idx is not None else config.default_plot_sample_idx
+    )
+    quantile = quantile if quantile is not None else config.default_plot_quantile
     # Align with eval's univariate handling
     probe_ds = Dataset(name=dataset_name, term=term, to_univariate=False)
     to_univariate = False if probe_ds.target_dim == 1 else True
     dataset = Dataset(name=dataset_name, term=term, to_univariate=to_univariate)
-    
+
     # Override dataset's prediction_length with our custom values
     prediction_length = get_prediction_length(term)
     dataset.prediction_length = prediction_length
@@ -229,13 +227,13 @@ def plot_forecast_vs_truth(
     # Convert test_data to list to allow indexing
     test_data_list = list(dataset.test_data)
     series_data = test_data_list[sample_idx]
-    
+
     # Handle tuple format (input, label) from test_data
     if isinstance(series_data, tuple):
         series = series_data[0]  # Extract the input dict from tuple
     else:
         series = series_data
-    
+
     forecast = predictor.predict([series])[0]
 
     history_full = np.asarray(series["target"], dtype=float)
@@ -243,9 +241,9 @@ def plot_forecast_vs_truth(
         raise ValueError("prediction_length is longer than the available history.")
 
     future_truth = history_full[-prediction_length:]
-    
+
     # Print experiment settings
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("Experiment Settings:")
     print(f"  Dataset: {dataset_name}")
     print(f"  Term: {term}")
@@ -257,8 +255,8 @@ def plot_forecast_vs_truth(
         print(f"  Displayed History Length: {history_length}")
     else:
         print(f"  Displayed History Length: All ({len(history_full)})")
-    print("="*60 + "\n")
-    
+    print("=" * 60 + "\n")
+
     # Determine how much history to show
     if history_length is not None:
         # Show only the last `history_length` points (including the prediction horizon)
@@ -269,7 +267,7 @@ def plot_forecast_vs_truth(
         # Show all history
         history = history_full
         offset = 0
-    
+
     history_idx = np.arange(offset, offset + len(history))
     horizon_idx = np.arange(len(history_full) - prediction_length, len(history_full))
 
@@ -288,14 +286,19 @@ def plot_forecast_vs_truth(
         horizon_idx, lower, upper, color="tab:blue", alpha=0.15, label="p10-p90"
     )
     ax_forecast.axvline(
-        len(history_full) - prediction_length - 0.5, color="gray", linestyle="--", linewidth=1
+        len(history_full) - prediction_length - 0.5,
+        color="gray",
+        linestyle="--",
+        linewidth=1,
     )
     ax_forecast.set_ylabel("value")
     ax_forecast.legend(loc="upper left")
-    
+
     # Enhanced title with experiment settings
     title = f"Dataset: {dataset_name} | Term: {term} | Sample: {sample_idx}\n"
-    title += f"Prediction Length: {prediction_length} | Total History: {len(history_full)}"
+    title += (
+        f"Prediction Length: {prediction_length} | Total History: {len(history_full)}"
+    )
     if history_length is not None:
         title += f" | Displayed: {history_length}"
     ax_forecast.set_title(title, fontsize=10)
@@ -316,43 +319,45 @@ def plot_forecast_vs_truth(
 def eval_time(model_name, model_path, predictor_factory, estimation_samples=10):
     """
     Estimate the time needed to run evaluation on all datasets.
-    
+
     Args:
         model_name: Name of the model for display
         model_path: Path to model for display
         predictor_factory: Callable that takes a dataset and returns a predictor
         estimation_samples: Number of samples to measure (default: 10)
-    
+
     Returns:
         dict: Dictionary with timing statistics for each dataset configuration
     """
     short_datasets, med_long_datasets, all_datasets, dataset_properties_map = (
         setup_dataset()
     )
-    
+
     setup_logger()
-    
+
     print(f"Estimating evaluation time for {model_name} from {model_path}")
     print(f"Using {estimation_samples} samples per dataset for estimation")
-    print("="*70)
-    
+    print("=" * 70)
+
     timing_results = {
-        'model_name': model_name,
-        'model_path': model_path,
-        'estimation_samples': estimation_samples,
-        'datasets': {}
+        "model_name": model_name,
+        "model_path": model_path,
+        "estimation_samples": estimation_samples,
+        "datasets": {},
     }
     total_estimated_time = 0
-    
+
     for ds_num, ds_name in enumerate(all_datasets):
         ds_key = ds_name.split("/")[0]
         print(f"\nDataset {ds_num + 1}/{len(all_datasets)}: {ds_name}")
-        
+
         terms = ["short", "medium", "long"]
         for term in terms:
-            if (term == "medium" or term == "long") and ds_name not in med_long_datasets.split():
+            if (
+                term == "medium" or term == "long"
+            ) and ds_name not in med_long_datasets.split():
                 continue
-            
+
             if "/" in ds_name:
                 ds_key = ds_name.split("/")[0]
                 ds_freq = ds_name.split("/")[1]
@@ -367,9 +372,9 @@ def eval_time(model_name, model_path, predictor_factory, estimation_samples=10):
             else:
                 ds_key = ds_name.lower()
                 ds_freq = dataset_properties_map[ds_key]["frequency"]
-            
+
             ds_config = f"{ds_key}/{ds_freq}/{term}"
-            
+
             # Initialize the dataset
             to_univariate = (
                 False
@@ -379,71 +384,75 @@ def eval_time(model_name, model_path, predictor_factory, estimation_samples=10):
             dataset = Dataset(name=ds_name, term=term, to_univariate=to_univariate)
             prediction_length = get_prediction_length(term)
             dataset.prediction_length = prediction_length
-            
+
             num_test_samples = len(dataset.test_data)
             measure_samples = min(estimation_samples, num_test_samples)
-            
+
             print(f"  {term}: {num_test_samples} samples", end=" ")
-            
+
             # Create predictor
             predictor = predictor_factory(dataset)
-            
+
             # Measure time for estimation samples
             test_data_list = list(dataset.test_data)
             start_time = time.time()
-            
+
             for i in range(measure_samples):
                 item = test_data_list[i]
                 # test_data may yield (input_dict, label) tuples; predictor expects input dicts
                 if isinstance(item, tuple):
                     item = item[0]
                 _ = list(predictor.predict([item]))
-            
+
             elapsed_time = time.time() - start_time
             avg_time_per_sample = elapsed_time / measure_samples
             estimated_time = avg_time_per_sample * num_test_samples
-            
-            timing_results['datasets'][ds_config] = {
-                'num_samples': num_test_samples,
-                'measured_samples': measure_samples,
-                'avg_time_per_sample': avg_time_per_sample,
-                'estimated_total_seconds': estimated_time,
-                'estimated_total_minutes': estimated_time / 60,
-                'estimated_total_hours': estimated_time / 3600
+
+            timing_results["datasets"][ds_config] = {
+                "num_samples": num_test_samples,
+                "measured_samples": measure_samples,
+                "avg_time_per_sample": avg_time_per_sample,
+                "estimated_total_seconds": estimated_time,
+                "estimated_total_minutes": estimated_time / 60,
+                "estimated_total_hours": estimated_time / 3600,
             }
-            
+
             total_estimated_time += estimated_time
-            
-            print(f"→ {avg_time_per_sample:.4f}s/sample → ~{estimated_time:.1f}s (~{estimated_time/60:.1f}min)")
-    
+
+            print(
+                f"→ {avg_time_per_sample:.4f}s/sample → ~{estimated_time:.1f}s (~{estimated_time / 60:.1f}min)"
+            )
+
     # Add total statistics
-    timing_results['total'] = {
-        'total_seconds': total_estimated_time,
-        'total_minutes': total_estimated_time / 60,
-        'total_hours': total_estimated_time / 3600
+    timing_results["total"] = {
+        "total_seconds": total_estimated_time,
+        "total_minutes": total_estimated_time / 60,
+        "total_hours": total_estimated_time / 3600,
     }
-    
-    print("\n" + "="*70)
+
+    print("\n" + "=" * 70)
     print("TOTAL ESTIMATED TIME:")
     print(f"  {total_estimated_time:.2f} seconds")
-    print(f"  {total_estimated_time/60:.2f} minutes")
-    print(f"  {total_estimated_time/3600:.2f} hours")
-    print("="*70)
-    
+    print(f"  {total_estimated_time / 60:.2f} minutes")
+    print(f"  {total_estimated_time / 3600:.2f} hours")
+    print("=" * 70)
+
     # Save to JSON file
-    output_dir = f"{result_root}/{model_name}"
+    output_dir = f"{config.result_root}/{model_name}"
     os.makedirs(output_dir, exist_ok=True)
     json_file_path = os.path.join(output_dir, "time_estimation.json")
-    
-    with open(json_file_path, 'w') as f:
+
+    with open(json_file_path, "w") as f:
         json.dump(timing_results, f, indent=2)
-    
+
     print(f"\nTiming results saved to: {os.path.abspath(json_file_path)}")
-    
+
     return timing_results
 
 
-def save_predictions_csv(predictor, test_data, output_path, ds_config, prediction_length, freq):
+def save_predictions_csv(
+    predictor, test_data, output_path, ds_config, prediction_length, freq
+):
     """
     Save predictions and ground truth to CSV (compatible with analyze_predictions.py).
     test_data yields (input_dict, label) or dict; label has future values.
@@ -476,26 +485,56 @@ def save_predictions_csv(predictor, test_data, output_path, ds_config, predictio
         else:
             truth = np.asarray(inp["target"]).flatten()[-prediction_length:]
         if len(truth) < prediction_length:
-            truth = np.pad(truth, (0, prediction_length - len(truth)), constant_values=np.nan)
+            truth = np.pad(
+                truth, (0, prediction_length - len(truth)), constant_values=np.nan
+            )
         pred_median = fc.quantile("0.5")
         if pred_median.ndim > 1:
-            pred_median = pred_median[:, 0] if pred_median.shape[1] >= 1 else pred_median[:, 0]
+            pred_median = (
+                pred_median[:, 0] if pred_median.shape[1] >= 1 else pred_median[:, 0]
+            )
         pred_median = np.asarray(pred_median).flatten()[:prediction_length]
         hist_len = len(np.asarray(inp["target"]).flatten())
         for h in range(min(prediction_length, len(pred_median), len(truth))):
             ts = start + (hist_len + h) * freq_offset
-            ts_str = ts.strftime("%Y-%m-%d %H:%M") if hasattr(ts, "strftime") else str(ts)
-            rows.append({"ds_config": ds_config, "sample_idx": sample_idx, "item_id": item_id,
-                        "timestamp": ts_str, "dim": 0, "stat": "truth", "value": float(truth[h])})
-            rows.append({"ds_config": ds_config, "sample_idx": sample_idx, "item_id": item_id,
-                        "timestamp": ts_str, "dim": 0, "stat": "mean", "value": float(pred_median[h])})
+            ts_str = (
+                ts.strftime("%Y-%m-%d %H:%M") if hasattr(ts, "strftime") else str(ts)
+            )
+            rows.append(
+                {
+                    "ds_config": ds_config,
+                    "sample_idx": sample_idx,
+                    "item_id": item_id,
+                    "timestamp": ts_str,
+                    "dim": 0,
+                    "stat": "truth",
+                    "value": float(truth[h]),
+                }
+            )
+            rows.append(
+                {
+                    "ds_config": ds_config,
+                    "sample_idx": sample_idx,
+                    "item_id": item_id,
+                    "timestamp": ts_str,
+                    "dim": 0,
+                    "stat": "mean",
+                    "value": float(pred_median[h]),
+                }
+            )
     df = pd.DataFrame(rows)
     os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
     df.to_csv(output_path, index=False)
     print(f"Saved predictions to {output_path} ({len(df)} rows)")
 
 
-def eval(model_name, model_path, predictor_factory, batch_size=1024, save_predictions_dir=None):
+def eval(
+    model_name,
+    model_path,
+    predictor_factory,
+    batch_size=1024,
+    save_predictions_dir=None,
+):
     short_datasets, med_long_datasets, all_datasets, dataset_properties_map = (
         setup_dataset()
     )
@@ -505,7 +544,7 @@ def eval(model_name, model_path, predictor_factory, batch_size=1024, save_predic
 
     setup_logger()
 
-    output_dir = f"{result_root}/{model_name}"
+    output_dir = f"{config.result_root}/{model_name}"
     os.makedirs(output_dir, exist_ok=True)
     print(f"Results will be saved to: {os.path.abspath(output_dir)}")
 

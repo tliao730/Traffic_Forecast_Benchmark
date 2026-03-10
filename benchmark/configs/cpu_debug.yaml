@@ -1,0 +1,5 @@
+# Lightweight CPU-only config for local debugging.
+
+short_datasets: "sd/2019/15T"
+med_long_datasets: "sd/2019/15T"
+device: "cpu"
