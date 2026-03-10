@@ -54,4 +54,17 @@ Run benchmark
 ```bash
 cd benchmark
 uv run --project arima python -m arima.arima # run as module
+uv run --project feedforward python -m feedforward.feedforward
+uv run --project feedforward python -m feedforward.naive
+uv run --project flowstate python -m flowstate.flowstate
+uv run --project kairos python -m kairos.kairos
+uv run --project moirai python -m moirai.chronos_1
+uv run --project moirai python -m moirai.moirai
+uv run --project moirai python -m moirai.moirai2
+uv run --project sundial python -m sundial.sundial
+uv run --project tabpfn_ts python -m tabpfn_ts.ml_ensemble
+uv run --project tabpfn_ts python -m tabpfn_ts.ml_methods
+uv run --project tabpfn_ts python -m tabpfn_ts.tabpfn_ts
+uv run --project timesfm_eval python -m timesfm_eval.timesfm_eval
+uv run --project toto python -m toto.toto
 ```
