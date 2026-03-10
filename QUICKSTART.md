@@ -53,18 +53,20 @@ uv run ./scripts/data_processing/LargeST/generate_data_for_gift_eval.py --datase
 Run benchmark
 ```bash
 cd benchmark
-uv run --project arima python -m arima.arima # run as module
-uv run --project feedforward python -m feedforward.feedforward
-uv run --project feedforward python -m feedforward.naive
-uv run --project flowstate python -m flowstate.flowstate
-uv run --project kairos python -m kairos.kairos
-uv run --project moirai python -m moirai.chronos_1
-uv run --project moirai python -m moirai.moirai
-uv run --project moirai python -m moirai.moirai2
-uv run --project sundial python -m sundial.sundial
-uv run --project tabpfn_ts python -m tabpfn_ts.ml_ensemble
-uv run --project tabpfn_ts python -m tabpfn_ts.ml_methods
-uv run --project tabpfn_ts python -m tabpfn_ts.tabpfn_ts
-uv run --project timesfm_eval python -m timesfm_eval.timesfm_eval
-uv run --project toto python -m toto.toto
+uv run --project fm.arima python -m fm.arima.arima # run as module
+uv run --project fm.feedforward python -m fm.feedforward.feedforward
+uv run --project fm.feedforward python -m fm.feedforward.naive
+uv run --project fm.flowstate python -m fm.flowstate.flowstate
+uv run --project fm.kairos python -m fm.kairos.kairos
+uv run --project fm.moirai python -m fm.moirai.chronos_1
+uv run --project fm.moirai python -m fm.moirai.moirai
+uv run --project fm.moirai python -m fm.moirai.moirai2
+uv run --project fm.sundial python -m fm.sundial.sundial
+uv run --project fm.tabpfn_ts python -m fm.tabpfn_ts.ml_ensemble
+uv run --project fm.tabpfn_ts python -m fm.tabpfn_ts.ml_methods
+uv run --project fm.tabpfn_ts python -m fm.tabpfn_ts.tabpfn_ts
+uv run --project fm.timesfm_eval python -m fm.timesfm_eval.timesfm_eval
+uv run --project fm.toto python -m fm.toto.toto
+
+uv run --project gnn -m gnn.agcrn
 ```
