@@ -1,0 +1,27 @@
+[project]
+name = "ml"
+version = "0.1.0"
+description = "Environment for TabPFN time series model benchmark (PriorLabs/tabpfn-time-series)"
+requires-python = ">=3.10,<3.13"
+dependencies = [
+    # TabPFN time series official requirements (tabpfn-time-series v1.0.0)
+    "tqdm",
+    "pandas>=2.1.2,<2.2.0",
+    "gluonts>=0.16.0",
+    "autogluon.timeseries>=1.2",
+    "tabpfn-client>=0.1.7",
+    "tabpfn>=2.0.9",
+    "datasets>=3.3.2",
+    "python-dotenv>=1.1.0",
+    "pyyaml>=6.0.1",
+    # Benchmark harness (common.py) — gift-eval
+    "salesforce-gift-eval @ git+https://github.com/DensoSVIC/gift-eval.git@traffic",
+]
+
+[tool.uv]
+# Prefer tabpfn_ts official deps; override gift-eval constraints
+override-dependencies = [
+    "python-dotenv>=1.1.0",
+    "gluonts>=0.16.0",
+    "datasets>=3.3.2",
+]
