@@ -79,6 +79,15 @@ def setup_dataset():
             "domain": "Transport",
             "num_variates": 1,
         }
+    # Aliases used by gift_eval split naming, e.g. "sd_val/2019/15T".
+    for base_name in ("sd", "ca", "gba", "gla", "crash_sd"):
+        base_props = dataset_properties_map.get(base_name)
+        if base_props is None:
+            continue
+        for split_suffix in ("val", "train"):
+            alias = f"{base_name}_{split_suffix}"
+            if alias not in dataset_properties_map:
+                dataset_properties_map[alias] = dict(base_props)
 
     return (
         config.short_datasets,
@@ -96,6 +105,18 @@ def get_prediction_length(term):
         "long": 12,
     }
     return term_to_length.get(term, 3)
+
+
+def _resolve_dataset_properties_key(ds_key, dataset_properties_map):
+    """Resolve dataset key for metadata lookup with split-suffix fallback."""
+    if ds_key in dataset_properties_map:
+        return ds_key
+    for suffix in ("_val", "_train"):
+        if ds_key.endswith(suffix):
+            candidate = ds_key[: -len(suffix)]
+            if candidate in dataset_properties_map:
+                return candidate
+    return ds_key
 
 
 def get_metrics():
@@ -152,6 +173,7 @@ def check_done_datasets(csv_file_path):
 def write_result_to_csv(
     res, csv_file_path, ds_config, ds_key, dataset_properties_map, model_name
 ):
+    props_key = _resolve_dataset_properties_key(ds_key, dataset_properties_map)
     with open(csv_file_path, "a", newline="") as csvfile:
         writer = csv.writer(csvfile)
         writer.writerow(
@@ -169,8 +191,8 @@ def write_result_to_csv(
                 res["NRMSE[mean]"][0],
                 res["ND[0.5]"][0],
                 res["mean_weighted_sum_quantile_loss"][0],
-                dataset_properties_map[ds_key]["domain"],
-                dataset_properties_map[ds_key]["num_variates"],
+                dataset_properties_map[props_key]["domain"],
+                dataset_properties_map[props_key]["num_variates"],
             ]
         )
 
@@ -534,6 +556,7 @@ def eval(
     predictor_factory,
     batch_size=1024,
     save_predictions_dir=None,
+    num_test_windows: Optional[int] = None,
 ):
     short_datasets, med_long_datasets, all_datasets, dataset_properties_map = (
         setup_dataset()
@@ -599,14 +622,34 @@ def eval(
             # Override dataset's prediction_length with our custom values
             dataset.prediction_length = prediction_length
             print(f"Prediction length: {prediction_length}")
-            print(f"Dataset size: {len(dataset.test_data)}")
+            raw_num_windows = (
+                num_test_windows
+                if num_test_windows is not None
+                else getattr(config, "test_num_windows", "all")
+            )
+            if isinstance(raw_num_windows, str):
+                if raw_num_windows.lower() == "all":
+                    effective_num_windows = 0
+                else:
+                    effective_num_windows = int(raw_num_windows)
+            else:
+                effective_num_windows = int(raw_num_windows)
+            test_data_for_eval = dataset.test_data
+            if effective_num_windows and effective_num_windows > 0:
+                test_data_for_eval = list(dataset.test_data)[-effective_num_windows:]
+                print(
+                    f"Dataset size: {len(test_data_for_eval)} "
+                    f"(last {effective_num_windows} sliding windows)"
+                )
+            else:
+                print(f"Dataset size: {len(dataset.test_data)}")
 
             predictor = predictor_factory(dataset)
 
             # Measure the time taken for evaluation
             res = evaluate_model(
                 predictor,
-                test_data=dataset.test_data,
+                test_data=test_data_for_eval,
                 metrics=metrics,
                 batch_size=batch_size,
                 axis=None,
@@ -633,7 +676,7 @@ def eval(
                 )
                 save_predictions_csv(
                     predictor,
-                    dataset.test_data,
+                    test_data_for_eval,
                     pred_csv,
                     ds_config,
                     prediction_length,

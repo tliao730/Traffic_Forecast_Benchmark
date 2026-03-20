@@ -130,14 +130,14 @@ def generate_train_val_test(args):
     # NOTE:
     # - Keep the existing (legacy) output path for test unchanged.
     # - Save train/val as separate datasets alongside it.
-    # output_test = Path(args.output_dir) / args.dataset / args.years / args.freq
+    output_test = TARGET_DIR / args.dataset / args.years / args.freq #Path(args.output_dir) / args.dataset / args.years / args.freq
     output_train = TARGET_DIR / f"{args.dataset}_train" / args.years / args.freq
     output_val = TARGET_DIR / f"{args.dataset}_val" / args.years / args.freq
     print("train/val/test shapes:", train.shape, val.shape, test.shape)
     print("test start index in original data:", num_train + num_val)
     print("test start timestamp:", test.index[0])
 
-    # _save_split('test', test, output_test)
+    _save_split('test', test, output_test)
     _save_split("train", train, output_train)
     _save_split("val", val, output_val)
 

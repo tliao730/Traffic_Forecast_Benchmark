@@ -34,6 +34,7 @@ from toto.model.toto import Toto
 import argparse
 from common import eval, eval_time
 from config import device
+from config import config as benchmark_config
 
 DEFAULT_CONTEXT_LENGTH = 4096
 
@@ -267,7 +268,10 @@ def main():
 
     # Load model once
     print("Loading Toto model...")
-    model = Toto.from_pretrained(model_path)
+    try:
+        model = Toto.from_pretrained(model_path, cache_dir=benchmark_config.hf_home)
+    except TypeError:
+        model = Toto.from_pretrained(model_path)
     model = model.to(device if torch.cuda.is_available() else "cpu")
     model = model.eval()
     model = torch.compile(model)

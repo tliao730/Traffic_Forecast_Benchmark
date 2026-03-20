@@ -2,6 +2,7 @@ import argparse
 from dotenv import load_dotenv
 
 from common import eval, eval_time
+from config import config as benchmark_config
 from uni2ts.model.moirai import MoiraiForecast, MoiraiModule
 
 # Load environment variables (for model caches, etc.)
@@ -9,7 +10,14 @@ load_dotenv()
 
 
 # Load Moirai module once and reuse across datasets
-_moirai_module = MoiraiModule.from_pretrained("Salesforce/moirai-1.0-R-small")
+try:
+    _moirai_module = MoiraiModule.from_pretrained(
+        "Salesforce/moirai-1.0-R-small",
+        cache_dir=benchmark_config.hf_home,
+    )
+except TypeError:
+    # Some model implementations may not accept cache_dir.
+    _moirai_module = MoiraiModule.from_pretrained("Salesforce/moirai-1.0-R-small")
 
 
 def main():

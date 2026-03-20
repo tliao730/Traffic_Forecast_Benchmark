@@ -2,29 +2,33 @@ import argparse
 import os
 import random
 import sys
+import importlib.util
 import warnings
 from typing import Optional
 
 import numpy as np
 import torch
-from config import device
 from dotenv import load_dotenv
-
-from common import eval, eval_time
-
-warnings.filterwarnings("ignore")
 
 # Load environment variables
 load_dotenv()
 
-# FlowState path: set GRANITE_TSFM_PATH to your clone, or clone into envs/flowstate/granite-tsfm
+# Ensure `benchmark/` is importable regardless of current working directory.
 _script_dir = os.path.dirname(os.path.abspath(__file__))
+_benchmark_root = os.path.abspath(os.path.join(_script_dir, "..", ".."))
+if _benchmark_root not in sys.path:
+    sys.path.insert(0, _benchmark_root)
+
+from config import device
+from common import eval, eval_time
+
+warnings.filterwarnings("ignore")
+
+# FlowState path: set GRANITE_TSFM_PATH to your clone, or clone into envs/flowstate/granite-tsfm
 _trafficfm_root = os.path.dirname(_script_dir)
 _default_granite = os.path.join(_trafficfm_root, "envs", "flowstate", "granite-tsfm")
 _granite_path = os.environ.get("GRANITE_TSFM_PATH", _default_granite)
-if os.path.isdir(_granite_path):
-    sys.path.insert(0, os.path.realpath(_granite_path))
-else:
+if not os.path.isdir(_granite_path):
     raise FileNotFoundError(
         f"granite-tsfm repo not found at {_granite_path}. "
         "Clone it: git clone https://github.com/ibm-granite/granite-tsfm.git "
@@ -32,7 +36,20 @@ else:
     )
 
 from tsfm_public import FlowStateForPrediction  # noqa: E402
-from notebooks.hfdemo.flowstate.gift_wrapper import FlowState_Gift_Wrapper  # noqa: E402
+
+# `gift_wrapper.py` lives under `notebooks/` and is not an importable Python package,
+# so we load it directly by file path (no sys.path tricks).
+_gift_wrapper_path = os.path.join(
+    _granite_path, "notebooks", "hfdemo", "flowstate", "gift_wrapper.py"
+)
+_spec = importlib.util.spec_from_file_location("flowstate_gift_wrapper", _gift_wrapper_path)
+if _spec is None or _spec.loader is None:
+    raise FileNotFoundError(
+        f"Could not load FlowState gift wrapper from {_gift_wrapper_path}."
+    )
+_gift_wrapper_mod = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(_gift_wrapper_mod)
+FlowState_Gift_Wrapper = _gift_wrapper_mod.FlowState_Gift_Wrapper
 
 
 def set_seed(seed: int) -> None:
@@ -65,6 +82,11 @@ def load_flowstate(
     config = flowstate.config
     config.min_context = 0
     config.device = device_str
+    # Reduce context length to lower memory usage in SSM FFT kernels.
+    # This value is consumed by FlowState_Gift_Wrapper via cfg["context_length"].
+    context_length = os.environ.get("FLOWSTATE_CONTEXT_LENGTH")
+    if context_length:
+        config.context_length = int(context_length)
     flowstate = FlowState_Gift_Wrapper(
         flowstate,
         pred_length,
@@ -82,7 +104,7 @@ def main():
     model_name = "FlowState-9.1M"
     model_path = "ibm-research/FlowState"
     seed = 0
-    batch_size = 16
+    batch_size = int(os.environ.get("FLOWSTATE_EVAL_BATCH_SIZE", "8"))
 
     def predictor_factory(dataset):
         """

@@ -4,6 +4,7 @@ import os
 import numpy as np
 import torch
 from common import eval, eval_time
+from config import config as benchmark_config
 from gluonts.itertools import batcher
 from gluonts.model.forecast import QuantileForecast
 from uni2ts.model.moirai2 import Moirai2Forecast, Moirai2Module
@@ -31,8 +32,13 @@ class MoiraiQuantilePredictor:
         self.device = device_str
         self.batch_size = batch_size
         self.quantile_levels = quantile_levels
+        cache_dir = benchmark_config.hf_home
+        try:
+            module = Moirai2Module.from_pretrained(self.model_path, cache_dir=cache_dir)
+        except TypeError:
+            module = Moirai2Module.from_pretrained(self.model_path)
         self.model = Moirai2Forecast(
-            module=Moirai2Module.from_pretrained(self.model_path),
+            module=module,
             prediction_length=self.prediction_length,
             context_length=self.context_length,
             target_dim=self.target_dim,

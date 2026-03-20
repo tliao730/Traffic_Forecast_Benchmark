@@ -54,8 +54,8 @@ Run benchmark
 ```bash
 cd benchmark
 # ML
-uv run --project ml python -m ml_ensemble
-uv run --project ml python -m ml_methods
+uv run --project ml python -m ml.ml_ensemble
+uv run --project ml python -m ml.ml_methods
 
 # TODO: move this somewhere
 uv run --project feedforward python -m feedforward.feedforward
@@ -63,13 +63,32 @@ uv run --project feedforward python -m feedforward.naive
 
 # FM
 uv run --project fm/flowstate python -m fm.flowstate.flowstate
+
+cd /u/dcao1/workspace/TrafficFM/benchmark
+KAIROS_PATH="$PWD/fm/envs/kairos/Kairos"; \
+test -d "$KAIROS_PATH" || git clone --depth 1 https://github.com/foundation-model-research/Kairos.git "$KAIROS_PATH"; \
+
 uv run --project fm/kairos python -m fm.kairos.kairos
+
+
 uv run --project fm/moirai python -m fm.moirai.chronos_1
 uv run --project fm/moirai python -m fm.moirai.moirai
 uv run --project fm/moirai python -m fm.moirai.moirai2
 uv run --project fm/sundial python -m fm.sundial.sundial
 uv run --project fm/tabpfn_ts python -m fm.tabpfn_ts.tabpfn_ts
+
+mkdir -p benchmark/fm/envs/tabpfn_ts
+cd benchmark/fm/envs/tabpfn_ts
+git clone https://github.com/PriorLabs/tabpfn-time-series.git
+cd tabpfn-time-series
+git checkout v1.0.0
+
 uv run --project fm/timesfm python -m fm.timesfm.timesfm
+
+mkdir -p /work/nvme/bevu/dcao1/TrafficFM/benchmark/fm/envs/toto
+cd /work/nvme/bevu/dcao1/TrafficFM/benchmark/fm/envs/toto
+git clone https://github.com/DataDog/toto.git
+
 uv run --project fm/toto python -m fm.toto.toto
 
 # GNN

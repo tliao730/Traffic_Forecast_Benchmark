@@ -1431,6 +1431,37 @@ wheels = [
 ]
 
 [[package]]
+name = "ml"
+version = "0.1.0"
+source = { virtual = "." }
+dependencies = [
+    { name = "autogluon-timeseries" },
+    { name = "datasets" },
+    { name = "gluonts" },
+    { name = "pandas" },
+    { name = "python-dotenv" },
+    { name = "pyyaml" },
+    { name = "salesforce-gift-eval" },
+    { name = "tabpfn" },
+    { name = "tabpfn-client" },
+    { name = "tqdm" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "autogluon-timeseries", specifier = ">=1.2" },
+    { name = "datasets", specifier = ">=3.3.2" },
+    { name = "gluonts", specifier = ">=0.16.0" },
+    { name = "pandas", specifier = ">=2.1.2,<2.2.0" },
+    { name = "python-dotenv", specifier = ">=1.1.0" },
+    { name = "pyyaml", specifier = ">=6.0.1" },
+    { name = "salesforce-gift-eval", git = "https://github.com/DensoSVIC/gift-eval.git?rev=traffic" },
+    { name = "tabpfn", specifier = ">=2.0.9" },
+    { name = "tabpfn-client", specifier = ">=0.1.7" },
+    { name = "tqdm" },
+]
+
+[[package]]
 name = "mlforecast"
 version = "0.14.0"
 source = { registry = "https://pypi.org/simple" }
@@ -2962,37 +2993,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/f3/0e/4a13c2cfe33be89aa12248896fd8897334733b67e853466faf8c0bac0d7f/tabpfn_common_utils-0.2.15.tar.gz", hash = "sha256:7aeca8b8d20a188635a7d67dcd1e7d8db2fb5bb2bfe4ed5f5643d9dabba67d45", size = 1930962, upload-time = "2026-02-02T09:02:31.272Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/34/63/67c2453f4a30a969750c5c4296caa3caaf07e363dee617f316d1380ee3d0/tabpfn_common_utils-0.2.15-py3-none-any.whl", hash = "sha256:5be865992d0bf3aac5afb591bdd2e67c38602d53f6e262498d56e736d930aa1e", size = 36416, upload-time = "2026-02-02T09:02:29.808Z" },
-]
-
-[[package]]
-name = "tabpfn-ts-env"
-version = "0.1.0"
-source = { virtual = "." }
-dependencies = [
-    { name = "autogluon-timeseries" },
-    { name = "datasets" },
-    { name = "gluonts" },
-    { name = "pandas" },
-    { name = "python-dotenv" },
-    { name = "pyyaml" },
-    { name = "salesforce-gift-eval" },
-    { name = "tabpfn" },
-    { name = "tabpfn-client" },
-    { name = "tqdm" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "autogluon-timeseries", specifier = ">=1.2" },
-    { name = "datasets", specifier = ">=3.3.2" },
-    { name = "gluonts", specifier = ">=0.16.0" },
-    { name = "pandas", specifier = ">=2.1.2,<2.2.0" },
-    { name = "python-dotenv", specifier = ">=1.1.0" },
-    { name = "pyyaml", specifier = ">=6.0.1" },
-    { name = "salesforce-gift-eval", git = "https://github.com/DensoSVIC/gift-eval.git?rev=traffic" },
-    { name = "tabpfn", specifier = ">=2.0.9" },
-    { name = "tabpfn-client", specifier = ">=0.1.7" },
-    { name = "tqdm" },
 ]
 
 [[package]]

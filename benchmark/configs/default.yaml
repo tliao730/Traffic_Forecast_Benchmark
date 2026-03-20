@@ -6,10 +6,12 @@
 gift_eval_datasets_path: "../dataset/LargeST/gift_eval"
 dataset_properties_path: "./dataset_properties.json"
 result_root: "../results"
+hf_home: "/work/nvme/bevu/dcao1/HuggingFace"
 
 # Datasets (space-separated names)
 short_datasets: "sd_val/2019/15T"
 med_long_datasets: "sd_val/2019/15T"
+test_num_windows: "all"
 
 # Device
 device: "cuda:0"

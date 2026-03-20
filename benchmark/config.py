@@ -4,6 +4,7 @@ import argparse
 import os
 import sys
 from dataclasses import asdict, dataclass, fields
+from typing import Union
 
 import yaml
 
@@ -21,6 +22,9 @@ class BenchmarkConfig:
     gift_eval_datasets_path: str
     dataset_properties_path: str
     result_root: str
+    # Hugging Face / transformers cache root (HF_HOME).
+    # This is used to avoid filling up small home partitions.
+    hf_home: str
 
     # ── Datasets ───────────────────────────────────────────────────────
     short_datasets: str
@@ -34,6 +38,10 @@ class BenchmarkConfig:
     default_plot_term: str
     default_plot_sample_idx: int
     default_plot_quantile: float
+
+    # ── Evaluation controls ────────────────────────────────────────────
+    # Integer N uses the last N sliding windows; "all" uses all windows.
+    test_num_windows: Union[int, str] = "all"
 
     # ── Convenience properties ─────────────────────────────────────────
     @property
@@ -105,12 +113,32 @@ def _resolve_config() -> BenchmarkConfig:
 # ── Module-level singleton & backward-compatible exports ──────────────
 config = _resolve_config()
 
+# Hugging Face cache location
+#
+# Many model loaders call `from_pretrained(...)` without an explicit `cache_dir`,
+# which makes transformers/huggingface hub fall back to their default caches
+# (often under `~/.cache`). Centralizing this here makes the whole benchmark
+# honor the YAML config.
+_hf_home = getattr(config, "hf_home", None) or "/work/nvme/bevu/dcao1/HuggingFace"
+
+# IMPORTANT: YAML should win over any pre-existing env vars set by the cluster.
+os.environ["HF_HOME"] = _hf_home
+os.makedirs(os.environ["HF_HOME"], exist_ok=True)
+
+os.environ["TRANSFORMERS_CACHE"] = os.path.join(_hf_home, "transformers")
+os.environ["HF_HUB_CACHE"] = os.path.join(_hf_home, "hub")
+os.environ["HUGGINGFACE_HUB_CACHE"] = os.path.join(_hf_home, "hub")
+os.environ["HF_MODULES_CACHE"] = os.path.join(_hf_home, "modules")
+os.environ["TRANSFORMERS_MODULES_CACHE"] = os.path.join(_hf_home, "modules")
+
 # Re-export every field so ``from config import X`` keeps working.
 gift_eval_datasets_path = config.gift_eval_datasets_path
 dataset_properties_path = config.dataset_properties_path
 result_root = config.result_root
+hf_home = config.hf_home
 short_datasets = config.short_datasets
 med_long_datasets = config.med_long_datasets
+test_num_windows = config.test_num_windows
 device = config.device
 default_plot_dataset = config.default_plot_dataset
 default_plot_term = config.default_plot_term

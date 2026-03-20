@@ -1,14 +1,18 @@
 import argparse
 import torch
 import numpy as np
-from transformers import AutoModelForCausalLM, set_seed
 from tqdm.auto import tqdm
 from gluonts.itertools import batcher
 from gluonts.transform import LastValueImputation
 from gluonts.model.forecast import SampleForecast
 
 from common import eval, eval_time
+from config import config as benchmark_config
 from config import device  # 你原来的 device
+
+# Import transformers after benchmark config so HF cache env vars are applied
+# before transformers/huggingface_hub computes dynamic module cache paths.
+from transformers import AutoModelForCausalLM, set_seed
 
 set_seed(1)
 
@@ -39,10 +43,17 @@ class SundialPredictor:
 
         # ---- 加载模型，并移动到同一设备 ----
         # 注意：trust_remote_code=True 会用 Sundial 自定义 generate/mixin
-        self.model = AutoModelForCausalLM.from_pretrained(
-            model_path,
-            trust_remote_code=True,
-        )
+        try:
+            self.model = AutoModelForCausalLM.from_pretrained(
+                model_path,
+                trust_remote_code=True,
+                cache_dir=benchmark_config.hf_home,
+            )
+        except TypeError:
+            self.model = AutoModelForCausalLM.from_pretrained(
+                model_path,
+                trust_remote_code=True,
+            )
 
         self.model.to(self.device)
         self.model.eval()

@@ -1,6 +1,7 @@
 import argparse
 import numpy as np
 import torch
+from config import config as benchmark_config
 from chronos import BaseChronosPipeline, ForecastType
 from common import eval, eval_time
 from gluonts.itertools import batcher
@@ -18,9 +19,11 @@ class ChronosPredictor:
         **kwargs,
     ):
         print("prediction_length:", prediction_length)
+        kwargs.pop("cache_dir", None)  # Ensure YAML cache dir is used
         self.pipeline = BaseChronosPipeline.from_pretrained(
             model_path,
             *args,
+            cache_dir=benchmark_config.hf_home,
             **kwargs,
         )
         self.prediction_length = prediction_length

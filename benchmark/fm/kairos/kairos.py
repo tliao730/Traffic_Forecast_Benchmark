@@ -12,6 +12,7 @@ from tqdm.auto import tqdm
 
 import argparse
 from common import eval, eval_time
+from config import config as benchmark_config
 
 # Load environment variables
 load_dotenv()
@@ -56,6 +57,13 @@ def pad_or_truncate(sequence, max_length: int = 2048, pad_value: float = np.nan)
         return seq_np[-max_length:]
 
 
+def _get_env_int(name: str, default: int) -> int:
+    val = os.environ.get(name)
+    if val is None or val == "":
+        return default
+    return int(val)
+
+
 class KairosPredictor:
     """
     Wrapper around tsfm.model.kairos.AutoModel to work with common.eval().
@@ -77,12 +85,21 @@ class KairosPredictor:
         print(f"Using device: {self.device}")
 
         # Load the model
-        self.model = AutoModel.from_pretrained(model_path, trust_remote_code=True)
+        try:
+            self.model = AutoModel.from_pretrained(
+                model_path,
+                trust_remote_code=True,
+                cache_dir=benchmark_config.hf_home,
+            )
+        except TypeError:
+            # Fallback for model loaders that don't accept cache_dir.
+            self.model = AutoModel.from_pretrained(model_path, trust_remote_code=True)
 
         # Move the model to the primary device
         self.model.to(self.device)
 
     def predict(self, test_data_input, batch_size: int = 256) -> List[Forecast]:
+        context_max_len = _get_env_int("KAIROS_CONTEXT_MAX_LENGTH", 2048)
         self.model.eval()
         model = self.model
         while True:
@@ -92,7 +109,9 @@ class KairosPredictor:
                 with torch.no_grad():
                     for batch in tqdm(batcher(test_data_input, batch_size=batch_size)):
                         context = [
-                            torch.tensor(pad_or_truncate(entry["target"], max_length=2048))
+                            torch.tensor(
+                                pad_or_truncate(entry["target"], max_length=context_max_len)
+                            )
                             for entry in batch
                         ]
                         forecast_outputs.append(
@@ -142,7 +161,8 @@ def main():
     if args.eval_time:
         eval_time(model_name, model_path, predictor_factory)
     else:
-        eval(model_name, model_path, predictor_factory, batch_size=256)
+        batch_size = _get_env_int("KAIROS_EVAL_BATCH_SIZE", 256)
+        eval(model_name, model_path, predictor_factory, batch_size=batch_size)
 
 
 if __name__ == "__main__":

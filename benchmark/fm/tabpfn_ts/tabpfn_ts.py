@@ -3,21 +3,40 @@ import sys
 from typing import Iterator
 
 import argparse
-from common import eval, eval_time
 from gluonts.model.forecast import Forecast
 
 # Try multiple possible locations for tabpfn-time-series
 _benchmark_dir = os.path.dirname(os.path.abspath(__file__))
 _trafficfm_root = os.path.dirname(_benchmark_dir)
+_benchmark_root = os.path.dirname(_trafficfm_root)  # benchmark/
+
+# Make sure `benchmark/common.py` is importable regardless of where we run from.
+if _benchmark_root not in sys.path:
+    sys.path.insert(0, _benchmark_root)
+
+from common import eval, eval_time
+
+# Optional override: set TABPFN_TS_PATH to a clone of
+# https://github.com/PriorLabs/tabpfn-time-series.git
+_tabpfn_env_path = os.environ.get("TABPFN_TS_PATH") or os.environ.get(
+    "TABPFN_TIME_SERIES_PATH"
+)
+
 possible_paths = [
+    _tabpfn_env_path,
     os.path.join(_trafficfm_root, "envs", "tabpfn_ts", "tabpfn-time-series"),  # env-specific install
     os.path.join(os.path.expanduser("~"), "tabpfn-time-series"),
     os.path.join(_trafficfm_root, "tabpfn-time-series"),
     "tabpfn-time-series",  # relative to current working directory
 ]
 
+# Filter out empty/unset env overrides to avoid `None` in error messages.
+possible_paths = [p for p in possible_paths if p]
+
 tabpfn_path = None
 for path in possible_paths:
+    if not path:
+        continue
     abs_path = os.path.abspath(path)
     if os.path.exists(abs_path):
         tabpfn_path = abs_path
