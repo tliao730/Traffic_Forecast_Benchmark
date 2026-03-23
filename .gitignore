@@ -178,6 +178,7 @@ gift-eval/*/*
 envs/flowstate/granite-tsfm/
 envs/kairos/Kairos/
 envs/tabpfn_ts/tabpfn-time-series/
+benchmark/tabpfn-v2-regressor-2noar4o2.ckpt
 envs/toto/toto/
 temp.py
 dataset/

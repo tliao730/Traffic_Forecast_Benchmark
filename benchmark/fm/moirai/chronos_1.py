@@ -1,12 +1,47 @@
 import argparse
+
 import numpy as np
 import torch
-from config import config as benchmark_config
 from chronos import BaseChronosPipeline, ForecastType
 from common import eval, eval_time
+from config import config as benchmark_config
 from gluonts.itertools import batcher
 from gluonts.model.forecast import QuantileForecast, SampleForecast
 from tqdm import tqdm
+
+MODEL_NAME = "chronos_bolt_base"
+MODEL_PATH = "amazon/chronos-bolt-base"
+DEFAULT_DEVICE = "cuda:0"
+DEFAULT_NUM_SAMPLES = 20
+DEFAULT_BATCH_SIZE = 1024
+
+
+def _build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="Chronos evaluation or time estimation")
+    parser.add_argument(
+        "--eval-time",
+        action="store_true",
+        help="Run eval_time (time estimation) only",
+    )
+    parser.add_argument(
+        "--batch-size",
+        type=int,
+        default=DEFAULT_BATCH_SIZE,
+        help=f"Evaluation batch size (default: {DEFAULT_BATCH_SIZE})",
+    )
+    parser.add_argument(
+        "--num-samples",
+        type=int,
+        default=DEFAULT_NUM_SAMPLES,
+        help=f"Number of generated samples (default: {DEFAULT_NUM_SAMPLES})",
+    )
+    parser.add_argument(
+        "--device",
+        type=str,
+        default=DEFAULT_DEVICE,
+        help=f"Device map passed to Chronos pipeline (default: {DEFAULT_DEVICE})",
+    )
+    return parser
 
 
 class ChronosPredictor:
@@ -79,26 +114,20 @@ class ChronosPredictor:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Chronos evaluation or time estimation")
-    parser.add_argument("--eval-time", action="store_true", help="Run eval_time (time estimation) only")
-    args = parser.parse_args()
-
-    model_name = "chronos_bolt_base"
-    model_path = "amazon/chronos-bolt-base"
-    device = "cuda:0"
+    args = _build_parser().parse_args()
 
     def predictor_factory(dataset):
         return ChronosPredictor(
-            model_path=model_path,
-            num_samples=20,
+            model_path=MODEL_PATH,
+            num_samples=args.num_samples,
             prediction_length=dataset.prediction_length,
-            device_map=device,
+            device_map=args.device,
         )
 
     if args.eval_time:
-        eval_time(model_name, model_path, predictor_factory)
+        eval_time(MODEL_NAME, MODEL_PATH, predictor_factory)
     else:
-        eval(model_name, model_path, predictor_factory)
+        eval(MODEL_NAME, MODEL_PATH, predictor_factory, batch_size=args.batch_size)
 
 
 if __name__ == "__main__":

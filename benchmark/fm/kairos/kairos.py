@@ -1,5 +1,4 @@
 import os
-import sys
 from typing import List
 
 import numpy as np
@@ -13,33 +12,64 @@ from tqdm.auto import tqdm
 import argparse
 from common import eval, eval_time
 from config import config as benchmark_config
+from path_utils import ensure_path_in_sys_path, find_first_existing_path
+
+MODEL_NAME = "Kairos_50m"
+MODEL_PATH = "mldi-lab/Kairos_50m"
+DEFAULT_BATCH_SIZE = 256
+DEFAULT_CONTEXT_MAX_LENGTH = 2048
 
 # Load environment variables
 load_dotenv()
 
 # Add Kairos repo to Python path (tsfm is from the cloned Kairos repo, not pip).
 # Set KAIROS_PATH to your clone, e.g. export KAIROS_PATH=/path/to/Kairos
-kairos_path = os.environ.get("KAIROS_PATH")
-if not kairos_path:
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    for candidate in [
-        os.path.join(script_dir, "..", "Kairos"),
-        os.path.join(script_dir, "..", "envs", "kairos", "Kairos"),
-    ]:
-        if os.path.isdir(candidate) and os.path.exists(os.path.join(candidate, "tsfm")):
-            kairos_path = os.path.abspath(candidate)
-            break
-if not kairos_path or not os.path.isdir(kairos_path):
-    raise SystemExit(
+_script_dir = os.path.dirname(os.path.abspath(__file__))
+kairos_path, searched_paths = find_first_existing_path(
+    [
+        os.environ.get("KAIROS_PATH"),
+        os.path.join(_script_dir, "..", "Kairos"),
+        os.path.join(_script_dir, "..", "envs", "kairos", "Kairos"),
+    ],
+    required_subpath="tsfm",
+)
+if kairos_path is None:
+    raise FileNotFoundError(
         "Kairos repo not found. Clone it and set KAIROS_PATH:\n"
         "  git clone https://github.com/foundation-model-research/Kairos.git\n"
         "  export KAIROS_PATH=/path/to/Kairos\n"
-        "  uv run python benchmark/kairos_new.py ..."
+        f"  Searched in: {', '.join(searched_paths)}"
     )
-if kairos_path not in sys.path:
-    sys.path.insert(0, kairos_path)
+ensure_path_in_sys_path(kairos_path, prepend=True)
 
 from tsfm.model.kairos import AutoModel  # noqa: E402
+
+
+def _build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="Kairos evaluation or time estimation")
+    parser.add_argument(
+        "--eval-time",
+        action="store_true",
+        help="Run eval_time (time estimation) only",
+    )
+    parser.add_argument(
+        "--batch-size",
+        type=int,
+        default=_get_env_int("KAIROS_EVAL_BATCH_SIZE", DEFAULT_BATCH_SIZE),
+        help=(
+            f"Evaluation batch size (default: KAIROS_EVAL_BATCH_SIZE or {DEFAULT_BATCH_SIZE})"
+        ),
+    )
+    parser.add_argument(
+        "--context-max-length",
+        type=int,
+        default=_get_env_int("KAIROS_CONTEXT_MAX_LENGTH", DEFAULT_CONTEXT_MAX_LENGTH),
+        help=(
+            "Context max length used for pad/truncate "
+            f"(default: KAIROS_CONTEXT_MAX_LENGTH or {DEFAULT_CONTEXT_MAX_LENGTH})"
+        ),
+    )
+    return parser
 
 
 def pad_or_truncate(sequence, max_length: int = 2048, pad_value: float = np.nan) -> np.ndarray:
@@ -99,7 +129,9 @@ class KairosPredictor:
         self.model.to(self.device)
 
     def predict(self, test_data_input, batch_size: int = 256) -> List[Forecast]:
-        context_max_len = _get_env_int("KAIROS_CONTEXT_MAX_LENGTH", 2048)
+        context_max_len = _get_env_int(
+            "KAIROS_CONTEXT_MAX_LENGTH", DEFAULT_CONTEXT_MAX_LENGTH
+        )
         self.model.eval()
         model = self.model
         while True:
@@ -141,28 +173,21 @@ class KairosPredictor:
 
 
 def main():
-    # Model configuration (same defaults as old kairos.py)
-    model_name = "Kairos_50m"
-    model_path = "mldi-lab/Kairos_50m"
+    args = _build_parser().parse_args()
 
     def predictor_factory(dataset):
-        """
-        Given a Dataset object from common.eval, construct the Kairos predictor.
-        """
         return KairosPredictor(
-            model_path=model_path,
+            model_path=MODEL_PATH,
             prediction_length=dataset.prediction_length,
         )
 
-    parser = argparse.ArgumentParser(description="Kairos evaluation or time estimation")
-    parser.add_argument("--eval-time", action="store_true", help="Run eval_time (time estimation) only")
-    args = parser.parse_args()
+    # Keep env var behavior for backwards compatibility while allowing CLI override.
+    os.environ["KAIROS_CONTEXT_MAX_LENGTH"] = str(args.context_max_length)
 
     if args.eval_time:
-        eval_time(model_name, model_path, predictor_factory)
+        eval_time(MODEL_NAME, MODEL_PATH, predictor_factory)
     else:
-        batch_size = _get_env_int("KAIROS_EVAL_BATCH_SIZE", 256)
-        eval(model_name, model_path, predictor_factory, batch_size=batch_size)
+        eval(MODEL_NAME, MODEL_PATH, predictor_factory, batch_size=args.batch_size)
 
 
 if __name__ == "__main__":

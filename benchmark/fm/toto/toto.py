@@ -1,29 +1,35 @@
 import os
-import sys
 import gc
 import math
 from typing import Any
 
 import numpy as np
 import torch
+from path_utils import ensure_path_in_sys_path, find_first_existing_path
+
+MODEL_NAME = "Toto-Open-Base-1.0"
+MODEL_PATH = "Datadog/Toto-Open-Base-1.0"
+DEFAULT_NUM_SAMPLES = 256
+DEFAULT_USE_KV_CACHE = True
+DEFAULT_PAD_SHORT_SERIES = False
 
 # Set environment variable for CUDA
 os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
 
-# Toto path: set TOTO_PATH to your clone, or clone into envs/toto/toto
+# Toto path: set TOTO_PATH to your clone, or clone into envs/toto/toto.
 _script_dir = os.path.dirname(os.path.abspath(__file__))
 _trafficfm_root = os.path.dirname(_script_dir)
 _default_toto = os.path.join(_trafficfm_root, "envs", "toto", "toto")
-toto_path = os.environ.get("TOTO_PATH", _default_toto)
-if os.path.isdir(toto_path):
-    if toto_path not in sys.path:
-        sys.path.insert(0, os.path.realpath(toto_path))
-else:
+toto_path, searched_paths = find_first_existing_path(
+    [os.environ.get("TOTO_PATH"), _default_toto]
+)
+if toto_path is None:
     raise FileNotFoundError(
-        f"toto repository not found at {toto_path}. "
+        f"toto repository not found. Searched in: {', '.join(searched_paths)}. "
         "Clone it: git clone https://github.com/DataDog/toto.git "
         "or set TOTO_PATH to your clone path."
     )
+ensure_path_in_sys_path(toto_path, prepend=True)
 
 from gluonts.dataset.split import split
 from gluonts.time_feature import get_seasonality
@@ -37,6 +43,44 @@ from config import device
 from config import config as benchmark_config
 
 DEFAULT_CONTEXT_LENGTH = 4096
+
+
+def _build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="Toto evaluation or time estimation")
+    parser.add_argument(
+        "--eval-time",
+        action="store_true",
+        help="Run eval_time (time estimation) only",
+    )
+    parser.add_argument(
+        "--num-samples",
+        type=int,
+        default=DEFAULT_NUM_SAMPLES,
+        help=f"Number of generated samples (default: {DEFAULT_NUM_SAMPLES})",
+    )
+    parser.add_argument(
+        "--pad-short-series",
+        action="store_true",
+        default=DEFAULT_PAD_SHORT_SERIES,
+        help="Pad short series instead of shrinking context length dynamically",
+    )
+    parser.add_argument(
+        "--disable-kv-cache",
+        action="store_true",
+        help="Disable KV cache during prediction",
+    )
+    return parser
+
+
+def _load_toto_model(model_path: str):
+    print("Loading Toto model...")
+    try:
+        model = Toto.from_pretrained(model_path, cache_dir=benchmark_config.hf_home)
+    except TypeError:
+        model = Toto.from_pretrained(model_path)
+    model = model.to(device if torch.cuda.is_available() else "cpu")
+    model = model.eval()
+    return torch.compile(model)
 
 
 def get_maximal_context_length(dataset):
@@ -260,45 +304,27 @@ class TotoPredictorWrapper:
 
 
 def main():
-    model_name = "Toto-Open-Base-1.0"
-    model_path = "Datadog/Toto-Open-Base-1.0"
-    num_samples = 256
-    use_kv_cache = True
-    pad_short_series = False
-
-    # Load model once
-    print("Loading Toto model...")
-    try:
-        model = Toto.from_pretrained(model_path, cache_dir=benchmark_config.hf_home)
-    except TypeError:
-        model = Toto.from_pretrained(model_path)
-    model = model.to(device if torch.cuda.is_available() else "cpu")
-    model = model.eval()
-    model = torch.compile(model)
+    args = _build_parser().parse_args()
+    use_kv_cache = DEFAULT_USE_KV_CACHE and not args.disable_kv_cache
+    model = _load_toto_model(MODEL_PATH)
 
     def predictor_factory(dataset):
-        # Store current dataset for context length calculation
         predictor = TotoPredictorWrapper(
             model=model,
             prediction_length=dataset.prediction_length,
-            num_samples=num_samples,
+            num_samples=args.num_samples,
             use_kv_cache=use_kv_cache,
-            pad_short_series=pad_short_series,
+            pad_short_series=args.pad_short_series,
         )
         predictor._current_dataset = dataset
         return predictor
 
-    parser = argparse.ArgumentParser(description="Toto evaluation or time estimation")
-    parser.add_argument("--eval-time", action="store_true", help="Run eval_time (time estimation) only")
-    args = parser.parse_args()
-
     try:
         if args.eval_time:
-            eval_time(model_name, model_path, predictor_factory)
+            eval_time(MODEL_NAME, MODEL_PATH, predictor_factory)
         else:
-            eval(model_name, model_path, predictor_factory, batch_size=num_samples)
+            eval(MODEL_NAME, MODEL_PATH, predictor_factory, batch_size=args.num_samples)
     finally:
-        # Cleanup
         del model
         torch.cuda.empty_cache()
         gc.collect()

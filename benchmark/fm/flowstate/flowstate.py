@@ -21,19 +21,28 @@ if _benchmark_root not in sys.path:
 
 from config import device
 from common import eval, eval_time
+from path_utils import ensure_path_in_sys_path, find_first_existing_path
 
 warnings.filterwarnings("ignore")
+
+MODEL_NAME = "FlowState-9.1M"
+MODEL_PATH = "ibm-research/FlowState"
+DEFAULT_SEED = 0
+DEFAULT_BATCH_SIZE = 8
 
 # FlowState path: set GRANITE_TSFM_PATH to your clone, or clone into envs/flowstate/granite-tsfm
 _trafficfm_root = os.path.dirname(_script_dir)
 _default_granite = os.path.join(_trafficfm_root, "envs", "flowstate", "granite-tsfm")
-_granite_path = os.environ.get("GRANITE_TSFM_PATH", _default_granite)
-if not os.path.isdir(_granite_path):
+_granite_path, searched_paths = find_first_existing_path(
+    [os.environ.get("GRANITE_TSFM_PATH"), _default_granite]
+)
+if _granite_path is None:
     raise FileNotFoundError(
-        f"granite-tsfm repo not found at {_granite_path}. "
+        f"granite-tsfm repo not found. Searched in: {', '.join(searched_paths)}. "
         "Clone it: git clone https://github.com/ibm-granite/granite-tsfm.git "
         "or set GRANITE_TSFM_PATH to your clone path."
     )
+ensure_path_in_sys_path(_granite_path, prepend=True)
 
 from tsfm_public import FlowStateForPrediction  # noqa: E402
 
@@ -50,6 +59,31 @@ if _spec is None or _spec.loader is None:
 _gift_wrapper_mod = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(_gift_wrapper_mod)
 FlowState_Gift_Wrapper = _gift_wrapper_mod.FlowState_Gift_Wrapper
+
+
+def _build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="FlowState evaluation or time estimation")
+    parser.add_argument(
+        "--eval-time",
+        action="store_true",
+        help="Run eval_time (time estimation) only",
+    )
+    parser.add_argument(
+        "--batch-size",
+        type=int,
+        default=int(os.environ.get("FLOWSTATE_EVAL_BATCH_SIZE", str(DEFAULT_BATCH_SIZE))),
+        help=(
+            "Evaluation batch size "
+            f"(default: FLOWSTATE_EVAL_BATCH_SIZE or {DEFAULT_BATCH_SIZE})"
+        ),
+    )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=DEFAULT_SEED,
+        help=f"Random seed (default: {DEFAULT_SEED})",
+    )
+    return parser
 
 
 def set_seed(seed: int) -> None:
@@ -101,16 +135,10 @@ def load_flowstate(
 
 
 def main():
-    model_name = "FlowState-9.1M"
-    model_path = "ibm-research/FlowState"
-    seed = 0
-    batch_size = int(os.environ.get("FLOWSTATE_EVAL_BATCH_SIZE", "8"))
+    args = _build_parser().parse_args()
 
     def predictor_factory(dataset):
-        """
-        Given a Dataset object from common.eval, construct the FlowState predictor.
-        """
-        set_seed(seed)
+        set_seed(args.seed)
 
         # Determine number of channels from one test sample
         num_channels = 1
@@ -139,18 +167,14 @@ def main():
             device_str=device,
             domain=getattr(dataset, "domain", None),
             nd=no_daily,
-            batch_size=batch_size,
+            batch_size=args.batch_size,
         )
         return predictor
 
-    parser = argparse.ArgumentParser(description="FlowState evaluation or time estimation")
-    parser.add_argument("--eval-time", action="store_true", help="Run eval_time (time estimation) only")
-    args = parser.parse_args()
-
     if args.eval_time:
-        eval_time(model_name, model_path, predictor_factory)
+        eval_time(MODEL_NAME, MODEL_PATH, predictor_factory)
     else:
-        eval(model_name, model_path, predictor_factory, batch_size=batch_size)
+        eval(MODEL_NAME, MODEL_PATH, predictor_factory, batch_size=args.batch_size)
 
 
 if __name__ == "__main__":

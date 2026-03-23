@@ -5,59 +5,83 @@ from common import eval, eval_time
 from config import config as benchmark_config
 from uni2ts.model.moirai import MoiraiForecast, MoiraiModule
 
+MODEL_NAME = "moirai_small"
+MODEL_PATH = "Salesforce/moirai-1.0-R-small"
+DEFAULT_CONTEXT_LENGTH = 4000
+DEFAULT_PATCH_SIZE = 32
+DEFAULT_NUM_SAMPLES = 20
+DEFAULT_BATCH_SIZE = 64
+
 # Load environment variables (for model caches, etc.)
 load_dotenv()
 
 
-# Load Moirai module once and reuse across datasets
-try:
-    _moirai_module = MoiraiModule.from_pretrained(
-        "Salesforce/moirai-1.0-R-small",
-        cache_dir=benchmark_config.hf_home,
+def _build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="Moirai evaluation or time estimation")
+    parser.add_argument(
+        "--eval-time",
+        action="store_true",
+        help="Run eval_time (time estimation) only",
     )
-except TypeError:
-    # Some model implementations may not accept cache_dir.
-    _moirai_module = MoiraiModule.from_pretrained("Salesforce/moirai-1.0-R-small")
+    parser.add_argument(
+        "--batch-size",
+        type=int,
+        default=DEFAULT_BATCH_SIZE,
+        help=f"Evaluation batch size (default: {DEFAULT_BATCH_SIZE})",
+    )
+    parser.add_argument(
+        "--num-samples",
+        type=int,
+        default=DEFAULT_NUM_SAMPLES,
+        help=f"Number of samples for MoiraiForecast (default: {DEFAULT_NUM_SAMPLES})",
+    )
+    parser.add_argument(
+        "--context-length",
+        type=int,
+        default=DEFAULT_CONTEXT_LENGTH,
+        help=f"Model context length (default: {DEFAULT_CONTEXT_LENGTH})",
+    )
+    parser.add_argument(
+        "--patch-size",
+        type=int,
+        default=DEFAULT_PATCH_SIZE,
+        help=f"Patch size used by MoiraiForecast (default: {DEFAULT_PATCH_SIZE})",
+    )
+    return parser
+
+
+def _load_moirai_module(model_path: str) -> MoiraiModule:
+    try:
+        return MoiraiModule.from_pretrained(
+            model_path,
+            cache_dir=benchmark_config.hf_home,
+        )
+    except TypeError:
+        # Some implementations do not accept cache_dir.
+        return MoiraiModule.from_pretrained(model_path)
 
 
 def main():
-    model_name = "moirai_small"
-    model_path = "Salesforce/moirai-1.0-R-small"
-
-    context_length = 4000
-    patch_size = 32
-    num_samples = 20
+    args = _build_parser().parse_args()
+    moirai_module = _load_moirai_module(MODEL_PATH)
 
     def predictor_factory(dataset):
-        """
-        Given a Dataset from common.eval, construct a Moirai GluonTS predictor.
-        This mirrors the behavior of the old moirai.py script:
-        - prediction_length is set per-term by common.eval
-        - target_dim and past_feat_dynamic_real_dim come from the Dataset
-        """
         model = MoiraiForecast(
-            module=_moirai_module,
+            module=moirai_module,
             prediction_length=dataset.prediction_length,
-            context_length=context_length,
-            patch_size=patch_size,
-            num_samples=num_samples,
+            context_length=args.context_length,
+            patch_size=args.patch_size,
+            num_samples=args.num_samples,
             target_dim=dataset.target_dim,
             feat_dynamic_real_dim=0,
             past_feat_dynamic_real_dim=dataset.past_feat_dynamic_real_dim,
         )
-
-        # In the old script, model.create_predictor(batch_size=64) was passed directly
-        predictor = model.create_predictor(batch_size=64)
-        return predictor
-
-    parser = argparse.ArgumentParser(description="Moirai evaluation or time estimation")
-    parser.add_argument("--eval-time", action="store_true", help="Run eval_time (time estimation) only")
-    args = parser.parse_args()
+        return model.create_predictor(batch_size=args.batch_size)
 
     if args.eval_time:
-        eval_time(model_name, model_path, predictor_factory)
+        eval_time(MODEL_NAME, MODEL_PATH, predictor_factory)
     else:
-        eval(model_name, model_path, predictor_factory, batch_size=64)
+        eval(MODEL_NAME, MODEL_PATH, predictor_factory, batch_size=args.batch_size)
 
 
 if __name__ == "__main__":

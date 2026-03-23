@@ -9,6 +9,52 @@ from gluonts.itertools import batcher
 from gluonts.model.forecast import QuantileForecast
 from uni2ts.model.moirai2 import Moirai2Forecast, Moirai2Module
 
+MODEL_NAME = "Moirai2"
+MODEL_PATH = "Salesforce/moirai-2.0-R-small"
+DEFAULT_DEVICE = "cuda"
+DEFAULT_CONTEXT_LENGTH = 4000
+DEFAULT_BATCH_SIZE = 64
+DEFAULT_QUANTILES = (0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9)
+
+
+def _build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        description="Moirai2 evaluation or time estimation"
+    )
+    parser.add_argument(
+        "--eval-time", action="store_true", help="Run eval_time (time estimation) only"
+    )
+    parser.add_argument(
+        "--batch-size",
+        type=int,
+        default=DEFAULT_BATCH_SIZE,
+        help=f"Batch size for model prediction and evaluation (default: {DEFAULT_BATCH_SIZE})",
+    )
+    parser.add_argument(
+        "--context-length",
+        type=int,
+        default=DEFAULT_CONTEXT_LENGTH,
+        help=f"Model context length (default: {DEFAULT_CONTEXT_LENGTH})",
+    )
+    parser.add_argument(
+        "--device",
+        type=str,
+        default=DEFAULT_DEVICE,
+        help=f"Device string passed to Moirai2Forecast.to() (default: {DEFAULT_DEVICE})",
+    )
+    parser.add_argument(
+        "--save-predictions",
+        action="store_true",
+        help="Save all predictions and ground truth to CSV (in addition to metrics)",
+    )
+    parser.add_argument(
+        "--pred-out-dir",
+        type=str,
+        default=None,
+        help="Directory for prediction CSVs (default: result_root/Moirai2/predictions)",
+    )
+    return parser
+
 
 class MoiraiQuantilePredictor:
     def __init__(
@@ -20,8 +66,8 @@ class MoiraiQuantilePredictor:
         feat_dynamic_real_dim: int = 0,
         past_feat_dynamic_real_dim: int = 0,
         device_str: str = "auto",
-        batch_size: int = 2048,
-        quantile_levels: tuple = (0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9),
+        batch_size: int = DEFAULT_BATCH_SIZE,
+        quantile_levels: tuple = DEFAULT_QUANTILES,
     ):
         self.model_path = model_path
         self.prediction_length = prediction_length
@@ -95,52 +141,32 @@ class MoiraiQuantilePredictor:
 
 
 def main():
-    model_name = "Moirai2"
-    model_path = "Salesforce/moirai-2.0-R-small"
-    device = "cuda"
+    args = _build_parser().parse_args()
 
     def predictor_factory(dataset):
         return MoiraiQuantilePredictor(
-            model_path=model_path,
+            model_path=MODEL_PATH,
             prediction_length=dataset.prediction_length,
-            context_length=4000,
+            context_length=args.context_length,
             target_dim=1,
             feat_dynamic_real_dim=dataset.past_feat_dynamic_real_dim,
-            batch_size=64,
-            device_str=device,
+            batch_size=args.batch_size,
+            device_str=args.device,
         )
 
-    parser = argparse.ArgumentParser(
-        description="Moirai2 evaluation or time estimation"
-    )
-    parser.add_argument(
-        "--eval-time", action="store_true", help="Run eval_time (time estimation) only"
-    )
-    parser.add_argument(
-        "--save-predictions",
-        action="store_true",
-        help="Save all predictions and ground truth to CSV (in addition to metrics)",
-    )
-    parser.add_argument(
-        "--pred-out-dir",
-        type=str,
-        default=None,
-        help="Directory for prediction CSVs (default: result_root/Moirai2/predictions)",
-    )
-    args = parser.parse_args()
-
     if args.eval_time:
-        eval_time(model_name, model_path, predictor_factory)
+        eval_time(MODEL_NAME, MODEL_PATH, predictor_factory)
     else:
         save_dir = args.pred_out_dir
         if args.save_predictions and save_dir is None:
             from config import config
 
-            save_dir = os.path.join(config.result_root, model_name, "predictions")
+            save_dir = os.path.join(config.result_root, MODEL_NAME, "predictions")
         eval(
-            model_name,
-            model_path,
+            MODEL_NAME,
+            MODEL_PATH,
             predictor_factory,
+            batch_size=args.batch_size,
             save_predictions_dir=save_dir if args.save_predictions else None,
         )
 

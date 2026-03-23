@@ -1,7 +1,5 @@
 import argparse
 import logging
-import os
-import sys
 import warnings
 from typing import List
 
@@ -15,6 +13,10 @@ from tqdm.auto import tqdm
 from common import eval, eval_time
 
 warnings.filterwarnings("ignore")
+
+MODEL_NAME = "timesfm_2_0_500m"
+MODEL_PATH = "google/timesfm-2.0-500m-jax"
+DEFAULT_BATCH_SIZE = 1024
 
 # Load environment variables
 load_dotenv()
@@ -46,6 +48,42 @@ gts_logger = logging.getLogger("gluonts.model.forecast")
 gts_logger.addFilter(WarningFilter("The mean prediction is not stored in the forecast data"))
 
 
+def _build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="TimesFM evaluation or time estimation")
+    parser.add_argument(
+        "--eval-time",
+        action="store_true",
+        help="Run eval_time (time estimation) only",
+    )
+    parser.add_argument(
+        "--batch-size",
+        type=int,
+        default=DEFAULT_BATCH_SIZE,
+        help=f"Evaluation batch size (default: {DEFAULT_BATCH_SIZE})",
+    )
+    return parser
+
+
+def _load_timesfm_model():
+    print("Loading TimesFM model...")
+    model = timesfm.TimesFm(
+        hparams=timesfm.TimesFmHparams(
+            backend="gpu",
+            per_core_batch_size=32,
+            num_layers=50,
+            horizon_len=128,
+            context_len=2048,
+            use_positional_embedding=False,
+            output_patch_len=128,
+        ),
+        checkpoint=timesfm.TimesFmCheckpoint(
+            huggingface_repo_id=MODEL_PATH
+        ),
+    )
+    print("Model loaded successfully.")
+    return model
+
+
 class TimesFmPredictor:
     """
     Wrapper around a TimesFm model to be used with common.eval().
@@ -71,7 +109,7 @@ class TimesFmPredictor:
             print("Jitting for new prediction length.")
         self.freq = timesfm.freq_map(ds_freq)
 
-    def predict(self, test_data_input, batch_size: int = 1024) -> List[Forecast]:
+    def predict(self, test_data_input, batch_size: int = DEFAULT_BATCH_SIZE) -> List[Forecast]:
         forecast_outputs = []
         for batch in tqdm(batcher(test_data_input, batch_size=batch_size)):
             context = []
@@ -100,45 +138,20 @@ class TimesFmPredictor:
 
 
 def main():
-    model_name = "timesfm_2_0_500m"
-    model_path = "google/timesfm-2.0-500m-jax"
-
-    # Load the TimesFM model once, as in the original script
-    print("Loading TimesFM model...")
-    tfm = timesfm.TimesFm(
-        hparams=timesfm.TimesFmHparams(
-            backend="gpu",
-            per_core_batch_size=32,
-            num_layers=50,
-            horizon_len=128,
-            context_len=2048,
-            use_positional_embedding=False,
-            output_patch_len=128,
-        ),
-        checkpoint=timesfm.TimesFmCheckpoint(
-            huggingface_repo_id="google/timesfm-2.0-500m-jax"
-        ),
-    )
-    print("Model loaded successfully.")
+    args = _build_parser().parse_args()
+    tfm = _load_timesfm_model()
 
     def predictor_factory(dataset):
-        """
-        Given a Dataset from common.eval, construct a TimesFmPredictor.
-        """
         return TimesFmPredictor(
             tfm=tfm,
             prediction_length=dataset.prediction_length,
             ds_freq=dataset.freq,
         )
 
-    parser = argparse.ArgumentParser(description="TimesFM evaluation or time estimation")
-    parser.add_argument("--eval-time", action="store_true", help="Run eval_time (time estimation) only")
-    args = parser.parse_args()
-
     if args.eval_time:
-        eval_time(model_name, model_path, predictor_factory)
+        eval_time(MODEL_NAME, MODEL_PATH, predictor_factory)
     else:
-        eval(model_name, model_path, predictor_factory, batch_size=1024)
+        eval(MODEL_NAME, MODEL_PATH, predictor_factory, batch_size=args.batch_size)
 
 
 if __name__ == "__main__":
