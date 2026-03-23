@@ -9,17 +9,22 @@ Supported ensemble strategies:
 - Median
 """
 
+import argparse
 import warnings
 
 import numpy as np
-import pandas as pd
 from common import eval, eval_time
 from gluonts.model.forecast import SampleForecast
 
 # Import the ML forecasting function from ml_methods
-from tabpfn_ts.ml_methods import ml_forecast
+from ml.ml_methods import ml_forecast
 
 warnings.filterwarnings("ignore")
+
+DEFAULT_STRATEGY = "mean"
+DEFAULT_MODELS = ["random_forest", "lightgbm", "xgboost", "ridge"]
+DEFAULT_BATCH_SIZE = 1024
+DEFAULT_N_JOBS = -1
 
 
 class EnsemblePredictor:
@@ -133,7 +138,7 @@ class EnsemblePredictor:
                         start_date=forecast_start_date,
                         item_id=item.get("item_id", str(self.count)),
                     )
-                except:
+                except Exception:
                     continue
 
     def _ensemble_forecast(self, history, prediction_length, season_length):
@@ -187,25 +192,22 @@ class EnsemblePredictor:
         return ensemble_forecast
 
 
-def main():
-    """Main entry point for ensemble evaluation."""
-    import argparse
-
+def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Evaluate ensemble methods for time series forecasting"
     )
     parser.add_argument(
         "--strategy",
         type=str,
-        default="mean",
+        default=DEFAULT_STRATEGY,
         choices=["mean", "weighted", "median"],
-        help="Ensemble strategy",
+        help=f"Ensemble strategy (default: {DEFAULT_STRATEGY})",
     )
     parser.add_argument(
         "--models",
         type=str,
         nargs="+",
-        default=["random_forest", "lightgbm", "xgboost", "ridge"],
+        default=DEFAULT_MODELS,
         help="Models to ensemble",
     )
     parser.add_argument(
@@ -218,14 +220,18 @@ def main():
     parser.add_argument(
         "--n-jobs",
         type=int,
-        default=-1,
+        default=DEFAULT_N_JOBS,
         help="Number of CPU threads to use (-1 for all cores, 1 for single thread)",
     )
     parser.add_argument(
         "--eval-time", action="store_true", help="Run eval_time (time estimation) only"
     )
+    return parser
 
-    args = parser.parse_args()
+
+def main():
+    """Main entry point for ensemble evaluation."""
+    args = _build_parser().parse_args()
 
     # Validate weights if provided
     if args.weights:
@@ -265,7 +271,7 @@ def main():
     if args.eval_time:
         eval_time(model_name, model_path, predictor_factory, estimation_samples=10)
     else:
-        eval(model_name, model_path, predictor_factory, batch_size=1024)
+        eval(model_name, model_path, predictor_factory, batch_size=DEFAULT_BATCH_SIZE)
 
 
 if __name__ == "__main__":

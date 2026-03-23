@@ -10,24 +10,38 @@ Supported algorithms:
 - Seasonal Naive (baseline)
 """
 
+import argparse
 import warnings
+
+import lightgbm as lgb
 import numpy as np
 import pandas as pd
+import xgboost as xgb
+from common import eval, eval_time
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.linear_model import LinearRegression, Ridge
-import lightgbm as lgb
-import xgboost as xgb
 from gluonts.model.forecast import SampleForecast
-from common import eval, eval_time
-from common import get_prediction_length
-warnings.filterwarnings('ignore')
+
+warnings.filterwarnings("ignore")
+
+DEFAULT_MODEL = "random_forest"
+DEFAULT_N_JOBS = 16
+DEFAULT_BATCH_SIZE = 1024
+SUPPORTED_MODELS = [
+    "random_forest",
+    "xgboost",
+    "lightgbm",
+    "linear_regression",
+    "ridge",
+    "seasonal_naive",
+]
 
 
 def create_lag_features(data, n_lags=10):
     """Create lag features for supervised learning."""
     features = []
     for i in range(n_lags, len(data)):
-        features.append(data[i-n_lags:i])
+        features.append(data[i - n_lags : i])
     return np.array(features)
 
 
@@ -41,40 +55,40 @@ def create_model(model_name, n_jobs=-1, **kwargs):
     """
     if model_name == "random_forest":
         return RandomForestRegressor(
-            n_estimators=10,     # Drastically reduced for speed
-            max_depth=5,         # Reduced
+            n_estimators=10,  # Drastically reduced for speed
+            max_depth=5,  # Reduced
             min_samples_split=20,  # Increased
-            min_samples_leaf=10,   # Increased
-            max_features='sqrt',   # Limit features
+            min_samples_leaf=10,  # Increased
+            max_features="sqrt",  # Limit features
             n_jobs=n_jobs,
             random_state=42,
-            **kwargs
+            **kwargs,
         )
     elif model_name == "xgboost":
         return xgb.XGBRegressor(
-            n_estimators=10,     # Drastically reduced for speed
-            max_depth=3,         # Reduced
-            learning_rate=0.3,   # Increased for faster convergence
-            subsample=0.7,       # Reduced
+            n_estimators=10,  # Drastically reduced for speed
+            max_depth=3,  # Reduced
+            learning_rate=0.3,  # Increased for faster convergence
+            subsample=0.7,  # Reduced
             colsample_bytree=0.7,  # Reduced
-            tree_method='hist',  # Faster algorithm
+            tree_method="hist",  # Faster algorithm
             n_jobs=n_jobs,
             random_state=42,
-            **kwargs
+            **kwargs,
         )
     elif model_name == "lightgbm":
         return lgb.LGBMRegressor(
-            n_estimators=10,     # Drastically reduced for speed
-            max_depth=3,         # Reduced
-            learning_rate=0.3,   # Increased for faster convergence
-            num_leaves=7,        # Reduced (2^3 - 1)
-            subsample=0.7,       # Reduced
+            n_estimators=10,  # Drastically reduced for speed
+            max_depth=3,  # Reduced
+            learning_rate=0.3,  # Increased for faster convergence
+            num_leaves=7,  # Reduced (2^3 - 1)
+            subsample=0.7,  # Reduced
             colsample_bytree=0.7,  # Reduced
             n_jobs=n_jobs,
             random_state=42,
             verbose=-1,
             force_row_wise=True,  # Faster for small datasets
-            **kwargs
+            **kwargs,
         )
     elif model_name == "linear_regression":
         return LinearRegression(**kwargs)
@@ -88,7 +102,7 @@ def seasonal_naive_forecast(history, prediction_length, season_length):
     """Simple seasonal naive forecast - repeat last season."""
     if season_length is None or season_length < 1:
         season_length = 1
-    
+
     forecast = []
     for i in range(prediction_length):
         idx = len(history) - season_length + (i % season_length)
@@ -96,7 +110,7 @@ def seasonal_naive_forecast(history, prediction_length, season_length):
             forecast.append(history[idx])
         else:
             forecast.append(history[-1])
-    
+
     return np.array(forecast)
 
 
@@ -117,27 +131,27 @@ def ml_forecast(history, prediction_length, model_name, season_length=None, n_la
         # If still has NaN (all NaN case), fill with 0
         if np.any(np.isnan(history)):
             history = np.nan_to_num(history, nan=0.0)
-    
+
     if model_name == "seasonal_naive":
         return seasonal_naive_forecast(history, prediction_length, season_length)
-    
+
     # Determine number of lags
     if n_lags is None:
         n_lags = min(max(prediction_length * 2, 10), len(history) // 4)
         n_lags = max(n_lags, prediction_length + 1)
-    
+
     # Check if we have enough data
     if len(history) < n_lags + prediction_length:
         # Fall back to seasonal naive
         return seasonal_naive_forecast(history, prediction_length, season_length)
-    
+
     # Create training data
     X_train = create_lag_features(history[:-prediction_length], n_lags)
     y_train = history[n_lags:-prediction_length]
-    
+
     if len(X_train) == 0 or len(y_train) == 0:
         return seasonal_naive_forecast(history, prediction_length, season_length)
-    
+
     # Train model
     model = create_model(model_name, n_jobs=n_jobs)
     model.fit(X_train, y_train)
@@ -160,21 +174,21 @@ def ml_forecast(history, prediction_length, model_name, season_length=None, n_la
 
 class MLPredictor:
     """Predictor wrapper for ML methods that works with GluonTS evaluate_model."""
-    
+
     def __init__(self, model_name, prediction_length, season_length, n_jobs=-1):
         self.model_name = model_name
         self.prediction_length = prediction_length
         self.season_length = season_length
         self.n_jobs = n_jobs
         self.count = 0
-    
+
     def predict(self, dataset, num_samples=100):
         """Generate forecasts for a dataset."""
         for item in dataset:
             self.count += 1
             if self.count % 1000 == 0:
                 print(f"  Processed {self.count} time series")
-            
+
             try:
                 # Handle both dict and tuple formats
                 if isinstance(item, tuple):
@@ -183,26 +197,25 @@ class MLPredictor:
                 else:
                     # Item is just a dict
                     item_dict = item
-                
-                history = item_dict['target']
-                start = item_dict['start']
-                
+                history = item_dict["target"]
+                start = item_dict["start"]
+
                 # Handle multivariate data
                 if len(history.shape) > 1:
                     # Process each dimension separately
                     num_dims = history.shape[1]
                     all_dim_forecasts = []
-                    
+
                     for dim in range(num_dims):
                         forecast_1d = ml_forecast(
                             history[:, dim],
                             self.prediction_length,
                             self.model_name,
                             self.season_length,
-                            n_jobs=self.n_jobs
+                            n_jobs=self.n_jobs,
                         )
                         all_dim_forecasts.append(forecast_1d)
-                    
+
                     forecast_mean = np.stack(all_dim_forecasts, axis=-1)
                 else:
                     # Univariate
@@ -211,23 +224,23 @@ class MLPredictor:
                         self.prediction_length,
                         self.model_name,
                         self.season_length,
-                        n_jobs=self.n_jobs
+                        n_jobs=self.n_jobs,
                     )
-                
+
                 # Create samples (repeat mean for all samples)
                 if len(forecast_mean.shape) > 1:
                     samples = np.tile(forecast_mean[np.newaxis, :, :], (num_samples, 1, 1))
                 else:
                     samples = np.tile(forecast_mean[np.newaxis, :], (num_samples, 1))
-                
+
                 # Create forecast object
                 forecast_start_date = start + len(history)
                 yield SampleForecast(
                     samples=samples,
                     start_date=forecast_start_date,
-                    item_id=item_dict.get('item_id', str(self.count)),
+                    item_id=item_dict.get("item_id", str(self.count)),
                 )
-                
+
             except Exception as e:
                 print(f"  Warning: Error on series {self.count}: {e}")
                 # Generate a fallback forecast (repeat last value)
@@ -238,33 +251,46 @@ class MLPredictor:
                     else:
                         fallback = np.full(self.prediction_length, history[-1])
                         samples = np.tile(fallback[np.newaxis, :], (num_samples, 1))
-                    
+
                     forecast_start_date = start + len(history)
                     yield SampleForecast(
                         samples=samples,
                         start_date=forecast_start_date,
-                        item_id=item_dict.get('item_id', str(self.count)),
+                        item_id=item_dict.get("item_id", str(self.count)),
                     )
-                except:
+                except Exception:
                     continue
+
+
+def _build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        description="Evaluate ML methods for time series forecasting"
+    )
+    parser.add_argument(
+        "--model",
+        type=str,
+        default=DEFAULT_MODEL,
+        choices=SUPPORTED_MODELS,
+        help=f"Model to use (default: {DEFAULT_MODEL})",
+    )
+    parser.add_argument(
+        "--n-jobs",
+        type=int,
+        default=DEFAULT_N_JOBS,
+        help="Number of CPU threads to use (-1 for all cores, 1 for single thread)",
+    )
+    parser.add_argument(
+        "--eval-time",
+        action="store_true",
+        help="Run eval_time (time estimation) only",
+    )
+    return parser
 
 
 def main():
     """Main entry point for ML methods evaluation."""
-    import argparse
-    
-    parser = argparse.ArgumentParser(description='Evaluate ML methods for time series forecasting')
-    parser.add_argument('--model', type=str, default='random_forest',
-                      choices=['random_forest', 'xgboost', 'lightgbm', 
-                               'linear_regression', 'ridge', 'seasonal_naive'],
-                      help='Model to use')
-    parser.add_argument('--n-jobs', type=int, default=16,
-                      help='Number of CPU threads to use (-1 for all cores, 1 for single thread)')
-    parser.add_argument('--eval-time', action='store_true',
-                      help='Run eval_time (time estimation) only')
-    
-    args = parser.parse_args()
-    
+    args = _build_parser().parse_args()
+
     model_name = args.model
     n_jobs = args.n_jobs
     print(f"Evaluating model: {model_name}")
@@ -274,20 +300,21 @@ def main():
     def predictor_factory(dataset):
         """Factory function to create predictor for each dataset."""
         from gluonts.time_feature import get_seasonality
+
         season_length = get_seasonality(dataset.freq)
-        
+
         return MLPredictor(
             model_name=model_name,
             prediction_length=dataset.prediction_length,
             season_length=season_length,
-            n_jobs=n_jobs
+            n_jobs=n_jobs,
         )
-    
+
     model_path = f"sklearn/{model_name}"
     if args.eval_time:
         eval_time(model_name, model_path, predictor_factory, estimation_samples=10)
     else:
-        eval(model_name, model_path, predictor_factory, batch_size=1024)
+        eval(model_name, model_path, predictor_factory, batch_size=DEFAULT_BATCH_SIZE)
 
 
 
