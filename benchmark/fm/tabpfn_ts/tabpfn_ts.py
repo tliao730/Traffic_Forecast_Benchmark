@@ -1,26 +1,20 @@
 import os
-import sys
 from typing import Iterator
 
 import argparse
 from gluonts.model.forecast import Forecast
+
+from load_model import setup_model_environment
 
 MODEL_NAME = "tabpfn_ts"
 MODEL_PATH = "tabpfn-time-series"  # Label used in benchmark outputs.
 DEFAULT_CONTEXT_LENGTH = 4096
 DEFAULT_BATCH_SIZE = 1024
 
-# Try multiple possible locations for tabpfn-time-series.
-_script_dir = os.path.dirname(os.path.abspath(__file__))
-_trafficfm_root = os.path.dirname(_script_dir)
-_benchmark_root = os.path.dirname(_trafficfm_root)  # benchmark/
-
-# Make sure `benchmark/common.py` is importable regardless of where we run from.
-if _benchmark_root not in sys.path:
-    sys.path.insert(0, _benchmark_root)
-
+MODEL_ENV = setup_model_environment("tabpfn_ts", __file__)
 from common import eval, eval_time
-from path_utils import ensure_path_in_sys_path, find_first_existing_path
+
+tabpfn_path = MODEL_ENV.require_repo_path()
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -45,42 +39,13 @@ def _build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-# Optional override: set TABPFN_TS_PATH to a clone of
-# https://github.com/PriorLabs/tabpfn-time-series.git
-_tabpfn_env_path = os.environ.get("TABPFN_TS_PATH") or os.environ.get(
-    "TABPFN_TIME_SERIES_PATH"
-)
-
-_candidate_paths = [
-    _tabpfn_env_path,
-    os.path.join(_trafficfm_root, "envs", "tabpfn_ts", "tabpfn-time-series"),  # env-specific install
-    os.path.join(os.path.expanduser("~"), "tabpfn-time-series"),
-    os.path.join(_trafficfm_root, "tabpfn-time-series"),
-    "tabpfn-time-series",  # relative to current working directory
-]
-
-tabpfn_path, searched_paths = find_first_existing_path(_candidate_paths)
-if tabpfn_path is None:
-    raise FileNotFoundError(
-        "tabpfn-time-series repository not found. Please clone it first:\n"
-        "  git clone https://github.com/PriorLabs/tabpfn-time-series.git\n"
-        "  cd tabpfn-time-series && git checkout v1.0.0\n"
-        f"  Searched in: {', '.join(searched_paths)}"
-    )
-
-# Add both the main repository and the gift_eval subdirectory to the path
-ensure_path_in_sys_path(tabpfn_path)
-gift_eval_path = os.path.join(tabpfn_path, "gift_eval")
-if os.path.exists(gift_eval_path):
-    ensure_path_in_sys_path(gift_eval_path)
-
 print(f"Added tabpfn-time-series to Python path: {tabpfn_path}")
 
 # Import the TabPFN time series predictor class
 try:
     from tabpfn_ts_wrapper import TabPFNTSPredictor, TabPFNMode
 except ImportError as e:
-    requirements_path = os.path.join(tabpfn_path, "requirements.txt")
+    requirements_path = MODEL_ENV.repo_file("requirements.txt")
     raise ImportError(
         f"Failed to import tabpfn_ts_wrapper: {e}\n"
         "\n"
@@ -141,4 +106,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

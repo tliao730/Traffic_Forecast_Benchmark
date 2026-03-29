@@ -5,7 +5,6 @@ from typing import Any
 
 import numpy as np
 import torch
-from path_utils import ensure_path_in_sys_path, find_first_existing_path
 
 MODEL_NAME = "Toto-Open-Base-1.0"
 MODEL_PATH = "Datadog/Toto-Open-Base-1.0"
@@ -16,20 +15,13 @@ DEFAULT_PAD_SHORT_SERIES = False
 # Set environment variable for CUDA
 os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
 
-# Toto path: set TOTO_PATH to your clone, or clone into envs/toto/toto.
-_script_dir = os.path.dirname(os.path.abspath(__file__))
-_trafficfm_root = os.path.dirname(_script_dir)
-_default_toto = os.path.join(_trafficfm_root, "envs", "toto", "toto")
-toto_path, searched_paths = find_first_existing_path(
-    [os.environ.get("TOTO_PATH"), _default_toto]
-)
-if toto_path is None:
-    raise FileNotFoundError(
-        f"toto repository not found. Searched in: {', '.join(searched_paths)}. "
-        "Clone it: git clone https://github.com/DataDog/toto.git "
-        "or set TOTO_PATH to your clone path."
-    )
-ensure_path_in_sys_path(toto_path, prepend=True)
+from load_model import setup_model_environment
+
+setup_model_environment("toto", __file__)
+
+from common import eval, eval_time
+from config import device
+from config import config as benchmark_config
 
 from gluonts.dataset.split import split
 from gluonts.time_feature import get_seasonality
@@ -38,9 +30,6 @@ from toto.inference.gluonts_predictor import Multivariate, TotoPredictor
 from toto.model.toto import Toto
 
 import argparse
-from common import eval, eval_time
-from config import device
-from config import config as benchmark_config
 
 DEFAULT_CONTEXT_LENGTH = 4096
 
@@ -332,4 +321,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

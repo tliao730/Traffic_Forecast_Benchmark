@@ -10,9 +10,8 @@ from gluonts.model.forecast import SampleForecast
 from tqdm.auto import tqdm
 
 import argparse
-from common import eval, eval_time
-from config import config as benchmark_config
-from path_utils import ensure_path_in_sys_path, find_first_existing_path
+
+from load_model import setup_model_environment
 
 MODEL_NAME = "Kairos_50m"
 MODEL_PATH = "mldi-lab/Kairos_50m"
@@ -22,25 +21,10 @@ DEFAULT_CONTEXT_MAX_LENGTH = 2048
 # Load environment variables
 load_dotenv()
 
-# Add Kairos repo to Python path (tsfm is from the cloned Kairos repo, not pip).
-# Set KAIROS_PATH to your clone, e.g. export KAIROS_PATH=/path/to/Kairos
-_script_dir = os.path.dirname(os.path.abspath(__file__))
-kairos_path, searched_paths = find_first_existing_path(
-    [
-        os.environ.get("KAIROS_PATH"),
-        os.path.join(_script_dir, "..", "Kairos"),
-        os.path.join(_script_dir, "..", "envs", "kairos", "Kairos"),
-    ],
-    required_subpath="tsfm",
-)
-if kairos_path is None:
-    raise FileNotFoundError(
-        "Kairos repo not found. Clone it and set KAIROS_PATH:\n"
-        "  git clone https://github.com/foundation-model-research/Kairos.git\n"
-        "  export KAIROS_PATH=/path/to/Kairos\n"
-        f"  Searched in: {', '.join(searched_paths)}"
-    )
-ensure_path_in_sys_path(kairos_path, prepend=True)
+setup_model_environment("kairos", __file__)
+
+from common import eval, eval_time
+from config import config as benchmark_config
 
 from tsfm.model.kairos import AutoModel  # noqa: E402
 
@@ -192,4 +176,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

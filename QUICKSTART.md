@@ -45,12 +45,12 @@ Generate dataset for GNN training, the dataset will be saved at `dataset/LargeST
 uv run ./scripts/data_processing/LargeST/generate_dataset_for_training.py --dataset sd --years 2019
 ```
 
-Generate dataset for Gift-eval, the dataset will be saved at `dataset/LargeST/gift_eval/[ca/gba/gla/sd]_[train_val]/[year]/[freqency]`
+Generate dataset for Gift-eval. The generated files will be saved at `dataset/LargeST/gift_eval/[ca/gba/gla/sd]_[train_val]/[year]/[frequency]`
 ```bash
 uv run ./scripts/data_processing/LargeST/generate_data_for_gift_eval.py --dataset sd --years 2019
 ```
 
-Run benchmark
+Run benchmarks
 ```bash
 cd benchmark
 # ML
@@ -88,6 +88,8 @@ test -d fm/envs/toto/toto || \
   git clone https://github.com/DataDog/toto.git fm/envs/toto/toto
 
 # Run FM benchmarks
+# FM entrypoints are intended to be run from benchmark/ as modules via python -m.
+# Running the script files directly is not supported.
 uv run --project fm/flowstate python -m fm.flowstate.flowstate
 uv run --project fm/kairos python -m fm.kairos.kairos
 uv run --project fm/moirai python -m fm.moirai.chronos_1
