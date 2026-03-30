@@ -1,7 +1,5 @@
 import os
 import gc
-import math
-from typing import Any
 
 import numpy as np
 import torch
@@ -23,8 +21,6 @@ setup_model_environment("toto", __file__)
 from config import device
 from config import config as benchmark_config
 
-from gluonts.dataset.split import split
-from gluonts.time_feature import get_seasonality
 #from inference.gluonts_predictor import Multivariate, TotoPredictor
 from toto.inference.gluonts_predictor import Multivariate, TotoPredictor
 from toto.model.toto import Toto

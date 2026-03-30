@@ -1,5 +1,4 @@
 import argparse
-import logging
 import warnings
 from typing import List
 
@@ -36,20 +35,6 @@ except ImportError as e:
         "\n"
         "Original error: " + str(e)
     ) from e
-
-
-class WarningFilter(logging.Filter):
-    def __init__(self, text_to_filter: str):
-        super().__init__()
-        self.text_to_filter = text_to_filter
-
-    def filter(self, record: logging.LogRecord) -> bool:  # type: ignore[override]
-        return self.text_to_filter not in record.getMessage()
-
-
-gts_logger = logging.getLogger("gluonts.model.forecast")
-gts_logger.addFilter(WarningFilter("The mean prediction is not stored in the forecast data"))
-
 
 def _build_parser() -> argparse.ArgumentParser:
     parser = build_basic_parser("TimesFM evaluation or time estimation")
