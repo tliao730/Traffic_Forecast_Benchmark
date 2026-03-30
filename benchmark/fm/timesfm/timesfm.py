@@ -6,12 +6,12 @@ import numpy as np
 from fm.fm_utils import (
     build_basic_parser,
     get_entry_target,
-    load_benchmark_config_module,
     run_benchmark,
     to_quantile_forecasts,
 )
 from gluonts.itertools import batcher
 from gluonts.model import Forecast
+from load_model import setup_model_runtime
 from tqdm.auto import tqdm
 
 warnings.filterwarnings("ignore")
@@ -20,7 +20,7 @@ MODEL_NAME = "timesfm_2_0_500m"
 MODEL_PATH = "google/timesfm-2.0-500m-jax"
 DEFAULT_BATCH_SIZE = 1024
 
-_BENCHMARK_CONFIG_MODULE = load_benchmark_config_module()
+_MODEL_RUNTIME = setup_model_runtime("timesfm", __file__)
 
 # Ensure we can import timesfm only after benchmark config applies HF cache env vars.
 try:

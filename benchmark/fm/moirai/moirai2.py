@@ -6,13 +6,13 @@ import torch
 from fm.fm_utils import (
     build_basic_parser,
     get_entry_target,
-    load_benchmark_config_module,
     load_pretrained_with_cache,
     run_benchmark,
     to_quantile_forecasts,
 )
 from fm.torch_utils import run_with_batch_size_backoff
 from gluonts.itertools import batcher
+from load_model import setup_model_runtime
 from uni2ts.model.moirai2 import Moirai2Forecast, Moirai2Module
 
 MODEL_NAME = "Moirai2"
@@ -22,7 +22,8 @@ DEFAULT_CONTEXT_LENGTH = 4000
 DEFAULT_BATCH_SIZE = 64
 DEFAULT_QUANTILES = (0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9)
 
-benchmark_config = load_benchmark_config_module().config
+MODEL_RUNTIME = setup_model_runtime("moirai2", __file__)
+benchmark_config = MODEL_RUNTIME.config
 
 
 def _build_parser() -> argparse.ArgumentParser:

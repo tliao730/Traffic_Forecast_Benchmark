@@ -4,7 +4,6 @@ import torch
 from fm.fm_utils import (
     build_basic_parser,
     get_entry_target,
-    load_benchmark_config_module,
     load_pretrained_with_cache,
     run_benchmark,
     to_sample_forecasts,
@@ -12,11 +11,12 @@ from fm.fm_utils import (
 from fm.torch_utils import run_with_batch_size_backoff
 from gluonts.itertools import batcher
 from gluonts.transform import LastValueImputation
+from load_model import setup_model_runtime
 from tqdm.auto import tqdm
 
-_BENCHMARK_CONFIG_MODULE = load_benchmark_config_module()
-benchmark_config = _BENCHMARK_CONFIG_MODULE.config
-device = _BENCHMARK_CONFIG_MODULE.device
+MODEL_RUNTIME = setup_model_runtime("sundial", __file__)
+benchmark_config = MODEL_RUNTIME.config
+device = MODEL_RUNTIME.device
 
 # Import transformers after benchmark config so HF cache env vars are applied
 # before transformers/huggingface_hub computes dynamic module cache paths.

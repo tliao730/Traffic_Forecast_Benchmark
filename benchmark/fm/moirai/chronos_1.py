@@ -6,7 +6,6 @@ from chronos import BaseChronosPipeline, ForecastType
 from fm.fm_utils import (
     build_basic_parser,
     get_entry_target,
-    load_benchmark_config_module,
     load_pretrained_with_cache,
     run_benchmark,
     to_quantile_forecasts,
@@ -14,6 +13,7 @@ from fm.fm_utils import (
 )
 from fm.torch_utils import run_with_batch_size_backoff
 from gluonts.itertools import batcher
+from load_model import setup_model_runtime
 from tqdm import tqdm
 
 MODEL_NAME = "chronos_bolt_base"
@@ -22,7 +22,8 @@ DEFAULT_DEVICE = "cuda:0"
 DEFAULT_NUM_SAMPLES = 20
 DEFAULT_BATCH_SIZE = 1024
 
-benchmark_config = load_benchmark_config_module().config
+MODEL_RUNTIME = setup_model_runtime("chronos_1", __file__)
+benchmark_config = MODEL_RUNTIME.config
 
 
 def _build_parser() -> argparse.ArgumentParser:
