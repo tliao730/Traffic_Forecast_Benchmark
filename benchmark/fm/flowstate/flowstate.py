@@ -6,17 +6,20 @@ from typing import Optional
 
 import numpy as np
 import torch
-from dotenv import load_dotenv
-from fm.fm_utils import build_basic_parser, infer_num_channels, run_benchmark
+from fm.fm_utils import (
+    build_basic_parser,
+    infer_num_channels,
+    load_benchmark_config_module,
+    run_benchmark,
+)
 
 from load_model import setup_model_environment
 
-# Load environment variables
-load_dotenv()
+_BENCHMARK_CONFIG_MODULE = load_benchmark_config_module()
 
 MODEL_ENV = setup_model_environment("flowstate", __file__)
 
-from config import device
+device = _BENCHMARK_CONFIG_MODULE.device
 
 warnings.filterwarnings("ignore")
 

@@ -3,10 +3,10 @@ import warnings
 from typing import List
 
 import numpy as np
-from dotenv import load_dotenv
 from fm.fm_utils import (
     build_basic_parser,
     get_entry_target,
+    load_benchmark_config_module,
     run_benchmark,
     to_quantile_forecasts,
 )
@@ -20,10 +20,9 @@ MODEL_NAME = "timesfm_2_0_500m"
 MODEL_PATH = "google/timesfm-2.0-500m-jax"
 DEFAULT_BATCH_SIZE = 1024
 
-# Load environment variables
-load_dotenv()
+_BENCHMARK_CONFIG_MODULE = load_benchmark_config_module()
 
-# Ensure we can import timesfm
+# Ensure we can import timesfm only after benchmark config applies HF cache env vars.
 try:
     import timesfm
 except ImportError as e:

@@ -1,8 +1,11 @@
 import argparse
-from dotenv import load_dotenv
 
-from config import config as benchmark_config
-from fm.fm_utils import build_basic_parser, load_pretrained_with_cache, run_benchmark
+from fm.fm_utils import (
+    build_basic_parser,
+    load_benchmark_config_module,
+    load_pretrained_with_cache,
+    run_benchmark,
+)
 from uni2ts.model.moirai import MoiraiForecast, MoiraiModule
 
 MODEL_NAME = "moirai_small"
@@ -12,8 +15,7 @@ DEFAULT_PATCH_SIZE = 32
 DEFAULT_NUM_SAMPLES = 20
 DEFAULT_BATCH_SIZE = 64
 
-# Load environment variables (for model caches, etc.)
-load_dotenv()
+benchmark_config = load_benchmark_config_module().config
 
 
 def _build_parser() -> argparse.ArgumentParser:

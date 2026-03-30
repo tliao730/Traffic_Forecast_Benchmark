@@ -3,10 +3,10 @@ import os
 
 import numpy as np
 import torch
-from config import config as benchmark_config
 from fm.fm_utils import (
     build_basic_parser,
     get_entry_target,
+    load_benchmark_config_module,
     load_pretrained_with_cache,
     run_benchmark,
     to_quantile_forecasts,
@@ -21,6 +21,8 @@ DEFAULT_DEVICE = "cuda"
 DEFAULT_CONTEXT_LENGTH = 4000
 DEFAULT_BATCH_SIZE = 64
 DEFAULT_QUANTILES = (0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9)
+
+benchmark_config = load_benchmark_config_module().config
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -135,9 +137,7 @@ def main():
 
     save_dir = args.pred_out_dir
     if args.save_predictions and save_dir is None:
-        from config import config
-
-        save_dir = os.path.join(config.result_root, MODEL_NAME, "predictions")
+        save_dir = os.path.join(benchmark_config.result_root, MODEL_NAME, "predictions")
 
     run_benchmark(
         eval_time_only=args.eval_time,

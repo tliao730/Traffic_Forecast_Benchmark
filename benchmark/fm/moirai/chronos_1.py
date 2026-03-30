@@ -3,10 +3,10 @@ import argparse
 import numpy as np
 import torch
 from chronos import BaseChronosPipeline, ForecastType
-from config import config as benchmark_config
 from fm.fm_utils import (
     build_basic_parser,
     get_entry_target,
+    load_benchmark_config_module,
     load_pretrained_with_cache,
     run_benchmark,
     to_quantile_forecasts,
@@ -21,6 +21,8 @@ MODEL_PATH = "amazon/chronos-bolt-base"
 DEFAULT_DEVICE = "cuda:0"
 DEFAULT_NUM_SAMPLES = 20
 DEFAULT_BATCH_SIZE = 1024
+
+benchmark_config = load_benchmark_config_module().config
 
 
 def _build_parser() -> argparse.ArgumentParser:

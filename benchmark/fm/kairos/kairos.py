@@ -3,10 +3,10 @@ from typing import List
 
 import numpy as np
 import torch
-from dotenv import load_dotenv
 from fm.fm_utils import (
     build_basic_parser,
     get_entry_target,
+    load_benchmark_config_module,
     load_pretrained_with_cache,
     run_benchmark,
     to_sample_forecasts,
@@ -25,12 +25,10 @@ MODEL_PATH = "mldi-lab/Kairos_50m"
 DEFAULT_BATCH_SIZE = 256
 DEFAULT_CONTEXT_MAX_LENGTH = 2048
 
-# Load environment variables
-load_dotenv()
+_BENCHMARK_CONFIG_MODULE = load_benchmark_config_module()
+benchmark_config = _BENCHMARK_CONFIG_MODULE.config
 
 setup_model_environment("kairos", __file__)
-
-from config import config as benchmark_config
 
 from tsfm.model.kairos import AutoModel  # noqa: E402
 

@@ -1,4 +1,5 @@
 import argparse
+from types import ModuleType
 from typing import Any, Callable, Iterable, Optional
 
 import numpy as np
@@ -38,6 +39,22 @@ def load_pretrained_with_cache(
         )
     except TypeError:
         return loader_cls.from_pretrained(model_path, *args, **kwargs)
+
+
+def load_benchmark_config_module() -> ModuleType:
+    """
+    Load ``.env`` first, then import the shared benchmark config module.
+
+    This keeps ``BENCHMARK_CONFIG`` selection and Hugging Face cache env vars
+    consistent across FM entrypoints.
+    """
+    from dotenv import load_dotenv
+
+    load_dotenv()
+
+    import config as benchmark_config_module
+
+    return benchmark_config_module
 
 
 def run_benchmark(

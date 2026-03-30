@@ -3,7 +3,12 @@ import gc
 
 import numpy as np
 import torch
-from fm.fm_utils import build_basic_parser, load_pretrained_with_cache, run_benchmark
+from fm.fm_utils import (
+    build_basic_parser,
+    load_benchmark_config_module,
+    load_pretrained_with_cache,
+    run_benchmark,
+)
 
 MODEL_NAME = "Toto-Open-Base-1.0"
 MODEL_PATH = "Datadog/Toto-Open-Base-1.0"
@@ -16,10 +21,11 @@ os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
 
 from load_model import setup_model_environment
 
-setup_model_environment("toto", __file__)
+_BENCHMARK_CONFIG_MODULE = load_benchmark_config_module()
+benchmark_config = _BENCHMARK_CONFIG_MODULE.config
+device = _BENCHMARK_CONFIG_MODULE.device
 
-from config import device
-from config import config as benchmark_config
+setup_model_environment("toto", __file__)
 
 #from inference.gluonts_predictor import Multivariate, TotoPredictor
 from toto.inference.gluonts_predictor import Multivariate, TotoPredictor
