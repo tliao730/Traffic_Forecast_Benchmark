@@ -4,7 +4,6 @@ import gc
 import torch
 from fm.fm_utils import (
     build_basic_parser,
-    load_benchmark_config_module,
     load_pretrained_with_cache,
     run_benchmark,
 )
@@ -18,18 +17,17 @@ DEFAULT_PAD_SHORT_SERIES = False
 # Set environment variable for CUDA
 os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
 
-from load_model import setup_model_environment
+from load_model import setup_model_runtime
 
-_BENCHMARK_CONFIG_MODULE = load_benchmark_config_module()
-benchmark_config = _BENCHMARK_CONFIG_MODULE.config
-device = _BENCHMARK_CONFIG_MODULE.device
-
-setup_model_environment("toto", __file__)
+MODEL_RUNTIME = setup_model_runtime("toto", __file__)
+benchmark_config = MODEL_RUNTIME.config
+device = MODEL_RUNTIME.device
 
 from toto.model.toto import Toto
 from .toto_runtime import TotoPredictorWrapper
 
 import argparse
+
 
 def _build_parser() -> argparse.ArgumentParser:
     parser = build_basic_parser("Toto evaluation or time estimation")

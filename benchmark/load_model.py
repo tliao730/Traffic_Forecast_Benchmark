@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from types import ModuleType
 from typing import Callable, Iterable, Optional
 
+from fm.fm_utils import load_benchmark_config_module
 from path_utils import ensure_path_in_sys_path, find_first_existing_path
 
 
@@ -44,6 +45,41 @@ class ModelRepoConfig:
     add_to_sys_path: bool = False
     prepend: bool = False
     optional_sys_path_subdirs: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class ModelRuntime:
+    model_env: ModelEnvironment
+    config_module: ModuleType
+
+    @property
+    def model_name(self) -> str:
+        return self.model_env.model_name
+
+    @property
+    def roots(self) -> ScriptRoots:
+        return self.model_env.roots
+
+    @property
+    def repo_path(self) -> Optional[str]:
+        return self.model_env.repo_path
+
+    @property
+    def config(self):
+        return self.config_module.config
+
+    @property
+    def device(self):
+        return self.config_module.device
+
+    def require_repo_path(self) -> str:
+        return self.model_env.require_repo_path()
+
+    def repo_file(self, *parts: str) -> str:
+        return self.model_env.repo_file(*parts)
+
+    def load_repo_module(self, module_name: str, *parts: str) -> ModuleType:
+        return self.model_env.load_repo_module(module_name, *parts)
 
 
 def resolve_script_roots(file_path: str) -> ScriptRoots:
@@ -258,3 +294,14 @@ def setup_model_environment(model_name: str, file_path: str) -> ModelEnvironment
         roots=roots,
         repo_path=repo_path,
     )
+
+
+def setup_model_runtime(model_name: str, file_path: str) -> ModelRuntime:
+    """
+    Load benchmark config/bootstrap state and resolve model repo setup together.
+
+    This keeps FM entrypoints close to a single-line runtime bootstrap.
+    """
+    config_module = load_benchmark_config_module()
+    model_env = setup_model_environment(model_name, file_path)
+    return ModelRuntime(model_env=model_env, config_module=config_module)

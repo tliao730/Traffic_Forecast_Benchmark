@@ -6,20 +6,12 @@ from typing import Optional
 
 import numpy as np
 import torch
-from fm.fm_utils import (
-    build_basic_parser,
-    infer_num_channels,
-    load_benchmark_config_module,
-    run_benchmark,
-)
+from fm.fm_utils import build_basic_parser, infer_num_channels, run_benchmark
 
-from load_model import setup_model_environment
+from load_model import setup_model_runtime
 
-_BENCHMARK_CONFIG_MODULE = load_benchmark_config_module()
-
-MODEL_ENV = setup_model_environment("flowstate", __file__)
-
-device = _BENCHMARK_CONFIG_MODULE.device
+MODEL_RUNTIME = setup_model_runtime("flowstate", __file__)
+device = MODEL_RUNTIME.device
 
 warnings.filterwarnings("ignore")
 
@@ -32,7 +24,7 @@ from tsfm_public import FlowStateForPrediction  # noqa: E402
 
 # `gift_wrapper.py` lives under `notebooks/` and is not an importable Python package,
 # so we load it directly by file path (no sys.path tricks).
-_gift_wrapper_mod = MODEL_ENV.load_repo_module(
+_gift_wrapper_mod = MODEL_RUNTIME.load_repo_module(
     "flowstate_gift_wrapper",
     "notebooks",
     "hfdemo",

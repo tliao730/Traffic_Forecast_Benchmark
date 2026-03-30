@@ -6,7 +6,6 @@ import torch
 from fm.fm_utils import (
     build_basic_parser,
     get_entry_target,
-    load_benchmark_config_module,
     load_pretrained_with_cache,
     run_benchmark,
     to_sample_forecasts,
@@ -18,17 +17,15 @@ from tqdm.auto import tqdm
 
 import argparse
 
-from load_model import setup_model_environment
+from load_model import setup_model_runtime
 
 MODEL_NAME = "Kairos_50m"
 MODEL_PATH = "mldi-lab/Kairos_50m"
 DEFAULT_BATCH_SIZE = 256
 DEFAULT_CONTEXT_MAX_LENGTH = 2048
 
-_BENCHMARK_CONFIG_MODULE = load_benchmark_config_module()
-benchmark_config = _BENCHMARK_CONFIG_MODULE.config
-
-setup_model_environment("kairos", __file__)
+MODEL_RUNTIME = setup_model_runtime("kairos", __file__)
+benchmark_config = MODEL_RUNTIME.config
 
 from tsfm.model.kairos import AutoModel  # noqa: E402
 

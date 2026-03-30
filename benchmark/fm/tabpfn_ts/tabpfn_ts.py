@@ -5,16 +5,15 @@ import argparse
 from fm.fm_utils import build_basic_parser, run_benchmark
 from gluonts.model.forecast import Forecast
 
-from load_model import setup_model_environment
+from load_model import setup_model_runtime
 
 MODEL_NAME = "tabpfn_ts"
 MODEL_PATH = "tabpfn-time-series"  # Label used in benchmark outputs.
 DEFAULT_CONTEXT_LENGTH = 4096
 DEFAULT_BATCH_SIZE = 1024
 
-MODEL_ENV = setup_model_environment("tabpfn_ts", __file__)
-
-tabpfn_path = MODEL_ENV.require_repo_path()
+MODEL_RUNTIME = setup_model_runtime("tabpfn_ts", __file__)
+tabpfn_path = MODEL_RUNTIME.require_repo_path()
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -40,7 +39,7 @@ print(f"Added tabpfn-time-series to Python path: {tabpfn_path}")
 try:
     from tabpfn_ts_wrapper import TabPFNTSPredictor, TabPFNMode
 except ImportError as e:
-    requirements_path = MODEL_ENV.repo_file("requirements.txt")
+    requirements_path = MODEL_RUNTIME.repo_file("requirements.txt")
     raise ImportError(
         f"Failed to import tabpfn_ts_wrapper: {e}\n"
         "\n"
