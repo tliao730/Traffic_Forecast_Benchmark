@@ -11,6 +11,7 @@ from fm.fm_utils import (
     run_benchmark,
     to_sample_forecasts,
 )
+from fm.torch_utils import run_with_batch_size_backoff
 from gluonts.itertools import batcher
 from gluonts.model import Forecast
 from tqdm.auto import tqdm
@@ -115,37 +116,35 @@ class KairosPredictor:
         )
         self.model.eval()
         model = self.model
-        while True:
-            try:
-                # Generate forecast samples
-                forecast_outputs = []
-                with torch.no_grad():
-                    for batch in tqdm(batcher(test_data_input, batch_size=batch_size)):
-                        context = [
-                            torch.tensor(
-                                pad_or_truncate(
-                                    get_entry_target(entry),
-                                    max_length=context_max_len,
-                                )
+
+        def _run_with_batch_size(current_batch_size: int) -> np.ndarray:
+            forecast_outputs = []
+            with torch.no_grad():
+                for batch in tqdm(batcher(test_data_input, batch_size=current_batch_size)):
+                    context = [
+                        torch.tensor(
+                            pad_or_truncate(
+                                get_entry_target(entry),
+                                max_length=context_max_len,
                             )
-                            for entry in batch
-                        ]
-                        forecast_outputs.append(
-                            model(
-                                past_target=torch.stack(context).to(self.device),
-                                prediction_length=self.prediction_length,
-                                generation=True,
-                                infer_is_positive=True,
-                                force_flip_invariance=True,
-                            )["prediction_outputs"].detach().cpu().numpy()
                         )
-                forecast_outputs = np.concatenate(forecast_outputs)
-                break
-            except torch.cuda.OutOfMemoryError:
-                print(
-                    f"OutOfMemoryError at batch_size {batch_size}, reducing to {batch_size // 2}"
-                )
-                batch_size //= 2
+                        for entry in batch
+                    ]
+                    forecast_outputs.append(
+                        model(
+                            past_target=torch.stack(context).to(self.device),
+                            prediction_length=self.prediction_length,
+                            generation=True,
+                            infer_is_positive=True,
+                            force_flip_invariance=True,
+                        )["prediction_outputs"].detach().cpu().numpy()
+                    )
+            return np.concatenate(forecast_outputs)
+
+        forecast_outputs, _ = run_with_batch_size_backoff(
+            _run_with_batch_size,
+            batch_size,
+        )
 
         # Convert forecast samples into gluonts Forecast objects
         return to_sample_forecasts(forecast_outputs, test_data_input)

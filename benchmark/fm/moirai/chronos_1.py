@@ -12,6 +12,7 @@ from fm.fm_utils import (
     to_quantile_forecasts,
     to_sample_forecasts,
 )
+from fm.torch_utils import run_with_batch_size_backoff
 from gluonts.itertools import batcher
 from tqdm import tqdm
 
@@ -73,26 +74,24 @@ class ChronosPredictor:
             if pipeline.forecast_type == ForecastType.SAMPLES
             else {}
         )
-        while True:
-            try:
-                # Generate forecast samples
-                forecast_outputs = []
-                for batch in tqdm(batcher(test_data_input, batch_size=batch_size)):
-                    context = [torch.tensor(get_entry_target(entry)) for entry in batch]
-                    forecast_outputs.append(
-                        pipeline.predict(
-                            context,
-                            prediction_length=self.prediction_length,
-                            **predict_kwargs,
-                        ).numpy()
-                    )
-                forecast_outputs = np.concatenate(forecast_outputs)
-                break
-            except torch.cuda.OutOfMemoryError:
-                print(
-                    f"OutOfMemoryError at batch_size {batch_size}, reducing to {batch_size // 2}"
+
+        def _run_with_batch_size(current_batch_size: int) -> np.ndarray:
+            forecast_outputs = []
+            for batch in tqdm(batcher(test_data_input, batch_size=current_batch_size)):
+                context = [torch.tensor(get_entry_target(entry)) for entry in batch]
+                forecast_outputs.append(
+                    pipeline.predict(
+                        context,
+                        prediction_length=self.prediction_length,
+                        **predict_kwargs,
+                    ).numpy()
                 )
-                batch_size //= 2
+            return np.concatenate(forecast_outputs)
+
+        forecast_outputs, _ = run_with_batch_size_backoff(
+            _run_with_batch_size,
+            batch_size,
+        )
 
         # Convert forecast samples into gluonts Forecast objects
         if pipeline.forecast_type == ForecastType.SAMPLES:

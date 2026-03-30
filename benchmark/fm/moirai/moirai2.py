@@ -11,6 +11,7 @@ from fm.fm_utils import (
     run_benchmark,
     to_quantile_forecasts,
 )
+from fm.torch_utils import run_with_batch_size_backoff
 from gluonts.itertools import batcher
 from uni2ts.model.moirai2 import Moirai2Forecast, Moirai2Module
 
@@ -94,22 +95,20 @@ class MoiraiQuantilePredictor:
         ).to(self.device)
 
     def predict(self, test_data_input):
-        while True:
-            try:
-                print("Model - MoiraiQuantile loaded with batch_size:", self.batch_size)
-                # Generate forecast samples
-                forecast_quantiles = []
-                for batch in batcher(test_data_input, batch_size=self.batch_size):
-                    past_target = [get_entry_target(entry) for entry in batch]
-                    forecasts = self.model.predict(past_target)
-                    forecast_quantiles.append(forecasts)
-                forecast_quantiles = np.concatenate(forecast_quantiles)
-                break
-            except torch.cuda.OutOfMemoryError:
-                print(
-                    f"OutOfMemoryError at batch_size {self.batch_size}, reducing to {self.batch_size // 2}"
-                )
-                self.batch_size //= 2
+        print("Model - MoiraiQuantile loaded with batch_size:", self.batch_size)
+
+        def _run_with_batch_size(current_batch_size: int) -> np.ndarray:
+            forecast_quantiles = []
+            for batch in batcher(test_data_input, batch_size=current_batch_size):
+                past_target = [get_entry_target(entry) for entry in batch]
+                forecasts = self.model.predict(past_target)
+                forecast_quantiles.append(forecasts)
+            return np.concatenate(forecast_quantiles)
+
+        forecast_quantiles, self.batch_size = run_with_batch_size_backoff(
+            _run_with_batch_size,
+            self.batch_size,
+        )
 
         return to_quantile_forecasts(
             forecast_quantiles,
