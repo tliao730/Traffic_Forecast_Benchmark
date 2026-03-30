@@ -1,9 +1,14 @@
 import argparse
 import numpy as np
 import torch
-from fm.fm_utils import build_basic_parser, load_pretrained_with_cache, run_benchmark
+from fm.fm_utils import (
+    build_basic_parser,
+    get_entry_target,
+    load_pretrained_with_cache,
+    run_benchmark,
+    to_sample_forecasts,
+)
 from gluonts.itertools import batcher
-from gluonts.model.forecast import SampleForecast
 from gluonts.transform import LastValueImputation
 from tqdm.auto import tqdm
 
@@ -102,7 +107,10 @@ class SundialPredictor:
         while True:
             try:
                 for batch in tqdm(batcher(test_data_input, batch_size=self.batch_size)):
-                    context = [torch.tensor(entry["target"], dtype=torch.float32) for entry in batch]
+                    context = [
+                        torch.tensor(get_entry_target(entry), dtype=torch.float32)
+                        for entry in batch
+                    ]
                     batch_x = self._prepare_and_validate_context(context)
 
                     if batch_x.shape[-1] > batch_x_shape:
@@ -145,12 +153,7 @@ class SundialPredictor:
                 if self.batch_size < 1:
                     raise RuntimeError("batch_size reduced below 1, still OOM.")
 
-        forecasts = []
-        for item, ts in zip(forecast_outputs, test_data_input):
-            forecast_start_date = ts["start"] + len(ts["target"])
-            forecasts.append(SampleForecast(samples=item, start_date=forecast_start_date))
-
-        return forecasts
+        return to_sample_forecasts(forecast_outputs, test_data_input)
 
 
 def main():

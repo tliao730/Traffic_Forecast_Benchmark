@@ -4,10 +4,15 @@ from typing import List
 import numpy as np
 import torch
 from dotenv import load_dotenv
-from fm.fm_utils import build_basic_parser, load_pretrained_with_cache, run_benchmark
+from fm.fm_utils import (
+    build_basic_parser,
+    get_entry_target,
+    load_pretrained_with_cache,
+    run_benchmark,
+    to_sample_forecasts,
+)
 from gluonts.itertools import batcher
 from gluonts.model import Forecast
-from gluonts.model.forecast import SampleForecast
 from tqdm.auto import tqdm
 
 import argparse
@@ -118,7 +123,10 @@ class KairosPredictor:
                     for batch in tqdm(batcher(test_data_input, batch_size=batch_size)):
                         context = [
                             torch.tensor(
-                                pad_or_truncate(entry["target"], max_length=context_max_len)
+                                pad_or_truncate(
+                                    get_entry_target(entry),
+                                    max_length=context_max_len,
+                                )
                             )
                             for entry in batch
                         ]
@@ -140,12 +148,7 @@ class KairosPredictor:
                 batch_size //= 2
 
         # Convert forecast samples into gluonts Forecast objects
-        forecasts: List[Forecast] = []
-        for item, ts in zip(forecast_outputs, test_data_input):
-            forecast_start_date = ts["start"] + len(ts["target"])
-            forecasts.append(SampleForecast(samples=item, start_date=forecast_start_date))
-
-        return forecasts
+        return to_sample_forecasts(forecast_outputs, test_data_input)
 
 
 def main():

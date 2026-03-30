@@ -7,7 +7,7 @@ from typing import Optional
 import numpy as np
 import torch
 from dotenv import load_dotenv
-from fm.fm_utils import build_basic_parser, run_benchmark
+from fm.fm_utils import build_basic_parser, infer_num_channels, run_benchmark
 
 from load_model import setup_model_environment
 
@@ -113,22 +113,7 @@ def main():
     def predictor_factory(dataset):
         set_seed(args.seed)
 
-        # Determine number of channels from one test sample
-        num_channels = 1
-        for x in dataset.test_data:
-            # Dataset entries may be (data, label) tuples or dicts
-            if isinstance(x, tuple):
-                target = x[0]["target"]
-            else:
-                target = x["target"]
-
-            target_arr = np.asarray(target)
-            if target_arr.ndim == 1:
-                num_channels = 1
-            else:
-                # shape: (C, T)
-                num_channels = target_arr.shape[0]
-            break
+        num_channels = infer_num_channels(dataset.test_data)
 
         # Special handling for bizitobs_l2c datasets (same as old script)
         no_daily = "l2c" in dataset.name

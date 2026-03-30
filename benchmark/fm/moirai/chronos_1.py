@@ -4,9 +4,15 @@ import numpy as np
 import torch
 from chronos import BaseChronosPipeline, ForecastType
 from config import config as benchmark_config
-from fm.fm_utils import build_basic_parser, load_pretrained_with_cache, run_benchmark
+from fm.fm_utils import (
+    build_basic_parser,
+    get_entry_target,
+    load_pretrained_with_cache,
+    run_benchmark,
+    to_quantile_forecasts,
+    to_sample_forecasts,
+)
 from gluonts.itertools import batcher
-from gluonts.model.forecast import QuantileForecast, SampleForecast
 from tqdm import tqdm
 
 MODEL_NAME = "chronos_bolt_base"
@@ -72,7 +78,7 @@ class ChronosPredictor:
                 # Generate forecast samples
                 forecast_outputs = []
                 for batch in tqdm(batcher(test_data_input, batch_size=batch_size)):
-                    context = [torch.tensor(entry["target"]) for entry in batch]
+                    context = [torch.tensor(get_entry_target(entry)) for entry in batch]
                     forecast_outputs.append(
                         pipeline.predict(
                             context,
@@ -89,24 +95,15 @@ class ChronosPredictor:
                 batch_size //= 2
 
         # Convert forecast samples into gluonts Forecast objects
-        forecasts = []
-        for item, ts in zip(forecast_outputs, test_data_input):
-            forecast_start_date = ts["start"] + len(ts["target"])
-
-            if pipeline.forecast_type == ForecastType.SAMPLES:
-                forecasts.append(
-                    SampleForecast(samples=item, start_date=forecast_start_date)
-                )
-            elif pipeline.forecast_type == ForecastType.QUANTILES:
-                forecasts.append(
-                    QuantileForecast(
-                        forecast_arrays=item,
-                        forecast_keys=list(map(str, pipeline.quantiles)),
-                        start_date=forecast_start_date,
-                    )
-                )
-
-        return forecasts
+        if pipeline.forecast_type == ForecastType.SAMPLES:
+            return to_sample_forecasts(forecast_outputs, test_data_input)
+        if pipeline.forecast_type == ForecastType.QUANTILES:
+            return to_quantile_forecasts(
+                forecast_outputs,
+                test_data_input,
+                pipeline.quantiles,
+            )
+        return []
 
 
 def main():

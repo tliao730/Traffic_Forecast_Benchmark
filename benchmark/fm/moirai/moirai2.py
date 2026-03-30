@@ -4,9 +4,14 @@ import os
 import numpy as np
 import torch
 from config import config as benchmark_config
-from fm.fm_utils import build_basic_parser, load_pretrained_with_cache, run_benchmark
+from fm.fm_utils import (
+    build_basic_parser,
+    get_entry_target,
+    load_pretrained_with_cache,
+    run_benchmark,
+    to_quantile_forecasts,
+)
 from gluonts.itertools import batcher
-from gluonts.model.forecast import QuantileForecast
 from uni2ts.model.moirai2 import Moirai2Forecast, Moirai2Module
 
 MODEL_NAME = "Moirai2"
@@ -95,16 +100,7 @@ class MoiraiQuantilePredictor:
                 # Generate forecast samples
                 forecast_quantiles = []
                 for batch in batcher(test_data_input, batch_size=self.batch_size):
-                    # Handle both dict and tuple formats
-                    past_target = []
-                    for entry in batch:
-                        if isinstance(entry, tuple):
-                            # Entry is (input_dict, label) tuple
-                            past_target.append(entry[0]["target"])
-                        else:
-                            # Entry is just a dict
-                            past_target.append(entry["target"])
-
+                    past_target = [get_entry_target(entry) for entry in batch]
                     forecasts = self.model.predict(past_target)
                     forecast_quantiles.append(forecasts)
                 forecast_quantiles = np.concatenate(forecast_quantiles)
@@ -115,25 +111,13 @@ class MoiraiQuantilePredictor:
                 )
                 self.batch_size //= 2
 
-        # Convert forecast samples into gluonts QuantileForecast objects
-        quantile_forecasts = []
-        for item, ts in zip(forecast_quantiles, test_data_input):
-            # Handle both dict and tuple formats
-            if isinstance(ts, tuple):
-                ts_dict = ts[0]  # Extract input dict from tuple
-            else:
-                ts_dict = ts
-
-            forecast_start_date = ts_dict["start"] + len(ts_dict["target"])
-            quantile_forecasts.append(
-                QuantileForecast(
-                    item_id=ts_dict.get("item_id", "unknown"),
-                    forecast_arrays=item,
-                    start_date=forecast_start_date,
-                    forecast_keys=list(map(str, self.quantile_levels)),
-                )
-            )
-        return quantile_forecasts
+        return to_quantile_forecasts(
+            forecast_quantiles,
+            test_data_input,
+            self.quantile_levels,
+            include_item_id=True,
+            default_item_id="unknown",
+        )
 
 
 def main():
