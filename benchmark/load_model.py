@@ -2,7 +2,7 @@ import importlib.util
 import os
 from dataclasses import dataclass
 from types import ModuleType
-from typing import Iterable, Optional
+from typing import Callable, Iterable, Optional
 
 from path_utils import ensure_path_in_sys_path, find_first_existing_path
 
@@ -13,6 +13,9 @@ class ScriptRoots:
     fm_root: str
     benchmark_root: str
     repo_root: str
+
+
+CandidateFactory = Callable[[ScriptRoots], Optional[str]]
 
 
 @dataclass(frozen=True)
@@ -31,6 +34,16 @@ class ModelEnvironment:
 
     def load_repo_module(self, module_name: str, *parts: str) -> ModuleType:
         return load_module_from_file(module_name, self.repo_file(*parts))
+
+
+@dataclass(frozen=True)
+class ModelRepoConfig:
+    candidates: tuple[CandidateFactory, ...]
+    missing_message: str
+    required_subpath: Optional[str] = None
+    add_to_sys_path: bool = False
+    prepend: bool = False
+    optional_sys_path_subdirs: tuple[str, ...] = ()
 
 
 def resolve_script_roots(file_path: str) -> ScriptRoots:
@@ -108,82 +121,110 @@ def load_module_from_file(module_name: str, file_path: str) -> ModuleType:
     return module
 
 
-def _resolve_model_repo_config(
-    model_name: str,
+def _env_candidate(*var_names: str) -> CandidateFactory:
+    def resolve(_: ScriptRoots) -> Optional[str]:
+        for var_name in var_names:
+            value = os.environ.get(var_name)
+            if value:
+                return value
+        return None
+
+    return resolve
+
+
+def _fm_candidate(*parts: str) -> CandidateFactory:
+    def resolve(roots: ScriptRoots) -> str:
+        return os.path.join(roots.fm_root, *parts)
+
+    return resolve
+
+
+def _home_candidate(*parts: str) -> CandidateFactory:
+    def resolve(_: ScriptRoots) -> str:
+        return os.path.join(os.path.expanduser("~"), *parts)
+
+    return resolve
+
+
+def _literal_candidate(path: str) -> CandidateFactory:
+    def resolve(_: ScriptRoots) -> str:
+        return path
+
+    return resolve
+
+
+MODEL_REPO_CONFIGS: dict[str, ModelRepoConfig] = {
+    "tabpfn_ts": ModelRepoConfig(
+        candidates=(
+            _env_candidate("TABPFN_TS_PATH", "TABPFN_TIME_SERIES_PATH"),
+            _fm_candidate("envs", "tabpfn_ts", "tabpfn-time-series"),
+            _home_candidate("tabpfn-time-series"),
+            _fm_candidate("tabpfn-time-series"),
+            _literal_candidate("tabpfn-time-series"),
+        ),
+        missing_message=(
+            "tabpfn-time-series repository not found. Please clone it first:\n"
+            "  git clone https://github.com/PriorLabs/tabpfn-time-series.git\n"
+            "  cd tabpfn-time-series && git checkout v1.0.0"
+        ),
+        add_to_sys_path=True,
+        optional_sys_path_subdirs=("gift_eval",),
+    ),
+    "flowstate": ModelRepoConfig(
+        candidates=(
+            _env_candidate("GRANITE_TSFM_PATH"),
+            _fm_candidate("envs", "flowstate", "granite-tsfm"),
+        ),
+        missing_message=(
+            "granite-tsfm repo not found. Clone it: "
+            "git clone https://github.com/ibm-granite/granite-tsfm.git "
+            "or set GRANITE_TSFM_PATH to your clone path."
+        ),
+        required_subpath="tsfm_public",
+        add_to_sys_path=True,
+        prepend=True,
+    ),
+    "kairos": ModelRepoConfig(
+        candidates=(
+            _env_candidate("KAIROS_PATH"),
+            _fm_candidate("Kairos"),
+            _fm_candidate("envs", "kairos", "Kairos"),
+        ),
+        missing_message=(
+            "Kairos repo not found. Clone it and set KAIROS_PATH:\n"
+            "  git clone https://github.com/foundation-model-research/Kairos.git\n"
+            "  export KAIROS_PATH=/path/to/Kairos"
+        ),
+        required_subpath="tsfm",
+        add_to_sys_path=True,
+        prepend=True,
+    ),
+    "toto": ModelRepoConfig(
+        candidates=(
+            _env_candidate("TOTO_PATH"),
+            _fm_candidate("envs", "toto", "toto"),
+        ),
+        missing_message=(
+            "toto repository not found. Clone it: "
+            "git clone https://github.com/DataDog/toto.git "
+            "or set TOTO_PATH to your clone path."
+        ),
+        required_subpath="toto",
+        add_to_sys_path=True,
+        prepend=True,
+    ),
+}
+
+
+def _resolve_model_repo_config(model_name: str) -> Optional[ModelRepoConfig]:
+    return MODEL_REPO_CONFIGS.get(model_name)
+
+
+def _resolve_repo_candidates(
+    config: ModelRepoConfig,
     roots: ScriptRoots,
-) -> Optional[dict]:
-    if model_name == "tabpfn_ts":
-        tabpfn_env_path = os.environ.get("TABPFN_TS_PATH") or os.environ.get(
-            "TABPFN_TIME_SERIES_PATH"
-        )
-        return {
-            "candidates": [
-                tabpfn_env_path,
-                os.path.join(roots.fm_root, "envs", "tabpfn_ts", "tabpfn-time-series"),
-                os.path.join(os.path.expanduser("~"), "tabpfn-time-series"),
-                os.path.join(roots.fm_root, "tabpfn-time-series"),
-                "tabpfn-time-series",
-            ],
-            "missing_message": (
-                "tabpfn-time-series repository not found. Please clone it first:\n"
-                "  git clone https://github.com/PriorLabs/tabpfn-time-series.git\n"
-                "  cd tabpfn-time-series && git checkout v1.0.0"
-            ),
-            "add_to_sys_path": True,
-            "prepend": False,
-            "optional_sys_path_subdirs": ["gift_eval"],
-        }
-
-    if model_name == "flowstate":
-        return {
-            "candidates": [
-                os.environ.get("GRANITE_TSFM_PATH"),
-                os.path.join(roots.fm_root, "envs", "flowstate", "granite-tsfm"),
-            ],
-            "missing_message": (
-                "granite-tsfm repo not found. Clone it: "
-                "git clone https://github.com/ibm-granite/granite-tsfm.git "
-                "or set GRANITE_TSFM_PATH to your clone path."
-            ),
-            "required_subpath": "tsfm_public",
-            "add_to_sys_path": True,
-            "prepend": True,
-        }
-
-    if model_name == "kairos":
-        return {
-            "candidates": [
-                os.environ.get("KAIROS_PATH"),
-                os.path.join(roots.fm_root, "Kairos"),
-                os.path.join(roots.fm_root, "envs", "kairos", "Kairos"),
-            ],
-            "missing_message": (
-                "Kairos repo not found. Clone it and set KAIROS_PATH:\n"
-                "  git clone https://github.com/foundation-model-research/Kairos.git\n"
-                "  export KAIROS_PATH=/path/to/Kairos"
-            ),
-            "required_subpath": "tsfm",
-            "add_to_sys_path": True,
-            "prepend": True,
-        }
-
-    if model_name == "toto":
-        return {
-            "candidates": [
-                os.environ.get("TOTO_PATH"),
-                os.path.join(roots.fm_root, "envs", "toto", "toto"),
-            ],
-            "missing_message": (
-                "toto repository not found. Clone it: "
-                "git clone https://github.com/DataDog/toto.git "
-                "or set TOTO_PATH to your clone path."
-            ),
-            "required_subpath": "toto",
-            "add_to_sys_path": True,
-            "prepend": True,
-        }
-
-    return None
+) -> list[Optional[str]]:
+    return [candidate(roots) for candidate in config.candidates]
 
 
 def setup_model_environment(model_name: str, file_path: str) -> ModelEnvironment:
@@ -193,23 +234,23 @@ def setup_model_environment(model_name: str, file_path: str) -> ModelEnvironment
     This keeps per-model scripts small by moving repo lookup rules into one place.
     """
     roots = ensure_benchmark_imports(file_path)
-    repo_config = _resolve_model_repo_config(model_name, roots)
+    repo_config = _resolve_model_repo_config(model_name)
     if repo_config is None:
         return ModelEnvironment(model_name=model_name, roots=roots)
 
     repo_path = resolve_model_repo(
-        repo_config["candidates"],
-        missing_message=repo_config["missing_message"],
-        required_subpath=repo_config.get("required_subpath"),
-        add_to_sys_path=repo_config.get("add_to_sys_path", False),
-        prepend=repo_config.get("prepend", False),
+        _resolve_repo_candidates(repo_config, roots),
+        missing_message=repo_config.missing_message,
+        required_subpath=repo_config.required_subpath,
+        add_to_sys_path=repo_config.add_to_sys_path,
+        prepend=repo_config.prepend,
     )
 
-    for subdir in repo_config.get("optional_sys_path_subdirs", []):
+    for subdir in repo_config.optional_sys_path_subdirs:
         ensure_optional_subdir_in_sys_path(
             repo_path,
             subdir,
-            prepend=repo_config.get("prepend", False),
+            prepend=repo_config.prepend,
         )
 
     return ModelEnvironment(
