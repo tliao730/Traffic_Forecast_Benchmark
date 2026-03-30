@@ -5,12 +5,11 @@ from typing import List
 
 import numpy as np
 from dotenv import load_dotenv
+from fm.fm_utils import build_basic_parser, run_benchmark
 from gluonts.itertools import batcher
 from gluonts.model import Forecast
 from gluonts.model.forecast import QuantileForecast
 from tqdm.auto import tqdm
-
-from common import eval, eval_time
 
 warnings.filterwarnings("ignore")
 
@@ -49,12 +48,7 @@ gts_logger.addFilter(WarningFilter("The mean prediction is not stored in the for
 
 
 def _build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="TimesFM evaluation or time estimation")
-    parser.add_argument(
-        "--eval-time",
-        action="store_true",
-        help="Run eval_time (time estimation) only",
-    )
+    parser = build_basic_parser("TimesFM evaluation or time estimation")
     parser.add_argument(
         "--batch-size",
         type=int,
@@ -148,12 +142,14 @@ def main():
             ds_freq=dataset.freq,
         )
 
-    if args.eval_time:
-        eval_time(MODEL_NAME, MODEL_PATH, predictor_factory)
-    else:
-        eval(MODEL_NAME, MODEL_PATH, predictor_factory, batch_size=args.batch_size)
+    run_benchmark(
+        eval_time_only=args.eval_time,
+        model_name=MODEL_NAME,
+        model_path=MODEL_PATH,
+        predictor_factory=predictor_factory,
+        batch_size=args.batch_size,
+    )
 
 
 if __name__ == "__main__":
     main()
-

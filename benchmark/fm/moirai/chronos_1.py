@@ -3,8 +3,8 @@ import argparse
 import numpy as np
 import torch
 from chronos import BaseChronosPipeline, ForecastType
-from common import eval, eval_time
 from config import config as benchmark_config
+from fm.fm_utils import build_basic_parser, load_pretrained_with_cache, run_benchmark
 from gluonts.itertools import batcher
 from gluonts.model.forecast import QuantileForecast, SampleForecast
 from tqdm import tqdm
@@ -17,12 +17,7 @@ DEFAULT_BATCH_SIZE = 1024
 
 
 def _build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Chronos evaluation or time estimation")
-    parser.add_argument(
-        "--eval-time",
-        action="store_true",
-        help="Run eval_time (time estimation) only",
-    )
+    parser = build_basic_parser("Chronos evaluation or time estimation")
     parser.add_argument(
         "--batch-size",
         type=int,
@@ -54,8 +49,9 @@ class ChronosPredictor:
         **kwargs,
     ):
         print("prediction_length:", prediction_length)
-        kwargs.pop("cache_dir", None)  # Ensure YAML cache dir is used
-        self.pipeline = BaseChronosPipeline.from_pretrained(
+        kwargs.pop("cache_dir", None)  # Ensure YAML cache dir is sourced centrally.
+        self.pipeline = load_pretrained_with_cache(
+            BaseChronosPipeline,
             model_path,
             *args,
             cache_dir=benchmark_config.hf_home,
@@ -124,10 +120,13 @@ def main():
             device_map=args.device,
         )
 
-    if args.eval_time:
-        eval_time(MODEL_NAME, MODEL_PATH, predictor_factory)
-    else:
-        eval(MODEL_NAME, MODEL_PATH, predictor_factory, batch_size=args.batch_size)
+    run_benchmark(
+        eval_time_only=args.eval_time,
+        model_name=MODEL_NAME,
+        model_path=MODEL_PATH,
+        predictor_factory=predictor_factory,
+        batch_size=args.batch_size,
+    )
 
 
 if __name__ == "__main__":

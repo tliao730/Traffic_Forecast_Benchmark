@@ -4,6 +4,7 @@ from typing import List
 import numpy as np
 import torch
 from dotenv import load_dotenv
+from fm.fm_utils import build_basic_parser, load_pretrained_with_cache, run_benchmark
 from gluonts.itertools import batcher
 from gluonts.model import Forecast
 from gluonts.model.forecast import SampleForecast
@@ -23,19 +24,13 @@ load_dotenv()
 
 setup_model_environment("kairos", __file__)
 
-from common import eval, eval_time
 from config import config as benchmark_config
 
 from tsfm.model.kairos import AutoModel  # noqa: E402
 
 
 def _build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Kairos evaluation or time estimation")
-    parser.add_argument(
-        "--eval-time",
-        action="store_true",
-        help="Run eval_time (time estimation) only",
-    )
+    parser = build_basic_parser("Kairos evaluation or time estimation")
     parser.add_argument(
         "--batch-size",
         type=int,
@@ -99,15 +94,12 @@ class KairosPredictor:
         print(f"Using device: {self.device}")
 
         # Load the model
-        try:
-            self.model = AutoModel.from_pretrained(
-                model_path,
-                trust_remote_code=True,
-                cache_dir=benchmark_config.hf_home,
-            )
-        except TypeError:
-            # Fallback for model loaders that don't accept cache_dir.
-            self.model = AutoModel.from_pretrained(model_path, trust_remote_code=True)
+        self.model = load_pretrained_with_cache(
+            AutoModel,
+            model_path,
+            trust_remote_code=True,
+            cache_dir=benchmark_config.hf_home,
+        )
 
         # Move the model to the primary device
         self.model.to(self.device)
@@ -168,10 +160,13 @@ def main():
     # Keep env var behavior for backwards compatibility while allowing CLI override.
     os.environ["KAIROS_CONTEXT_MAX_LENGTH"] = str(args.context_max_length)
 
-    if args.eval_time:
-        eval_time(MODEL_NAME, MODEL_PATH, predictor_factory)
-    else:
-        eval(MODEL_NAME, MODEL_PATH, predictor_factory, batch_size=args.batch_size)
+    run_benchmark(
+        eval_time_only=args.eval_time,
+        model_name=MODEL_NAME,
+        model_path=MODEL_PATH,
+        predictor_factory=predictor_factory,
+        batch_size=args.batch_size,
+    )
 
 
 if __name__ == "__main__":

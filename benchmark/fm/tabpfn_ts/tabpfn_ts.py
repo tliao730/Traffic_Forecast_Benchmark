@@ -2,6 +2,7 @@ import os
 from typing import Iterator
 
 import argparse
+from fm.fm_utils import build_basic_parser, run_benchmark
 from gluonts.model.forecast import Forecast
 
 from load_model import setup_model_environment
@@ -12,18 +13,12 @@ DEFAULT_CONTEXT_LENGTH = 4096
 DEFAULT_BATCH_SIZE = 1024
 
 MODEL_ENV = setup_model_environment("tabpfn_ts", __file__)
-from common import eval, eval_time
 
 tabpfn_path = MODEL_ENV.require_repo_path()
 
 
 def _build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="TabPFN-TS evaluation or time estimation")
-    parser.add_argument(
-        "--eval-time",
-        action="store_true",
-        help="Run eval_time (time estimation) only",
-    )
+    parser = build_basic_parser("TabPFN-TS evaluation or time estimation")
     parser.add_argument(
         "--batch-size",
         type=int,
@@ -98,10 +93,13 @@ def main():
             context_length=args.context_length,
         )
 
-    if args.eval_time:
-        eval_time(MODEL_NAME, MODEL_PATH, predictor_factory)
-    else:
-        eval(MODEL_NAME, MODEL_PATH, predictor_factory, batch_size=args.batch_size)
+    run_benchmark(
+        eval_time_only=args.eval_time,
+        model_name=MODEL_NAME,
+        model_path=MODEL_PATH,
+        predictor_factory=predictor_factory,
+        batch_size=args.batch_size,
+    )
 
 
 if __name__ == "__main__":

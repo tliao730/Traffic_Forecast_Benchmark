@@ -1,12 +1,12 @@
 import argparse
 import numpy as np
 import torch
+from fm.fm_utils import build_basic_parser, load_pretrained_with_cache, run_benchmark
 from gluonts.itertools import batcher
 from gluonts.model.forecast import SampleForecast
 from gluonts.transform import LastValueImputation
 from tqdm.auto import tqdm
 
-from common import eval, eval_time
 from config import config as benchmark_config
 from config import device
 
@@ -24,12 +24,7 @@ set_seed(1)
 
 
 def _build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Sundial evaluation or time estimation")
-    parser.add_argument(
-        "--eval-time",
-        action="store_true",
-        help="Run eval_time (time estimation) only",
-    )
+    parser = build_basic_parser("Sundial evaluation or time estimation")
     parser.add_argument(
         "--batch-size",
         type=int,
@@ -69,17 +64,12 @@ class SundialPredictor:
         self.batch_size = batch_size
 
         # trust_remote_code=True is required for Sundial custom generation code.
-        try:
-            self.model = AutoModelForCausalLM.from_pretrained(
-                model_path,
-                trust_remote_code=True,
-                cache_dir=benchmark_config.hf_home,
-            )
-        except TypeError:
-            self.model = AutoModelForCausalLM.from_pretrained(
-                model_path,
-                trust_remote_code=True,
-            )
+        self.model = load_pretrained_with_cache(
+            AutoModelForCausalLM,
+            model_path,
+            trust_remote_code=True,
+            cache_dir=benchmark_config.hf_home,
+        )
 
         self.model.to(self.device)
         self.model.eval()
@@ -175,10 +165,13 @@ def main():
             model_path=MODEL_PATH,
         )
 
-    if args.eval_time:
-        eval_time(MODEL_NAME, MODEL_PATH, predictor_factory)
-    else:
-        eval(MODEL_NAME, MODEL_PATH, predictor_factory, batch_size=args.batch_size)
+    run_benchmark(
+        eval_time_only=args.eval_time,
+        model_name=MODEL_NAME,
+        model_path=MODEL_PATH,
+        predictor_factory=predictor_factory,
+        batch_size=args.batch_size,
+    )
 
 
 if __name__ == "__main__":

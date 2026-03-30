@@ -7,6 +7,7 @@ from typing import Optional
 import numpy as np
 import torch
 from dotenv import load_dotenv
+from fm.fm_utils import build_basic_parser, run_benchmark
 
 from load_model import setup_model_environment
 
@@ -15,7 +16,6 @@ load_dotenv()
 
 MODEL_ENV = setup_model_environment("flowstate", __file__)
 
-from common import eval, eval_time
 from config import device
 
 warnings.filterwarnings("ignore")
@@ -40,12 +40,7 @@ FlowState_Gift_Wrapper = _gift_wrapper_mod.FlowState_Gift_Wrapper
 
 
 def _build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="FlowState evaluation or time estimation")
-    parser.add_argument(
-        "--eval-time",
-        action="store_true",
-        help="Run eval_time (time estimation) only",
-    )
+    parser = build_basic_parser("FlowState evaluation or time estimation")
     parser.add_argument(
         "--batch-size",
         type=int,
@@ -149,10 +144,13 @@ def main():
         )
         return predictor
 
-    if args.eval_time:
-        eval_time(MODEL_NAME, MODEL_PATH, predictor_factory)
-    else:
-        eval(MODEL_NAME, MODEL_PATH, predictor_factory, batch_size=args.batch_size)
+    run_benchmark(
+        eval_time_only=args.eval_time,
+        model_name=MODEL_NAME,
+        model_path=MODEL_PATH,
+        predictor_factory=predictor_factory,
+        batch_size=args.batch_size,
+    )
 
 
 if __name__ == "__main__":

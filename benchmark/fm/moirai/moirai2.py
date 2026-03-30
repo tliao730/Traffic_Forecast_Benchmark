@@ -3,8 +3,8 @@ import os
 
 import numpy as np
 import torch
-from common import eval, eval_time
 from config import config as benchmark_config
+from fm.fm_utils import build_basic_parser, load_pretrained_with_cache, run_benchmark
 from gluonts.itertools import batcher
 from gluonts.model.forecast import QuantileForecast
 from uni2ts.model.moirai2 import Moirai2Forecast, Moirai2Module
@@ -18,12 +18,7 @@ DEFAULT_QUANTILES = (0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9)
 
 
 def _build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
-        description="Moirai2 evaluation or time estimation"
-    )
-    parser.add_argument(
-        "--eval-time", action="store_true", help="Run eval_time (time estimation) only"
-    )
+    parser = build_basic_parser("Moirai2 evaluation or time estimation")
     parser.add_argument(
         "--batch-size",
         type=int,
@@ -79,10 +74,11 @@ class MoiraiQuantilePredictor:
         self.batch_size = batch_size
         self.quantile_levels = quantile_levels
         cache_dir = benchmark_config.hf_home
-        try:
-            module = Moirai2Module.from_pretrained(self.model_path, cache_dir=cache_dir)
-        except TypeError:
-            module = Moirai2Module.from_pretrained(self.model_path)
+        module = load_pretrained_with_cache(
+            Moirai2Module,
+            self.model_path,
+            cache_dir=cache_dir,
+        )
         self.model = Moirai2Forecast(
             module=module,
             prediction_length=self.prediction_length,
@@ -154,21 +150,20 @@ def main():
             device_str=args.device,
         )
 
-    if args.eval_time:
-        eval_time(MODEL_NAME, MODEL_PATH, predictor_factory)
-    else:
-        save_dir = args.pred_out_dir
-        if args.save_predictions and save_dir is None:
-            from config import config
+    save_dir = args.pred_out_dir
+    if args.save_predictions and save_dir is None:
+        from config import config
 
-            save_dir = os.path.join(config.result_root, MODEL_NAME, "predictions")
-        eval(
-            MODEL_NAME,
-            MODEL_PATH,
-            predictor_factory,
-            batch_size=args.batch_size,
-            save_predictions_dir=save_dir if args.save_predictions else None,
-        )
+        save_dir = os.path.join(config.result_root, MODEL_NAME, "predictions")
+
+    run_benchmark(
+        eval_time_only=args.eval_time,
+        model_name=MODEL_NAME,
+        model_path=MODEL_PATH,
+        predictor_factory=predictor_factory,
+        batch_size=args.batch_size,
+        save_predictions_dir=save_dir if args.save_predictions else None,
+    )
 
 
 if __name__ == "__main__":

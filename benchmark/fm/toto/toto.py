@@ -5,6 +5,7 @@ from typing import Any
 
 import numpy as np
 import torch
+from fm.fm_utils import build_basic_parser, load_pretrained_with_cache, run_benchmark
 
 MODEL_NAME = "Toto-Open-Base-1.0"
 MODEL_PATH = "Datadog/Toto-Open-Base-1.0"
@@ -19,7 +20,6 @@ from load_model import setup_model_environment
 
 setup_model_environment("toto", __file__)
 
-from common import eval, eval_time
 from config import device
 from config import config as benchmark_config
 
@@ -35,12 +35,7 @@ DEFAULT_CONTEXT_LENGTH = 4096
 
 
 def _build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Toto evaluation or time estimation")
-    parser.add_argument(
-        "--eval-time",
-        action="store_true",
-        help="Run eval_time (time estimation) only",
-    )
+    parser = build_basic_parser("Toto evaluation or time estimation")
     parser.add_argument(
         "--num-samples",
         type=int,
@@ -63,10 +58,11 @@ def _build_parser() -> argparse.ArgumentParser:
 
 def _load_toto_model(model_path: str):
     print("Loading Toto model...")
-    try:
-        model = Toto.from_pretrained(model_path, cache_dir=benchmark_config.hf_home)
-    except TypeError:
-        model = Toto.from_pretrained(model_path)
+    model = load_pretrained_with_cache(
+        Toto,
+        model_path,
+        cache_dir=benchmark_config.hf_home,
+    )
     model = model.to(device if torch.cuda.is_available() else "cpu")
     model = model.eval()
     return torch.compile(model)
@@ -309,10 +305,13 @@ def main():
         return predictor
 
     try:
-        if args.eval_time:
-            eval_time(MODEL_NAME, MODEL_PATH, predictor_factory)
-        else:
-            eval(MODEL_NAME, MODEL_PATH, predictor_factory, batch_size=args.num_samples)
+        run_benchmark(
+            eval_time_only=args.eval_time,
+            model_name=MODEL_NAME,
+            model_path=MODEL_PATH,
+            predictor_factory=predictor_factory,
+            batch_size=args.num_samples,
+        )
     finally:
         del model
         torch.cuda.empty_cache()

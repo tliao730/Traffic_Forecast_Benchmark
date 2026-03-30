@@ -1,8 +1,8 @@
 import argparse
 from dotenv import load_dotenv
 
-from common import eval, eval_time
 from config import config as benchmark_config
+from fm.fm_utils import build_basic_parser, load_pretrained_with_cache, run_benchmark
 from uni2ts.model.moirai import MoiraiForecast, MoiraiModule
 
 MODEL_NAME = "moirai_small"
@@ -17,12 +17,7 @@ load_dotenv()
 
 
 def _build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Moirai evaluation or time estimation")
-    parser.add_argument(
-        "--eval-time",
-        action="store_true",
-        help="Run eval_time (time estimation) only",
-    )
+    parser = build_basic_parser("Moirai evaluation or time estimation")
     parser.add_argument(
         "--batch-size",
         type=int,
@@ -51,14 +46,11 @@ def _build_parser() -> argparse.ArgumentParser:
 
 
 def _load_moirai_module(model_path: str) -> MoiraiModule:
-    try:
-        return MoiraiModule.from_pretrained(
-            model_path,
-            cache_dir=benchmark_config.hf_home,
-        )
-    except TypeError:
-        # Some implementations do not accept cache_dir.
-        return MoiraiModule.from_pretrained(model_path)
+    return load_pretrained_with_cache(
+        MoiraiModule,
+        model_path,
+        cache_dir=benchmark_config.hf_home,
+    )
 
 
 def main():
@@ -78,12 +70,14 @@ def main():
         )
         return model.create_predictor(batch_size=args.batch_size)
 
-    if args.eval_time:
-        eval_time(MODEL_NAME, MODEL_PATH, predictor_factory)
-    else:
-        eval(MODEL_NAME, MODEL_PATH, predictor_factory, batch_size=args.batch_size)
+    run_benchmark(
+        eval_time_only=args.eval_time,
+        model_name=MODEL_NAME,
+        model_path=MODEL_PATH,
+        predictor_factory=predictor_factory,
+        batch_size=args.batch_size,
+    )
 
 
 if __name__ == "__main__":
     main()
-
