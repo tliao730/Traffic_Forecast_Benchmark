@@ -11,4 +11,5 @@ dependencies = [
     "salesforce-gift-eval @ git+https://github.com/DensoSVIC/gift-eval.git@traffic",
     "uni2ts @ git+https://github.com/DensoSVIC/uni2ts.git@traffic",
     "tables>=3.10.1",
+    "wandb>=0.26.0",
 ]

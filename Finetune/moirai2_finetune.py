@@ -658,6 +658,7 @@ def main():
 
                 import lightning as L  # type: ignore
                 from lightning.pytorch.callbacks import ModelCheckpoint  # type: ignore
+                from lightning.pytorch.loggers import WandbLogger  # type: ignore
 
                 ckpt_dir = ckpt_ckpt.parent
                 ckpt_dir.mkdir(parents=True, exist_ok=True)
@@ -669,10 +670,25 @@ def main():
                     save_last=True,
                     mode="min",
                 )
+                wandb_logger = WandbLogger(
+                    project=os.getenv("WANDB_PROJECT", "TrafficFM"),
+                    name=f"{model_name}/{ds_config}",
+                    config={
+                        "model": model_name,
+                        "ds_config": ds_config,
+                        "epochs": l1_epochs,
+                        "batch_size": l1_batch,
+                        "num_batches_per_epoch": l1_nbpe,
+                        "lr": l1_lr,
+                        "loss": l1_loss,
+                        "context_length": context_length,
+                        "series_limit": l1_series,
+                    },
+                )
                 trainer = L.Trainer(
                     max_epochs=int(l1_epochs),
                     callbacks=[ckpt_cb],
-                    logger=False,
+                    logger=wandb_logger,
                     enable_model_summary=False,
                     deterministic=True,
                     gradient_clip_val=float(l1_clip) if l1_clip and l1_clip > 0 else 0.0,
