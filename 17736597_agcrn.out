@@ -1,0 +1,2 @@
+Log directory: ./experiments/AGCRN/SD/
+2026-04-20 03:23:34,840 - Namespace(device='cuda', dataset='SD', years='2018', model_name='AGCRN', seed=2023, bs=64, seq_len=12, horizon=12, input_dim=3, output_dim=1, mode='train', max_epochs=100, patience=30, log_dir='/scratch/bcqc/tliao2/TrafficFM/experiments/AGCRN/sd/2018/', pretrained_path='', test_split=0, test_stride=1, test_num_windows=0, test_stride_mode='fixed', save_predictions=False, pred_out_dir='', pred_horizon=0, embed_dim=10, rnn_unit=64, num_layer=2, cheb_k=2, lrate=0.001, wdecay=0, clip_grad_value=0)
