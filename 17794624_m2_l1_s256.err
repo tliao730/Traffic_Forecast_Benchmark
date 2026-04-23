@@ -1,0 +1,34 @@
+GPU available: True (cuda), used: True
+TPU available: False, using: 0 TPU cores
+You are using a CUDA device ('NVIDIA A40') that has Tensor Cores. To properly utilize them, you should set `torch.set_float32_matmul_precision('medium' | 'high')` which will trade-off precision for performance. For more details, read https://pytorch.org/docs/stable/generated/torch.set_float32_matmul_precision.html#torch.set_float32_matmul_precision
+wandb: WARNING The anonymous setting has no effect and will be removed in a future version.
+wandb: [wandb.login()] Loaded credentials for https://api.wandb.ai from /u/tliao2/.netrc.
+wandb: Currently logged in as: tliao730 (TrafficFM) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
+wandb: setting up run 574kyz5z
+wandb: Tracking run with wandb version 0.26.0
+wandb: Run data is saved locally in wandb/run-20260421_204653-574kyz5z
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run Moirai2-L1-SD2019-S256/sd_val/2019/short
+wandb: ⭐️ View project at https://wandb.ai/TrafficFM/TrafficFM
+wandb: 🚀 View run at https://wandb.ai/TrafficFM/TrafficFM/runs/574kyz5z
+LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0]
+SLURM auto-requeueing enabled. Setting signal handlers.
+/u/tliao2/TrafficFM/benchmark/fm/moirai/.venv/lib/python3.10/site-packages/lightning/pytorch/loops/fit_loop.py:534: Found 131 module(s) in eval mode at the start of training. This may lead to unexpected behavior during training. If this is intentional, you can ignore this warning.
+`Trainer.fit` stopped: `max_epochs=5` reached.
+/u/tliao2/TrafficFM/benchmark/../Finetune/moirai2_finetune.py:706: FutureWarning: You are using `torch.load` with `weights_only=False` (the current default value), which uses the default pickle module implicitly. It is possible to construct malicious pickle data which will execute arbitrary code during unpickling (See https://github.com/pytorch/pytorch/blob/main/SECURITY.md#untrusted-models for more details). In a future release, the default value for `weights_only` will be flipped to `True`. This limits the functions that could be executed during unpickling. Arbitrary objects will no longer be allowed to be loaded via this mode unless they are explicitly allowlisted by the user via `torch.serialization.add_safe_globals`. We recommend you start setting `weights_only=True` for any use case where you don't have full control of the loaded file. Please open an issue on GitHub for any issues related to this experimental feature.
+  state = torch.load(best_path, map_location="cpu")
+0it [00:00, ?it/s]1024it [00:02, 454.71it/s]2048it [00:04, 455.58it/s]3072it [00:06, 457.63it/s]4096it [00:08, 457.29it/s]5120it [00:11, 456.78it/s]6144it [00:13, 455.78it/s]7168it [00:15, 455.68it/s]8192it [00:17, 454.07it/s]9216it [00:20, 454.95it/s]10240it [00:22, 455.54it/s]11264it [00:24, 455.24it/s]12288it [00:26, 456.08it/s]13312it [00:29, 456.81it/s]14320it [00:31, 456.95it/s]14320it [00:31, 456.10it/s]
+GPU available: True (cuda), used: True
+TPU available: False, using: 0 TPU cores
+/u/tliao2/TrafficFM/benchmark/fm/moirai/.venv/lib/python3.10/site-packages/lightning/pytorch/loggers/wandb.py:400: There is a wandb run already in progress and newly created instances of `WandbLogger` will reuse this run. If this is not desired, call `wandb.finish()` before instantiating `WandbLogger`.
+/u/tliao2/TrafficFM/benchmark/fm/moirai/.venv/lib/python3.10/site-packages/lightning/pytorch/callbacks/model_checkpoint.py:881: Checkpoint directory /u/tliao2/TrafficFM/results/Moirai2-L1-SD2019-S256/ckpt_lightning exists and is not empty.
+LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0]
+SLURM auto-requeueing enabled. Setting signal handlers.
+`Trainer.fit` stopped: `max_epochs=5` reached.
+0it [00:00, ?it/s]1024it [00:02, 455.86it/s]2048it [00:04, 456.72it/s]3072it [00:06, 457.99it/s]4096it [00:08, 457.77it/s]5120it [00:11, 457.17it/s]6144it [00:13, 457.80it/s]7168it [00:15, 458.15it/s]8192it [00:17, 458.07it/s]9216it [00:20, 457.02it/s]10240it [00:22, 457.18it/s]11264it [00:24, 456.90it/s]12288it [00:26, 457.16it/s]13312it [00:29, 457.33it/s]14320it [00:31, 457.27it/s]14320it [00:31, 457.36it/s]
+GPU available: True (cuda), used: True
+TPU available: False, using: 0 TPU cores
+LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0]
+SLURM auto-requeueing enabled. Setting signal handlers.
+`Trainer.fit` stopped: `max_epochs=5` reached.
+0it [00:00, ?it/s]1024it [00:02, 458.66it/s]2048it [00:04, 459.64it/s]3072it [00:06, 459.60it/s]4096it [00:08, 458.10it/s]5120it [00:11, 458.51it/s]6144it [00:13, 459.32it/s]7168it [00:15, 459.17it/s]8192it [00:17, 458.83it/s]9216it [00:20, 459.02it/s]10240it [00:22, 459.48it/s]11264it [00:24, 459.39it/s]12288it [00:26, 457.93it/s]13312it [00:29, 458.57it/s]14320it [00:31, 458.95it/s]14320it [00:31, 458.92it/s]
