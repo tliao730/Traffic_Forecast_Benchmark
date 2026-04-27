@@ -1,0 +1,36 @@
+wandb: [wandb.login()] Loaded credentials for https://api.wandb.ai from /u/tliao2/.netrc.
+wandb: Currently logged in as: angus3938 (angus3938-university-of-southern-california) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
+wandb: setting up run 45qbxroi
+wandb: Tracking run with wandb version 0.26.1
+wandb: Run data is saved locally in /u/tliao2/TrafficFM/benchmark/wandb/run-20260426_172011-45qbxroi
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run mamba_SD_2019_s2023
+wandb: ⭐️ View project at https://wandb.ai/angus3938-university-of-southern-california/TrafficFM
+wandb: 🚀 View run at https://wandb.ai/angus3938-university-of-southern-california/TrafficFM/runs/45qbxroi
+wandb: updating run metadata
+wandb: uploading summary, console lines 124-137
+wandb: 
+wandb: Run history:
+wandb:      epoch ▁▁▁▁▂▂▂▂▂▂▃▃▃▃▃▄▄▄▄▄▅▅▅▆▆▆▆▆▆▆▆▆▆▇▇▇▇▇██
+wandb:         lr ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb: train/loss █▆▃▃▃▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb: train/mape █▄▃▃▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb: train/rmse █▆▅▄▃▃▂▂▂▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:   val/loss █▅▄▃▃▃▃▃▂▂▂▂▂▂▂▂▂▂▂▂▂▂▁▁▂▁▁▁▁▂▂▁▁▁▁▂▁▁▁▁
+wandb:   val/mape █▆▆▄▄▃▃▃▃▃▂▂▂▂▂▃▂▁▁▂▂▁▁▁▃▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:   val/rmse █▇▄▄▃▃▂▂▂▂▂▁▂▂▁▂▂▁▁▁▂▁▂▂▂▁▂▁▂▁▁▁▁▁▁▁▁▁▁▁
+wandb: 
+wandb: Run summary:
+wandb:      epoch 100
+wandb:         lr 0.001
+wandb: train/loss 18.98539
+wandb: train/mape 0.11941
+wandb: train/rmse 30.59181
+wandb:   val/loss 21.7095
+wandb:   val/mape 0.1471
+wandb:   val/rmse 35.18037
+wandb: 
+wandb: 🚀 View run mamba_SD_2019_s2023 at: https://wandb.ai/angus3938-university-of-southern-california/TrafficFM/runs/45qbxroi
+wandb: ⭐️ View project at: https://wandb.ai/angus3938-university-of-southern-california/TrafficFM
+wandb: Synced 5 W&B file(s), 0 media file(s), 0 artifact file(s) and 0 other file(s)
+wandb: Find logs at: ./wandb/run-20260426_172011-45qbxroi/logs
