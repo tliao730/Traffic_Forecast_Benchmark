@@ -1,0 +1,103 @@
+{
+  "os": "Linux-5.14.0-427.91.1.el9_4.x86_64-x86_64-with-glibc2.34",
+  "python": "CPython 3.10.20",
+  "startedAt": "2026-04-28T02:25:05.282904Z",
+  "args": [
+    "--term",
+    "short",
+    "--context_length",
+    "48",
+    "--num_sensors",
+    "0",
+    "--windows_per_sensor",
+    "100",
+    "--bs",
+    "256",
+    "--lrate",
+    "1e-3",
+    "--max_epochs",
+    "50",
+    "--patience",
+    "15",
+    "--wandb_project",
+    "TrafficFM",
+    "--log_dir",
+    "/scratch/bcqc/tliao2/TrafficFM/experiments/mamba_fm/SD/2019/"
+  ],
+  "program": "/u/tliao2/TrafficFM/benchmark/fm/mamba/mamba.py",
+  "codePath": "benchmark/fm/mamba/mamba.py",
+  "codePathLocal": "fm/mamba/mamba.py",
+  "git": {
+    "remote": "https://github.com/DC-research/TrafficFM.git",
+    "commit": "7c3b46515765313effa09a054610e330d2c55e40"
+  },
+  "email": "angus3938@gmail.com",
+  "root": "/u/tliao2/TrafficFM/benchmark",
+  "host": "gpub076.delta.ncsa.illinois.edu",
+  "executable": "/u/tliao2/TrafficFM/benchmark/fm/moirai/.venv/bin/python3",
+  "cpu_count": 64,
+  "cpu_count_logical": 64,
+  "gpu": "NVIDIA A40",
+  "gpu_count": 1,
+  "disk": {
+    "/": {
+      "total": "135087370240",
+      "used": "8685322240"
+    }
+  },
+  "memory": {
+    "total": "270174740480"
+  },
+  "gpu_nvidia": [
+    {
+      "name": "NVIDIA A40",
+      "memoryTotal": "48305799168",
+      "cudaCores": 10752,
+      "architecture": "Ampere",
+      "uuid": "GPU-a940714d-b7c2-83d9-7b8a-072b5bb51ea3"
+    }
+  ],
+  "cudaVersion": "12.8",
+  "slurm": {
+    "cluster_name": "delta",
+    "conf": "/var/spool/slurmd/conf-cache/slurm.conf",
+    "cpus_on_node": "1",
+    "gpus_on_node": "1",
+    "gpus_per_node": "1",
+    "gtids": "0",
+    "job_account": "bcqc-delta-gpu",
+    "job_cpus_per_node": "1",
+    "job_end_time": "1777371767",
+    "job_gid": "202",
+    "job_gpus": "3",
+    "job_id": "17918022",
+    "job_name": "mamba_fm",
+    "job_nodelist": "gpub076",
+    "job_num_nodes": "1",
+    "job_partition": "gpuA40x4",
+    "job_qos": "bcqc-delta-gpu",
+    "job_start_time": "1777342967",
+    "job_uid": "94187",
+    "job_user": "tliao2",
+    "jobid": "17918022",
+    "localid": "0",
+    "mem_per_node": "32768",
+    "mpi_type": "cray_shasta",
+    "nnodes": "1",
+    "nodeid": "0",
+    "nodelist": "gpub076",
+    "nprocs": "1",
+    "ntasks": "1",
+    "ntasks_per_node": "1",
+    "oom_kill_step": "0",
+    "prio_process": "0",
+    "procid": "0",
+    "submit_dir": "/u/tliao2/TrafficFM",
+    "submit_host": "dt-login02.delta.ncsa.illinois.edu",
+    "task_pid": "1496606",
+    "tasks_per_node": "1",
+    "topology_addr": "ss00.ss12.gpub076",
+    "topology_addr_pattern": "switch.switch.node"
+  },
+  "writerId": "xmggzam1n5h18ozn12ub0juc1dta8ibv"
+}

@@ -1,9 +1,0 @@
-Log directory: /scratch/bcqc/tliao2/TrafficFM/experiments/mamba/SD/2019/
-2026-04-26 17:10:27,261 - Namespace(device='cuda', dataset='SD', years='2019', model_name='mamba', seed=2023, bs=64, seq_len=12, horizon=12, input_dim=3, output_dim=1, mode='train', max_epochs=100, patience=30, log_dir='/scratch/bcqc/tliao2/TrafficFM/experiments/mamba/SD/2019/', pretrained_path='', test_split=0, test_stride=1, test_num_windows=0, test_stride_mode='fixed', save_predictions=False, pred_out_dir='', pred_horizon=0, d_model=64, d_state=16, d_conv=4, expand=2, num_layers=2, embed_dim=10, lrate=0.001, wdecay=0.0, clip_grad_value=5.0, wandb_project='TrafficFM', max_train_samples=5000)
-2026-04-26 17:10:29,270 - Data shape: (35040, 716, 3)
-2026-04-26 17:10:29,352 - Sample num: 21010, Batch num: 329
-2026-04-26 17:10:29,477 - Sample num: 7003, Batch num: 110
-2026-04-26 17:10:29,508 - Sample num: 7004, Batch num: 110
-2026-04-26 17:10:29,563 - max_train_samples=5000: train set 截斷為 5000 個樣本
-2026-04-26 17:10:29,668 - [DataLoader] x shape: (64, 12, 716, 3)  (B, T, N, F)
-2026-04-26 17:10:29,668 - [DataLoader] y shape: (64, 12, 716, 1)  (B, horizon, N, 1)
