@@ -67,7 +67,10 @@ def make_windows(entries, context_len: int, pred_len: int,
         for s in indices:
             ctx = target[s : s + context_len]
             fut = target[s + context_len : s + span]
-            m, std = ctx.mean(), ctx.std() + 1e-8
+            std_raw = ctx.std()
+            if std_raw < 1.0:  # skip near-zero / constant traffic windows
+                continue
+            m, std = ctx.mean(), std_raw + 1e-8
             X.append((ctx - m) / std)
             Y.append((fut - m) / std)
             means.append(m)
@@ -80,6 +83,8 @@ def make_windows(entries, context_len: int, pred_len: int,
 
 def masked_mae(pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
     mask = target != 0
+    if mask.sum() == 0:
+        return torch.tensor(0.0, device=pred.device)
     return (pred - target).abs()[mask].mean()
 
 
@@ -220,7 +225,7 @@ def main():
             x_b, y_b = x_b.to(device), y_b.to(device)
             optimizer.zero_grad()
             pred = model(x_b)
-            loss = masked_mae(pred, y_b)
+            loss = (pred - y_b).abs().mean()  # plain MAE on normalized data
             loss.backward()
             nn.utils.clip_grad_norm_(model.parameters(), 5.0)
             optimizer.step()
@@ -232,7 +237,7 @@ def main():
         with torch.no_grad():
             for x_b, y_b in val_loader:
                 x_b, y_b = x_b.to(device), y_b.to(device)
-                val_losses.append(masked_mae(model(x_b), y_b).item())
+                val_losses.append((model(x_b) - y_b).abs().mean().item())
 
         train_loss = np.mean(train_losses)
         val_loss   = np.mean(val_losses)

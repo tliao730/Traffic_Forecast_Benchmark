@@ -1,0 +1,9 @@
+term=short, context=48, pred=3
+num_sensors=all, windows_per_sensor=10000
+Loading gift_eval data …
+Train: 7160000 samples | Val: 4981928 samples
+X shape: (7160000, 48, 1)  (N, context_length, 1)
+Y shape: (7160000, 3)  (N, pred_len)
+Parameters: 96,835
+Epoch 001 | train_loss=34072.7109 | val_loss=120807.7736
+  ✓ val_loss improved to 120807.7736

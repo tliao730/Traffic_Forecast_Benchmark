@@ -1,0 +1,89 @@
+/u/tliao2/TrafficFM/benchmark/fm/moirai/.venv/lib/python3.10/site-packages/torch/utils/data/dataloader.py:557: UserWarning: This DataLoader will create 2 worker processes in total. Our suggested max number of worker in current system is 1, which is smaller than what this DataLoader is going to create. Please be aware that excessive worker creation might get DataLoader running slow or even freeze, lower the worker number to avoid potential slowness/freeze if necessary.
+  warnings.warn(_create_warning_msg(
+wandb: [wandb.login()] Loaded credentials for https://api.wandb.ai from /u/tliao2/.netrc.
+wandb: Currently logged in as: angus3938 (angus3938-university-of-southern-california) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
+wandb: Tracking run with wandb version 0.26.0
+wandb: Run data is saved locally in /u/tliao2/TrafficFM/benchmark/wandb/run-20260430_161253-whgfv1fu
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run mamba_fm_SD_2019_short_s2023
+wandb: ⭐️ View project at https://wandb.ai/angus3938-university-of-southern-california/TrafficFM
+wandb: 🚀 View run at https://wandb.ai/angus3938-university-of-southern-california/TrafficFM/runs/whgfv1fu
+/u/tliao2/TrafficFM/benchmark/fm/moirai/.venv/lib/python3.10/site-packages/torch/utils/data/dataloader.py:557: UserWarning: This DataLoader will create 2 worker processes in total. Our suggested max number of worker in current system is 1, which is smaller than what this DataLoader is going to create. Please be aware that excessive worker creation might get DataLoader running slow or even freeze, lower the worker number to avoid potential slowness/freeze if necessary.
+  warnings.warn(_create_warning_msg(
+/u/tliao2/TrafficFM/benchmark/fm/mamba/mamba.py:261: FutureWarning: You are using `torch.load` with `weights_only=False` (the current default value), which uses the default pickle module implicitly. It is possible to construct malicious pickle data which will execute arbitrary code during unpickling (See https://github.com/pytorch/pytorch/blob/main/SECURITY.md#untrusted-models for more details). In a future release, the default value for `weights_only` will be flipped to `True`. This limits the functions that could be executed during unpickling. Arbitrary objects will no longer be allowed to be loaded via this mode unless they are explicitly allowlisted by the user via `torch.serialization.add_safe_globals`. We recommend you start setting `weights_only=True` for any use case where you don't have full control of the loaded file. Please open an issue on GitHub for any issues related to this experimental feature.
+  model.load_state_dict(torch.load(ckpt_path, map_location=device))
+wandb: updating run metadata
+wandb: uploading output.log; uploading wandb-summary.json; uploading config.yaml
+wandb: uploading history steps 32-32, summary, console lines 48-49
+wandb: 
+wandb: Run history:
+wandb:      epoch ▁▁▁▂▂▂▂▃▃▃▃▃▄▄▄▄▅▅▅▅▆▆▆▆▆▇▇▇▇███
+wandb:   test/mae ▁
+wandb:  test/mape ▁
+wandb:  test/rmse ▁
+wandb: train/loss █▆▅▄▄▄▃▃▃▃▃▃▃▂▂▂▂▂▂▂▂▂▂▁▁▁▁▁▁▁▁▁
+wandb:   val/loss █▆▅▄▄▄▂▂▂▁▁▂▁▂▂▁▁▁▁▂▂▁▁▂▁▁▁▂▂▂▂▁
+wandb: 
+wandb: Run summary:
+wandb:      epoch 32
+wandb:   test/mae 18.40616
+wandb:  test/mape 0.11674
+wandb:  test/rmse 30.05262
+wandb: train/loss 0.18587
+wandb:   val/loss 0.21341
+wandb: 
+wandb: 🚀 View run mamba_fm_SD_2019_short_s2023 at: https://wandb.ai/angus3938-university-of-southern-california/TrafficFM/runs/whgfv1fu
+wandb: ⭐️ View project at: https://wandb.ai/angus3938-university-of-southern-california/TrafficFM
+wandb: Synced 5 W&B file(s), 0 media file(s), 0 artifact file(s) and 0 other file(s)
+wandb: Find logs at: ./wandb/run-20260430_161253-whgfv1fu/logs
+/u/tliao2/TrafficFM/benchmark/fm/moirai/.venv/lib/python3.10/site-packages/torch/utils/data/dataloader.py:557: UserWarning: This DataLoader will create 2 worker processes in total. Our suggested max number of worker in current system is 1, which is smaller than what this DataLoader is going to create. Please be aware that excessive worker creation might get DataLoader running slow or even freeze, lower the worker number to avoid potential slowness/freeze if necessary.
+  warnings.warn(_create_warning_msg(
+wandb: [wandb.login()] Loaded credentials for https://api.wandb.ai from /u/tliao2/.netrc.
+wandb: Currently logged in as: angus3938 (angus3938-university-of-southern-california) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
+wandb: Tracking run with wandb version 0.26.0
+wandb: Run data is saved locally in /u/tliao2/TrafficFM/benchmark/wandb/run-20260430_202852-le3yat5o
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run mamba_fm_SD_2019_medium_s2023
+wandb: ⭐️ View project at https://wandb.ai/angus3938-university-of-southern-california/TrafficFM
+wandb: 🚀 View run at https://wandb.ai/angus3938-university-of-southern-california/TrafficFM/runs/le3yat5o
+/u/tliao2/TrafficFM/benchmark/fm/moirai/.venv/lib/python3.10/site-packages/torch/utils/data/dataloader.py:557: UserWarning: This DataLoader will create 2 worker processes in total. Our suggested max number of worker in current system is 1, which is smaller than what this DataLoader is going to create. Please be aware that excessive worker creation might get DataLoader running slow or even freeze, lower the worker number to avoid potential slowness/freeze if necessary.
+  warnings.warn(_create_warning_msg(
+/u/tliao2/TrafficFM/benchmark/fm/mamba/mamba.py:261: FutureWarning: You are using `torch.load` with `weights_only=False` (the current default value), which uses the default pickle module implicitly. It is possible to construct malicious pickle data which will execute arbitrary code during unpickling (See https://github.com/pytorch/pytorch/blob/main/SECURITY.md#untrusted-models for more details). In a future release, the default value for `weights_only` will be flipped to `True`. This limits the functions that could be executed during unpickling. Arbitrary objects will no longer be allowed to be loaded via this mode unless they are explicitly allowlisted by the user via `torch.serialization.add_safe_globals`. We recommend you start setting `weights_only=True` for any use case where you don't have full control of the loaded file. Please open an issue on GitHub for any issues related to this experimental feature.
+  model.load_state_dict(torch.load(ckpt_path, map_location=device))
+wandb: updating run metadata
+wandb: 
+wandb: Run history:
+wandb:      epoch ▁▁▁▁▂▂▂▂▂▃▃▃▃▃▃▄▄▄▄▄▅▅▅▅▅▅▆▆▆▆▆▆▇▇▇▇▇███
+wandb:   test/mae ▁
+wandb:  test/mape ▁
+wandb:  test/rmse ▁
+wandb: train/loss █▅▅▄▄▄▄▃▃▃▃▃▃▂▂▂▂▂▂▂▂▂▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:   val/loss █▆▅▄▄▃▂▂▂▂▂▂▁▁▂▂▂▂▂▂▂▁▂▂▁▁▁▂▂▂▁▁▁▁▁▂▂▁▁▁
+wandb: 
+wandb: Run summary:
+wandb:      epoch 45
+wandb:   test/mae 22.86093
+wandb:  test/mape 0.15429
+wandb:  test/rmse 37.18249
+wandb: train/loss 0.22731
+wandb:   val/loss 0.26474
+wandb: 
+wandb: 🚀 View run mamba_fm_SD_2019_medium_s2023 at: https://wandb.ai/angus3938-university-of-southern-california/TrafficFM/runs/le3yat5o
+wandb: ⭐️ View project at: https://wandb.ai/angus3938-university-of-southern-california/TrafficFM
+wandb: Synced 5 W&B file(s), 0 media file(s), 0 artifact file(s) and 0 other file(s)
+wandb: Find logs at: ./wandb/run-20260430_202852-le3yat5o/logs
+/u/tliao2/TrafficFM/benchmark/fm/moirai/.venv/lib/python3.10/site-packages/torch/utils/data/dataloader.py:557: UserWarning: This DataLoader will create 2 worker processes in total. Our suggested max number of worker in current system is 1, which is smaller than what this DataLoader is going to create. Please be aware that excessive worker creation might get DataLoader running slow or even freeze, lower the worker number to avoid potential slowness/freeze if necessary.
+  warnings.warn(_create_warning_msg(
+wandb: [wandb.login()] Loaded credentials for https://api.wandb.ai from /u/tliao2/.netrc.
+wandb: Currently logged in as: angus3938 (angus3938-university-of-southern-california) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
+wandb: Tracking run with wandb version 0.26.0
+wandb: Run data is saved locally in /u/tliao2/TrafficFM/benchmark/wandb/run-20260501_013719-sdezsmxd
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run mamba_fm_SD_2019_long_s2023
+wandb: ⭐️ View project at https://wandb.ai/angus3938-university-of-southern-california/TrafficFM
+wandb: 🚀 View run at https://wandb.ai/angus3938-university-of-southern-california/TrafficFM/runs/sdezsmxd
+/u/tliao2/TrafficFM/benchmark/fm/moirai/.venv/lib/python3.10/site-packages/torch/utils/data/dataloader.py:557: UserWarning: This DataLoader will create 2 worker processes in total. Our suggested max number of worker in current system is 1, which is smaller than what this DataLoader is going to create. Please be aware that excessive worker creation might get DataLoader running slow or even freeze, lower the worker number to avoid potential slowness/freeze if necessary.
+  warnings.warn(_create_warning_msg(
+/u/tliao2/TrafficFM/benchmark/fm/mamba/mamba.py:261: FutureWarning: You are using `torch.load` with `weights_only=False` (the current default value), which uses the default pickle module implicitly. It is possible to construct malicious pickle data which will execute arbitrary code during unpickling (See https://github.com/pytorch/pytorch/blob/main/SECURITY.md#untrusted-models for more details). In a future release, the default value for `weights_only` will be flipped to `True`. This limits the functions that could be executed during unpickling. Arbitrary objects will no longer be allowed to be loaded via this mode unless they are explicitly allowlisted by the user via `torch.serialization.add_safe_globals`. We recommend you start setting `weights_only=True` for any use case where you don't have full control of the loaded file. Please open an issue on GitHub for any issues related to this experimental feature.
+  model.load_state_dict(torch.load(ckpt_path, map_location=device))
+[2026-05-01T04:09:29.100] error: *** JOB 17982724 ON gpub072 CANCELLED AT 2026-05-01T04:09:29 DUE TO TIME LIMIT ***
