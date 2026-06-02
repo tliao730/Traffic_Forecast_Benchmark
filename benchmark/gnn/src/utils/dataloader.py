@@ -48,6 +48,7 @@ class DataLoader(object):
                 end_ind = min(self.size, self.bs * (self.current_ind + 1))
                 idx_ind = self.idx[start_ind: end_ind, ...]
 
+                # all the sensor values at the same time. (don't change)
                 x_shape = (len(idx_ind), self.seq_len, self.data.shape[1], self.data.shape[-1])
                 x_shared = mp.RawArray('f', int(np.prod(x_shape)))
                 x = np.frombuffer(x_shared, dtype='f').reshape(x_shape)
@@ -151,6 +152,7 @@ def load_dataset(data_path, args, logger):
 
             test_stride_mode = getattr(args, 'test_stride_mode', 'fixed')
             if test_stride_mode == 'fixed':
+                # The stride of testing windows is set to 1 by default.
                 test_stride = max(1, int(getattr(args, 'test_stride', 1)))
                 if test_stride > 1:
                     idx = idx[::test_stride]

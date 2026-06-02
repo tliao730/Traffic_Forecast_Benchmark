@@ -1,0 +1,129 @@
+term=short, context=48, pred=3
+num_sensors=all, windows_per_sensor=1000
+Loading gift_eval data …
+Train: 705250 samples | Val: 707989 samples
+X shape: (705250, 48, 1)  (N, context_length, 1)
+Y shape: (705250, 3)  (N, pred_len)
+Parameters: 96,835
+Epoch 001 | train_loss=0.2214 | val_loss=0.2194
+  ✓ val_loss improved to 0.2194
+Epoch 002 | train_loss=0.2081 | val_loss=0.2147
+  ✓ val_loss improved to 0.2147
+Epoch 003 | train_loss=0.2033 | val_loss=0.2114
+  ✓ val_loss improved to 0.2114
+Epoch 004 | train_loss=0.2001 | val_loss=0.2108
+  ✓ val_loss improved to 0.2108
+Epoch 005 | train_loss=0.1977 | val_loss=0.2107
+  ✓ val_loss improved to 0.2107
+Epoch 006 | train_loss=0.1959 | val_loss=0.2083
+  ✓ val_loss improved to 0.2083
+Epoch 007 | train_loss=0.1942 | val_loss=0.2114
+Epoch 008 | train_loss=0.1929 | val_loss=0.2094
+Epoch 009 | train_loss=0.1918 | val_loss=0.2106
+Epoch 010 | train_loss=0.1908 | val_loss=0.2099
+Epoch 011 | train_loss=0.1897 | val_loss=0.2084
+Epoch 012 | train_loss=0.1890 | val_loss=0.2088
+Epoch 013 | train_loss=0.1881 | val_loss=0.2092
+Epoch 014 | train_loss=0.1874 | val_loss=0.2086
+Epoch 015 | train_loss=0.1867 | val_loss=0.2087
+Epoch 016 | train_loss=0.1862 | val_loss=0.2064
+  ✓ val_loss improved to 0.2064
+Epoch 017 | train_loss=0.1855 | val_loss=0.2072
+Epoch 018 | train_loss=0.1851 | val_loss=0.2083
+Epoch 019 | train_loss=0.1844 | val_loss=0.2078
+Epoch 020 | train_loss=0.1840 | val_loss=0.2139
+Epoch 021 | train_loss=0.1836 | val_loss=0.2086
+Epoch 022 | train_loss=0.1832 | val_loss=0.2055
+  ✓ val_loss improved to 0.2055
+Epoch 023 | train_loss=0.1827 | val_loss=0.2089
+Epoch 024 | train_loss=0.1823 | val_loss=0.2071
+Epoch 025 | train_loss=0.1820 | val_loss=0.2076
+Epoch 026 | train_loss=0.1817 | val_loss=0.2084
+Epoch 027 | train_loss=0.1813 | val_loss=0.2080
+Epoch 028 | train_loss=0.1809 | val_loss=0.2076
+Epoch 029 | train_loss=0.1805 | val_loss=0.2079
+Epoch 030 | train_loss=0.1803 | val_loss=0.2081
+Epoch 031 | train_loss=0.1800 | val_loss=0.2101
+Epoch 032 | train_loss=0.1798 | val_loss=0.2078
+Epoch 033 | train_loss=0.1795 | val_loss=0.2075
+Epoch 034 | train_loss=0.1793 | val_loss=0.2085
+Epoch 035 | train_loss=0.1790 | val_loss=0.2103
+Epoch 036 | train_loss=0.1788 | val_loss=0.2078
+Epoch 037 | train_loss=0.1784 | val_loss=0.2071
+Early stop at epoch 37
+
+Evaluating on test set …
+
+[SHORT] MAE=17.8578 | RMSE=28.5587 | MAPE=0.1091
+term=medium, context=48, pred=6
+num_sensors=all, windows_per_sensor=1000
+Loading gift_eval data …
+Train: 705243 samples | Val: 707991 samples
+X shape: (705243, 48, 1)  (N, context_length, 1)
+Y shape: (705243, 6)  (N, pred_len)
+Parameters: 97,030
+Epoch 001 | train_loss=0.2883 | val_loss=0.2814
+  ✓ val_loss improved to 0.2814
+Epoch 002 | train_loss=0.2656 | val_loss=0.2736
+  ✓ val_loss improved to 0.2736
+Epoch 003 | train_loss=0.2583 | val_loss=0.2686
+  ✓ val_loss improved to 0.2686
+Epoch 004 | train_loss=0.2539 | val_loss=0.2699
+Epoch 005 | train_loss=0.2502 | val_loss=0.2665
+  ✓ val_loss improved to 0.2665
+Epoch 006 | train_loss=0.2474 | val_loss=0.2621
+  ✓ val_loss improved to 0.2621
+Epoch 007 | train_loss=0.2450 | val_loss=0.2623
+Epoch 008 | train_loss=0.2429 | val_loss=0.2642
+Epoch 009 | train_loss=0.2413 | val_loss=0.2615
+  ✓ val_loss improved to 0.2615
+Epoch 010 | train_loss=0.2397 | val_loss=0.2607
+  ✓ val_loss improved to 0.2607
+Epoch 011 | train_loss=0.2384 | val_loss=0.2630
+Epoch 012 | train_loss=0.2371 | val_loss=0.2625
+Epoch 013 | train_loss=0.2360 | val_loss=0.2622
+Epoch 014 | train_loss=0.2350 | val_loss=0.2586
+  ✓ val_loss improved to 0.2586
+Epoch 015 | train_loss=0.2340 | val_loss=0.2594
+Epoch 016 | train_loss=0.2331 | val_loss=0.2648
+Epoch 017 | train_loss=0.2324 | val_loss=0.2605
+Epoch 018 | train_loss=0.2317 | val_loss=0.2621
+Epoch 019 | train_loss=0.2309 | val_loss=0.2606
+Epoch 020 | train_loss=0.2303 | val_loss=0.2606
+Epoch 021 | train_loss=0.2297 | val_loss=0.2596
+Epoch 022 | train_loss=0.2291 | val_loss=0.2620
+Epoch 023 | train_loss=0.2286 | val_loss=0.2629
+Epoch 024 | train_loss=0.2280 | val_loss=0.2588
+Epoch 025 | train_loss=0.2275 | val_loss=0.2588
+Epoch 026 | train_loss=0.2270 | val_loss=0.2603
+Epoch 027 | train_loss=0.2265 | val_loss=0.2651
+Epoch 028 | train_loss=0.2261 | val_loss=0.2589
+Epoch 029 | train_loss=0.2257 | val_loss=0.2606
+Early stop at epoch 29
+
+Evaluating on test set …
+
+[MEDIUM] MAE=22.5439 | RMSE=36.2618 | MAPE=0.1453
+term=long, context=48, pred=12
+num_sensors=all, windows_per_sensor=1000
+Loading gift_eval data …
+Train: 705247 samples | Val: 707991 samples
+X shape: (705247, 48, 1)  (N, context_length, 1)
+Y shape: (705247, 12)  (N, pred_len)
+Parameters: 97,420
+Epoch 001 | train_loss=0.4027 | val_loss=0.3825
+  ✓ val_loss improved to 0.3825
+Epoch 002 | train_loss=0.3672 | val_loss=0.3683
+  ✓ val_loss improved to 0.3683
+Epoch 003 | train_loss=0.3564 | val_loss=0.3653
+  ✓ val_loss improved to 0.3653
+Epoch 004 | train_loss=0.3496 | val_loss=0.3649
+  ✓ val_loss improved to 0.3649
+Epoch 005 | train_loss=0.3445 | val_loss=0.3650
+Epoch 006 | train_loss=0.3407 | val_loss=0.3577
+  ✓ val_loss improved to 0.3577
+Epoch 007 | train_loss=0.3374 | val_loss=0.3521
+  ✓ val_loss improved to 0.3521
+Epoch 008 | train_loss=0.3348 | val_loss=0.3573
+Epoch 009 | train_loss=0.3321 | val_loss=0.3551
+Epoch 010 | train_loss=0.3301 | val_loss=0.3532

@@ -1,0 +1,142 @@
+_wandb:
+    value:
+        cli_version: 0.26.0
+        e:
+            gs5cmofu9l2zeddjroke14dbg56gvrnj:
+                args:
+                    - --term
+                    - long
+                    - --year
+                    - "2018"
+                    - --context_length
+                    - "48"
+                    - --num_sensors
+                    - "0"
+                    - --windows_per_sensor
+                    - "50"
+                    - --log_dir
+                    - /u/tliao2/TrafficFM/benchmark/experiments/mamba_fm/SD/2018/
+                    - --wandb_project
+                    - TrafficFM
+                codePath: benchmark/fm/mamba/eval_only.py
+                codePathLocal: fm/mamba/eval_only.py
+                cpu_count: 64
+                cpu_count_logical: 64
+                cudaVersion: "12.8"
+                disk:
+                    /:
+                        total: "135087366144"
+                        used: "9907421184"
+                email: angus3938@gmail.com
+                executable: /u/tliao2/TrafficFM/benchmark/fm/moirai/.venv/bin/python3
+                git:
+                    commit: 9f12580f36b4922cdb3f7dd5f504474f465b43b5
+                    remote: https://github.com/DC-research/TrafficFM.git
+                gpu: NVIDIA A40
+                gpu_count: 1
+                gpu_nvidia:
+                    - architecture: Ampere
+                      cudaCores: 10752
+                      memoryTotal: "48305799168"
+                      name: NVIDIA A40
+                      uuid: GPU-c307ef51-18e1-e9f0-e564-d09c19a563f1
+                host: gpub017.delta.ncsa.illinois.edu
+                memory:
+                    total: "270174736384"
+                os: Linux-5.14.0-427.91.1.el9_4.x86_64-x86_64-with-glibc2.34
+                program: /u/tliao2/TrafficFM/benchmark/fm/mamba/eval_only.py
+                python: CPython 3.10.20
+                root: /u/tliao2/TrafficFM/benchmark
+                slurm:
+                    cluster_name: delta
+                    conf: /var/spool/slurmd/conf-cache/slurm.conf
+                    cpus_on_node: "1"
+                    gpus_on_node: "1"
+                    gpus_per_node: "1"
+                    gtids: "0"
+                    job_account: bcqc-delta-gpu
+                    job_cpus_per_node: "1"
+                    job_end_time: "1780282379"
+                    job_gid: "202"
+                    job_gpus: "0"
+                    job_id: "18670160"
+                    job_name: mamba_eval_long
+                    job_nodelist: gpub017
+                    job_num_nodes: "1"
+                    job_partition: gpuA40x4
+                    job_qos: bcqc-delta-gpu
+                    job_start_time: "1780275179"
+                    job_uid: "94187"
+                    job_user: tliao2
+                    jobid: "18670160"
+                    localid: "0"
+                    mem_per_node: "32768"
+                    mpi_type: cray_shasta
+                    nnodes: "1"
+                    nodeid: "0"
+                    nodelist: gpub017
+                    nprocs: "1"
+                    ntasks: "1"
+                    ntasks_per_node: "1"
+                    oom_kill_step: "0"
+                    prio_process: "0"
+                    procid: "0"
+                    submit_dir: /u/tliao2/TrafficFM
+                    submit_host: dt-login01.delta.ncsa.illinois.edu
+                    task_pid: "2968341"
+                    tasks_per_node: "1"
+                    topology_addr: ss00.ss10.gpub017
+                    topology_addr_pattern: switch.switch.node
+                startedAt: "2026-06-01T00:53:52.458851Z"
+                writerId: gs5cmofu9l2zeddjroke14dbg56gvrnj
+        m: []
+        python_version: 3.10.20
+        t:
+            "1":
+                - 1
+                - 49
+                - 51
+                - 105
+            "2":
+                - 1
+                - 49
+                - 51
+                - 105
+            "3":
+                - 2
+                - 13
+                - 16
+            "4": 3.10.20
+            "5": 0.26.0
+            "8":
+                - 2
+            "12": 0.26.0
+            "13": linux-x86_64
+context_length:
+    value: 48
+d_conv:
+    value: 4
+d_model:
+    value: 64
+d_state:
+    value: 16
+device:
+    value: cuda
+expand:
+    value: 2
+log_dir:
+    value: /u/tliao2/TrafficFM/benchmark/experiments/mamba_fm/SD/2018/
+num_layers:
+    value: 2
+num_sensors:
+    value: 0
+seed:
+    value: 2023
+term:
+    value: long
+wandb_project:
+    value: TrafficFM
+windows_per_sensor:
+    value: 50
+year:
+    value: "2018"

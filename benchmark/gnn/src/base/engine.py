@@ -248,6 +248,7 @@ class BaseEngine:
                 )
                 return
             else:
+                # all the sensor values at the same time. (don't change)
                 for X, label in loader.get_iterator():
                     # X (b, t, n, f), label (b, t, n, 1)
                     X, label = self._to_device(self._to_tensor([X, label]))

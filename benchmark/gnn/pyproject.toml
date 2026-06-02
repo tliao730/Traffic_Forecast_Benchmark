@@ -10,6 +10,7 @@ dependencies = [
     "kaggle==1.7.4.5",
     "pandas>=2.3.3",
     "pyyaml>=6.0.3",
+    "scipy>=1.15.3",
     "tables>=3.10.1",
     "torch>=2.10.0",
     "wandb>=0.26.1",

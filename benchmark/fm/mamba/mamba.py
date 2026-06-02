@@ -143,6 +143,8 @@ def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--term",            type=str,   default="short",
                         choices=["short", "medium", "long"])
+    parser.add_argument("--year",            type=str,   default="2019",
+                        help="dataset year, e.g. 2018 or 2019")
     parser.add_argument("--context_length",  type=int,   default=48,
                         help="context steps (default 48 = 12 h at 15T)")
     parser.add_argument("--num_sensors",     type=int,   default=0,
@@ -177,9 +179,9 @@ def main():
 
     # ── load data ──────────────────────────────────────────────────────
     print("Loading gift_eval data …")
-    train_entries = load_gift_eval_entries("sd_train/2019/15T")
-    val_entries   = load_gift_eval_entries("sd_val/2019/15T")
-    test_entries  = load_gift_eval_entries("sd/2019/15T")
+    train_entries = load_gift_eval_entries(f"sd_train/{args.year}/15T")
+    val_entries   = load_gift_eval_entries(f"sd_val/{args.year}/15T")
+    test_entries  = load_gift_eval_entries(f"sd/{args.year}/15T")
 
     X_tr, Y_tr, _, _ = make_windows(train_entries, args.context_length, pred_len,
                                     args.windows_per_sensor, args.num_sensors)
@@ -209,7 +211,7 @@ def main():
     # ── wandb ──────────────────────────────────────────────────────────
     wandb.init(
         project=args.wandb_project,
-        name=f"mamba_fm_SD_2019_{args.term}_s{args.seed}",
+        name=f"mamba_fm_SD_{args.year}_{args.term}_s{args.seed}",
         config=vars(args),
     )
 

@@ -1,0 +1,5 @@
+term=long, context=48, pred=12, year=2018
+Loading test data ...
+Loading checkpoint: /u/tliao2/TrafficFM/benchmark/experiments/mamba_fm/SD/2018/best_model_long_s2023.pt
+
+[LONG] MAE=31.7233 | RMSE=50.3270 | MAPE=0.2182
