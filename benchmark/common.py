@@ -8,6 +8,7 @@ from typing import Optional
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import wandb
 from config import config
 from gift_eval.data import Dataset
 from gluonts.ev.metrics import (
@@ -667,6 +668,17 @@ def eval(
                 dataset_properties_map,
                 model_name,
             )
+
+            if wandb.run is not None:
+                wandb.log({
+                    "dataset": ds_config,
+                    "MAE": res["MAE[0.5]"][0],
+                    "RMSE": res["RMSE[mean]"][0],
+                    "MAPE": res["MAPE[0.5]"][0],
+                    "SMAPE": res["sMAPE[0.5]"][0],
+                    "MASE": res["MASE[0.5]"][0],
+                    "ND": res["ND[0.5]"][0],
+                })
 
             # Optionally save predictions and ground truth
             if save_predictions_dir is not None:

@@ -3,6 +3,7 @@ import os
 
 import numpy as np
 import torch
+import wandb
 from fm.fm_utils import (
     build_basic_parser,
     get_entry_target,
@@ -140,6 +141,12 @@ def main():
     if args.save_predictions and save_dir is None:
         save_dir = os.path.join(benchmark_config.result_root, MODEL_NAME, "predictions")
 
+    wandb.init(
+        project="TrafficFM",
+        name=f"{MODEL_NAME}_SD2018",
+        config={"model": MODEL_NAME, "model_path": MODEL_PATH,
+                "context_length": args.context_length, "batch_size": args.batch_size},
+    )
     run_benchmark(
         eval_time_only=args.eval_time,
         model_name=MODEL_NAME,
@@ -148,6 +155,7 @@ def main():
         batch_size=args.batch_size,
         save_predictions_dir=save_dir if args.save_predictions else None,
     )
+    wandb.finish()
 
 
 if __name__ == "__main__":

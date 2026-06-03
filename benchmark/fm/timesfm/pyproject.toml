@@ -6,6 +6,8 @@ requires-python = ">=3.10,<3.11"
 dependencies = [
     # TimesFM: JAX backend (use Python 3.10.x). For PyTorch backend use Python 3.11.x and timesfm[torch]
     "timesfm[pax]",
+    "jax[cuda12]",
+    "torch",
     # Gift-eval package (pip install -e . in repo → we use git ref)
     "salesforce-gift-eval @ git+https://github.com/DensoSVIC/gift-eval.git@traffic",
     # Gift-eval / evaluation dependencies
@@ -22,4 +24,5 @@ dependencies = [
     "ray",
     "scipy~=1.11.3",
     "tqdm",
+    "wandb>=0.26.0",
 ]

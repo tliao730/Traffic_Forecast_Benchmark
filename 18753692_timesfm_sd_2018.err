@@ -1,0 +1,24 @@
+warning: `VIRTUAL_ENV=/u/tliao2/TrafficFM/.venv` does not match the project environment path `fm/timesfm/.venv` and will be ignored; use `--active` to target the active environment instead
+Fetching 6 files:   0%|          | 0/6 [00:00<?, ?it/s]Fetching 6 files: 100%|██████████| 6/6 [00:00<00:00, 8256.50it/s]
+Traceback (most recent call last):
+  File "/u/tliao2/.local/share/uv/python/cpython-3.10-linux-x86_64-gnu/lib/python3.10/runpy.py", line 196, in _run_module_as_main
+    return _run_code(code, main_globals, None,
+  File "/u/tliao2/.local/share/uv/python/cpython-3.10-linux-x86_64-gnu/lib/python3.10/runpy.py", line 86, in _run_code
+    exec(code, run_globals)
+  File "/u/tliao2/TrafficFM/benchmark/fm/timesfm/timesfm.py", line 139, in <module>
+    main()
+  File "/u/tliao2/TrafficFM/benchmark/fm/timesfm/timesfm.py", line 113, in main
+    tfm = _load_timesfm_model()
+  File "/u/tliao2/TrafficFM/benchmark/fm/timesfm/timesfm.py", line 52, in _load_timesfm_model
+    model = timesfm.TimesFm(
+  File "/u/tliao2/TrafficFM/benchmark/fm/timesfm/.venv/lib/python3.10/site-packages/timesfm/timesfm_base.py", line 180, in __init__
+    self.load_from_checkpoint(checkpoint)
+  File "/u/tliao2/TrafficFM/benchmark/fm/timesfm/.venv/lib/python3.10/site-packages/timesfm/timesfm_torch.py", line 61, in load_from_checkpoint
+    loaded_checkpoint = torch.load(checkpoint_path, weights_only=True)
+  File "/u/tliao2/TrafficFM/benchmark/fm/timesfm/.venv/lib/python3.10/site-packages/torch/serialization.py", line 1530, in load
+    with _open_file_like(f, "rb") as opened_file:
+  File "/u/tliao2/TrafficFM/benchmark/fm/timesfm/.venv/lib/python3.10/site-packages/torch/serialization.py", line 795, in _open_file_like
+    return _open_file(name_or_buffer, mode)
+  File "/u/tliao2/TrafficFM/benchmark/fm/timesfm/.venv/lib/python3.10/site-packages/torch/serialization.py", line 776, in __init__
+    super().__init__(open(name, mode))  # noqa: SIM115
+FileNotFoundError: [Errno 2] No such file or directory: '/scratch/bcqc/tliao2/huggingface/hub/models--google--timesfm-2.0-500m-jax/snapshots/47dedfcadf2abace1cc96071ddb798cfcd3bfcef/torch_model.ckpt'

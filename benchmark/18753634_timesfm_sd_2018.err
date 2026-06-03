@@ -1,0 +1,13 @@
+warning: `VIRTUAL_ENV=/u/tliao2/TrafficFM/.venv` does not match the project environment path `fm/timesfm/.venv` and will be ignored; use `--active` to target the active environment instead
+Traceback (most recent call last):
+  File "/u/tliao2/.local/share/uv/python/cpython-3.10-linux-x86_64-gnu/lib/python3.10/runpy.py", line 196, in _run_module_as_main
+    return _run_code(code, main_globals, None,
+  File "/u/tliao2/.local/share/uv/python/cpython-3.10-linux-x86_64-gnu/lib/python3.10/runpy.py", line 86, in _run_code
+    exec(code, run_globals)
+  File "/u/tliao2/TrafficFM/benchmark/fm/timesfm/timesfm.py", line 140, in <module>
+    main()
+  File "/u/tliao2/TrafficFM/benchmark/fm/timesfm/timesfm.py", line 114, in main
+    tfm = _load_timesfm_model()
+  File "/u/tliao2/TrafficFM/benchmark/fm/timesfm/timesfm.py", line 53, in _load_timesfm_model
+    hparams=timesfm.TimesFmHparams(
+TypeError: TimesFmHparams.__init__() got an unexpected keyword argument 'use_positional_embedding'

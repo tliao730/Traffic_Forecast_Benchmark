@@ -1,0 +1,15 @@
+Results will be saved to: /scratch/bcqc/tliao2/TrafficFM/results/Moirai2
+Found 3 completed datasets.
+Evaluating Moirai2 from Salesforce/moirai-2.0-R-small
+Processing dataset: sd_val/2018/15T (1 of 1)
+Skipping already completed dataset: sd_val/2018/short
+Skipping already completed dataset: sd_val/2018/medium
+Skipping already completed dataset: sd_val/2018/long
+
+Final aggregated results:
+              dataset    model  ...     domain  num_variates
+0   sd_val/2018/short  Moirai2  ...  Transport             1
+1  sd_val/2018/medium  Moirai2  ...  Transport             1
+2    sd_val/2018/long  Moirai2  ...  Transport             1
+
+[3 rows x 15 columns]

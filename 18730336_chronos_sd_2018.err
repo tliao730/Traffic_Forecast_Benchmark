@@ -1,0 +1,40 @@
+warning: `VIRTUAL_ENV=/u/tliao2/TrafficFM/.venv` does not match the project environment path `fm/moirai/.venv` and will be ignored; use `--active` to target the active environment instead
+wandb: [wandb.login()] Loaded credentials for https://api.wandb.ai from /u/tliao2/.netrc.
+wandb: Currently logged in as: tliao730 (TrafficFM) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
+wandb: setting up run 4k5xe61c
+wandb: Tracking run with wandb version 0.26.0
+wandb: Run data is saved locally in /u/tliao2/TrafficFM/benchmark/wandb/run-20260602_024730-4k5xe61c
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run chronos_bolt_base_SD2018
+wandb: ⭐️ View project at https://wandb.ai/TrafficFM/TrafficFM
+wandb: 🚀 View run at https://wandb.ai/TrafficFM/TrafficFM/runs/4k5xe61c
+0it [00:00, ?it/s]1it [00:04,  4.96s/it]2it [00:09,  4.78s/it]3it [00:14,  4.69s/it]4it [00:19,  4.89s/it]5it [00:23,  4.71s/it]6it [00:28,  4.78s/it]7it [00:33,  4.66s/it]8it [00:37,  4.49s/it]9it [00:42,  4.61s/it]10it [00:46,  4.64s/it]11it [00:51,  4.65s/it]12it [00:56,  4.75s/it]13it [01:00,  4.59s/it]14it [01:04,  4.46s/it]14it [01:04,  4.63s/it]
+0it [00:00, ?it/s]1024it [00:02, 453.17it/s]2048it [00:04, 454.44it/s]3072it [00:06, 454.76it/s]4096it [00:09, 455.47it/s]5120it [00:11, 456.30it/s]6144it [00:13, 456.96it/s]7168it [00:15, 457.58it/s]8192it [00:17, 456.71it/s]9216it [00:20, 457.08it/s]10240it [00:22, 455.68it/s]11264it [00:24, 456.57it/s]12288it [00:26, 455.84it/s]13312it [00:29, 456.05it/s]14320it [00:31, 455.33it/s]14320it [00:31, 455.94it/s]
+0it [00:00, ?it/s]1it [00:02,  2.07s/it]2it [00:04,  2.07s/it]3it [00:06,  2.07s/it]4it [00:08,  2.07s/it]5it [00:10,  2.07s/it]6it [00:12,  2.07s/it]7it [00:14,  2.07s/it]8it [00:16,  2.08s/it]9it [00:18,  2.08s/it]10it [00:20,  2.08s/it]11it [00:22,  2.08s/it]12it [00:24,  2.08s/it]13it [00:26,  2.08s/it]14it [00:29,  2.07s/it]14it [00:29,  2.07s/it]
+0it [00:00, ?it/s]1024it [00:02, 454.27it/s]2048it [00:04, 454.09it/s]3072it [00:06, 455.49it/s]4096it [00:08, 455.77it/s]5120it [00:11, 456.57it/s]6144it [00:13, 456.65it/s]7168it [00:15, 456.24it/s]8192it [00:17, 456.07it/s]9216it [00:20, 456.59it/s]10240it [00:22, 456.65it/s]11264it [00:24, 456.05it/s]12288it [00:26, 455.62it/s]13312it [00:29, 455.65it/s]14320it [00:31, 455.56it/s]14320it [00:31, 455.87it/s]
+0it [00:00, ?it/s]1it [00:02,  2.07s/it]2it [00:04,  2.07s/it]3it [00:06,  2.07s/it]4it [00:08,  2.07s/it]5it [00:10,  2.07s/it]6it [00:12,  2.07s/it]7it [00:14,  2.07s/it]8it [00:16,  2.07s/it]9it [00:18,  2.07s/it]10it [00:20,  2.07s/it]11it [00:22,  2.07s/it]12it [00:24,  2.07s/it]13it [00:26,  2.08s/it]14it [00:28,  2.07s/it]14it [00:28,  2.07s/it]
+0it [00:00, ?it/s]1024it [00:02, 456.27it/s]2048it [00:04, 457.03it/s]3072it [00:06, 457.04it/s]4096it [00:08, 455.97it/s]5120it [00:11, 455.44it/s]6144it [00:13, 455.55it/s]7168it [00:15, 456.00it/s]8192it [00:17, 456.13it/s]9216it [00:20, 456.04it/s]10240it [00:22, 456.09it/s]11264it [00:24, 455.39it/s]12288it [00:26, 454.91it/s]13312it [00:29, 454.82it/s]14320it [00:31, 455.09it/s]14320it [00:31, 455.62it/s]
+wandb: updating run metadata
+wandb: uploading history steps 2-2, summary, console lines 19-28
+wandb: 
+wandb: Run history:
+wandb:   MAE █▁▂
+wandb:  MAPE ▁█▇
+wandb:  MASE █▁▁
+wandb:    ND ▁█▆
+wandb:  RMSE █▁▃
+wandb: SMAPE ▁██
+wandb: 
+wandb: Run summary:
+wandb:     MAE 15.56264
+wandb:    MAPE 0.08939
+wandb:    MASE 0.41487
+wandb:      ND 0.05599
+wandb:    RMSE 25.05174
+wandb:   SMAPE 0.10387
+wandb: dataset sd_val/2018/long
+wandb: 
+wandb: 🚀 View run chronos_bolt_base_SD2018 at: https://wandb.ai/TrafficFM/TrafficFM/runs/4k5xe61c
+wandb: ⭐️ View project at: https://wandb.ai/TrafficFM/TrafficFM
+wandb: Synced 5 W&B file(s), 0 media file(s), 0 artifact file(s) and 0 other file(s)
+wandb: Find logs at: ./wandb/run-20260602_024730-4k5xe61c/logs

@@ -1,0 +1,23 @@
+Results will be saved to: /scratch/bcqc/tliao2/TrafficFM/results/chronos_bolt_base
+Evaluating chronos_bolt_base from amazon/chronos-bolt-base
+Processing dataset: sd_val/2018/15T (1 of 1)
+Prediction length: 3
+Dataset size: 14320
+prediction_length: 3
+Results for sd_val/2018/15T have been written to /scratch/bcqc/tliao2/TrafficFM/results/chronos_bolt_base/all_results.csv
+Prediction length: 6
+Dataset size: 14320
+prediction_length: 6
+Results for sd_val/2018/15T have been written to /scratch/bcqc/tliao2/TrafficFM/results/chronos_bolt_base/all_results.csv
+Prediction length: 12
+Dataset size: 14320
+prediction_length: 12
+Results for sd_val/2018/15T have been written to /scratch/bcqc/tliao2/TrafficFM/results/chronos_bolt_base/all_results.csv
+
+Final aggregated results:
+              dataset              model  ...     domain  num_variates
+0   sd_val/2018/short  chronos_bolt_base  ...  Transport             1
+1  sd_val/2018/medium  chronos_bolt_base  ...  Transport             1
+2    sd_val/2018/long  chronos_bolt_base  ...  Transport             1
+
+[3 rows x 15 columns]
