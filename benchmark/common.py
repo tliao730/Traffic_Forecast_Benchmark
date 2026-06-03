@@ -8,7 +8,10 @@ from typing import Optional
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import wandb
+try:
+    import wandb
+except ImportError:
+    wandb = None
 from config import config
 from gift_eval.data import Dataset
 from gluonts.ev.metrics import (
@@ -669,7 +672,7 @@ def eval(
                 model_name,
             )
 
-            if wandb.run is not None:
+            if wandb is not None and getattr(wandb, 'run', None) is not None:
                 wandb.log({
                     "dataset": ds_config,
                     "MAE": res["MAE[0.5]"][0],

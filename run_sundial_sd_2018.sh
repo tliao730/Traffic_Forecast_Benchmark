@@ -4,13 +4,13 @@
 #SBATCH --ntasks-per-node=1
 #SBATCH --gpus-per-node=1
 #SBATCH --mem=64G
-#SBATCH --job-name=timesfm_sd2018
+#SBATCH --job-name=sundial_sd2018
 #SBATCH --account=bcqc-delta-gpu
 #SBATCH --partition=gpuA40x4
-#SBATCH --output=%j_timesfm_sd_2018.out
-#SBATCH --error=%j_timesfm_sd_2018.err
+#SBATCH --output=%j_sundial_sd_2018.out
+#SBATCH --error=%j_sundial_sd_2018.err
 
 cd /u/tliao2/TrafficFM/benchmark
 
 BENCHMARK_CONFIG=configs/sd_2018_finetune.yaml \
-uv run --project fm/timesfm python -m fm.timesfm.timesfm
+uv run --project fm/sundial python -m fm.sundial.sundial
