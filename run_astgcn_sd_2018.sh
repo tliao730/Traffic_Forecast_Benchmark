@@ -4,18 +4,18 @@
 #SBATCH --ntasks-per-node=1
 #SBATCH --gpus-per-node=1
 #SBATCH --mem=32G
-#SBATCH --job-name=agcrn_sd2018
+#SBATCH --job-name=astgcn_sd2018
 #SBATCH --account=bcqc-delta-gpu
 #SBATCH --partition=gpuA40x4
-#SBATCH --output=%j_agcrn_sd_2018.out
-#SBATCH --error=%j_agcrn_sd_2018.err
+#SBATCH --output=%j_astgcn_sd_2018.out
+#SBATCH --error=%j_astgcn_sd_2018.err
 
-cd /u/tliao2/TrafficFM/benchmark
+cd /u/tliao2/TrafficFM/benchmark/gnn
 
-uv run --project gnn python -m gnn.agcrn \
+uv run python astgcn.py \
     --device cuda \
     --dataset SD \
     --years 2018 \
-    --model_name AGCRN \
+    --model_name ASTGCN \
     --seed 2023 \
     --mode train

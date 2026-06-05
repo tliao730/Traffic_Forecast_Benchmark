@@ -156,12 +156,25 @@ def main():
                            seed=args.seed
                            )
 
+    try:
+        import wandb
+        wandb.init(project="TrafficFM", name=f"ASTGCN_SD2018_s{args.seed}", config=vars(args))
+    except Exception:
+        pass
+
     if args.mode == 'train':
         engine.train()
     else:
         engine.evaluate(args.mode)
         if getattr(args, 'save_predictions', False):
             _run_save_predictions(engine, args, data_path, logger)
+
+    try:
+        import wandb
+        if getattr(wandb, 'run', None) is not None:
+            wandb.finish()
+    except Exception:
+        pass
 
 
 def _run_save_predictions(engine, args, data_path, logger):

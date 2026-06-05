@@ -133,6 +133,84 @@ class StandardScaler():
         return (data * self.std) + self.mean
 
 
+# Maps GNN horizon to gift_eval term name, matching TERM_TO_PRED_LEN in mamba.py.
+_HORIZON_TO_TERM = {3: 'short', 6: 'medium', 12: 'long'}
+
+# Maps dataset arg name to gift_eval dataset prefix.
+_DATASET_TO_GIFT_EVAL = {
+    'SD':  'sd',
+    'CA':  'ca',
+    'GLA': 'gla',
+    'GBA': 'gba',
+}
+
+# Path to gift_eval data, relative to this file's repo root.
+_GIFT_EVAL_PATH = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', 'dataset', 'LargeST', 'gift_eval')
+)
+
+
+def _gift_eval_anchors(data, args, logger):
+    """
+    Compute test anchor indices that exactly align with gift_eval's test windows,
+    by querying the gift_eval Dataset object directly.
+
+    gift_eval splits from the end of the series: the last window's label ends at
+    T, and each window is spaced pred_len apart. Using test_stride on idx_test
+    (which starts from idx_test[0]) causes an off-by-one because idx_test[0] is
+    not necessarily a multiple of pred_len. This function back-calculates the
+    correct anchors from the end, bypassing that issue.
+
+    Requires args.dataset and args.horizon to be set. Falls back to None if the
+    dataset or term is not recognised, or if gift_eval data is unavailable.
+    """
+    term = _HORIZON_TO_TERM.get(int(getattr(args, 'horizon', 0)))
+    ds_key = str(getattr(args, 'dataset', '')).upper()
+    ds_prefix = _DATASET_TO_GIFT_EVAL.get(ds_key)
+    years = str(getattr(args, 'years', ''))
+
+    if term is None or ds_prefix is None or not years:
+        return None
+
+    gift_eval_name = f"{ds_prefix}/{years}/15T"
+    gift_eval_path = _GIFT_EVAL_PATH
+
+    if not os.path.isdir(os.path.join(gift_eval_path, gift_eval_name)):
+        logger.warning(f"gift_eval data not found at {gift_eval_path}/{gift_eval_name}, falling back to stride mode")
+        return None
+
+    try:
+        os.environ['GIFT_EVAL'] = gift_eval_path
+        from gift_eval.data import Dataset
+        ds = Dataset(name=gift_eval_name, term=term, to_univariate=False)
+
+        pred_len = ds.prediction_length
+        windows  = ds.windows
+        # Input length of the last window = min_series_length - pred_len
+        # (gift_eval trims each series to min_series_length before generating windows)
+        inp_len  = ds._min_series_length - pred_len
+    except Exception as e:
+        logger.warning(f"Could not load gift_eval dataset ({e}), falling back to stride mode")
+        return None
+
+    T = data.shape[0]
+
+    # The test sequence starts at T - (last_inp_len + pred_len).
+    # Window i: anchor = seq_start + first_inp_len + i*pred_len - 1
+    seq_start     = T - (inp_len + pred_len)
+    first_inp_len = inp_len - (windows - 1) * pred_len
+    anchors = np.array([
+        seq_start + (first_inp_len + i * pred_len) - 1
+        for i in range(windows)
+    ])
+
+    logger.info(
+        f"gift_eval aligned anchors ({term}): [{anchors[0]}, {anchors[-1]}], "
+        f"count={len(anchors)}, pred_len={pred_len}"
+    )
+    return anchors
+
+
 def load_dataset(data_path, args, logger):
     ptr = np.load(os.path.join(data_path, args.years, 'his.npz'))
     data = ptr['data']
@@ -142,31 +220,45 @@ def load_dataset(data_path, args, logger):
     for cat in ['train', 'val', 'test']:
         idx = np.load(os.path.join(data_path, args.years, 'idx_' + cat + '.npy'))
         if cat == 'test':
-            # Align with benchmark: use only last X of timeline (gift_eval uses TEST_SPLIT=0.1)
-            test_split = float(getattr(args, 'test_split', 0) or 0)
-            if test_split > 0:
-                T = data.shape[0]
-                min_idx = int((1 - test_split) * T)
-                idx = idx[idx >= min_idx]
-                logger.info(f"test_split={test_split}: filtered to last {test_split*100:.0f}% of timeline ({len(idx)} samples, idx>={min_idx})")
+            # Always use gift_eval-aligned anchors for test to ensure the same
+            # non-overlapping windows as FM models. The stride-based fallback
+            # starts from idx_test[0], which is not a multiple of pred_len and
+            # causes anchors to be off by 1 vs gift_eval.
+            aligned_anchors = _gift_eval_anchors(data, args, logger)
+            if aligned_anchors is not None:
+                idx = aligned_anchors
+            else:
+                # Fallback: filter by time range then subsample by stride.
+                test_split = float(getattr(args, 'test_split', 0) or 0)
+                if test_split > 0:
+                    T = data.shape[0]
+                    min_idx = int((1 - test_split) * T)
+                    idx = idx[idx >= min_idx]
+                    logger.info(
+                        f"test_split={test_split}: filtered to last {test_split*100:.0f}% "
+                        f"of timeline ({len(idx)} samples, idx>={min_idx})"
+                    )
 
-            test_stride_mode = getattr(args, 'test_stride_mode', 'fixed')
-            if test_stride_mode == 'fixed':
-                # The stride of testing windows is set to 1 by default.
-                test_stride = max(1, int(getattr(args, 'test_stride', 1)))
-                if test_stride > 1:
-                    idx = idx[::test_stride]
+                test_stride_mode = getattr(args, 'test_stride_mode', 'fixed')
+                if test_stride_mode == 'fixed':
+                    # Stride defaults to 1 (every timestep is a test window).
+                    # Set to horizon to get non-overlapping windows.
+                    test_stride = max(1, int(getattr(args, 'test_stride', 1)))
+                    if test_stride > 1:
+                        idx = idx[::test_stride]
 
-                test_num_windows = int(getattr(args, 'test_num_windows', 0))
-                if test_num_windows > 0:
-                    idx = idx[-test_num_windows:]
-        dataloader[cat + '_loader'] = DataLoader(data[..., :args.input_dim], idx, \
+                    # Keep only the last N windows (0 = keep all).
+                    test_num_windows = int(getattr(args, 'test_num_windows', 0))
+                    if test_num_windows > 0:
+                        idx = idx[-test_num_windows:]
+
+        dataloader[cat + '_loader'] = DataLoader(data[..., :args.input_dim], idx,
                                                  args.seq_len, args.horizon, args.bs, logger)
         if cat == 'test':
             dataloader[cat + '_loader'].test_stride_mode = getattr(args, 'test_stride_mode', 'fixed')
             dataloader[cat + '_loader'].test_stride = int(getattr(args, 'test_stride', 1))
             dataloader[cat + '_loader'].test_num_windows = int(getattr(args, 'test_num_windows', 0))
-    #import pdb; pdb.set_trace()
+
     scaler = StandardScaler(mean=ptr['mean'], std=ptr['std'])
     return dataloader, scaler
 

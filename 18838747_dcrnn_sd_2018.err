@@ -1,0 +1,12 @@
+warning: `VIRTUAL_ENV=/u/tliao2/TrafficFM/.venv` does not match the project environment path `.venv` and will be ignored; use `--active` to target the active environment instead
+/u/tliao2/TrafficFM/benchmark/gnn/src/models/dcrnn.py:51: UserWarning: torch.sparse.SparseTensor(indices, values, shape, *, device=) is deprecated.  Please use torch.sparse_coo_tensor(indices, values, shape, dtype=, device=). (Triggered internally at /pytorch/torch/csrc/utils/tensor_new.cpp:654.)
+  return torch.sparse.FloatTensor(i, v, torch.Size(shape))
+wandb: [wandb.login()] Loaded credentials for https://api.wandb.ai from /u/tliao2/.netrc.
+wandb: Currently logged in as: tliao730 (TrafficFM) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
+wandb: setting up run y5l57bte
+wandb: Tracking run with wandb version 0.26.1
+wandb: Run data is saved locally in /u/tliao2/TrafficFM/benchmark/gnn/wandb/run-20260604_134623-y5l57bte
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run DCRNN_SD2018_s2023
+wandb: ⭐️ View project at https://wandb.ai/TrafficFM/TrafficFM
+wandb: 🚀 View run at https://wandb.ai/TrafficFM/TrafficFM/runs/y5l57bte

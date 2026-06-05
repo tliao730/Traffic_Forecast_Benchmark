@@ -168,6 +168,21 @@ class BaseEngine:
                 )
             )
 
+            try:
+                import wandb
+                if getattr(wandb, 'run', None) is not None:
+                    wandb.log({
+                        "epoch": epoch + 1,
+                        "train_loss": mtrain_loss,
+                        "train_rmse": mtrain_rmse,
+                        "train_mape": mtrain_mape,
+                        "val_loss": mvalid_loss,
+                        "val_rmse": mvalid_rmse,
+                        "val_mape": mvalid_mape,
+                    })
+            except Exception:
+                pass
+
             if mvalid_loss < min_loss:
                 self.save_model(self._save_path)
                 self._logger.info(

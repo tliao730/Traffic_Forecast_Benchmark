@@ -119,21 +119,37 @@ class MambaBlockV2(nn.Module):
 
     def __init__(self, d_model: int, d_state: int = 16, d_conv: int = 4, expand: int = 2):
         super().__init__()
+        # Expand inner dimension to give the block more expressive capacity.
         d_inner = d_model * expand
+        # Normalise input before processing to stabilise training.
         self.norm     = nn.LayerNorm(d_model)
+        # Project to 2x d_inner so we can split into SSM path and gate path.
         self.in_proj  = nn.Linear(d_model, d_inner * 2, bias=False)
+        # Depthwise causal conv: each channel attends independently to its local history.
         self.conv1d   = nn.Conv1d(d_inner, d_inner, d_conv,
                                   padding=d_conv - 1, groups=d_inner)
+        # Selective SSM: captures long-range dependencies via learned recurrence.
         self.ssm      = SelectiveSSMParallel(d_inner, d_state)
+        # Project back to d_model so the block is shape-preserving.
         self.out_proj = nn.Linear(d_inner, d_model, bias=False)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # Save input for the residual connection at the end.
         residual = x
         x = self.norm(x)
+
+        # Split into SSM path (x_in) and multiplicative gate (z).
         x_in, z = self.in_proj(x).chunk(2, dim=-1)
+
+        # Conv1d expects (B, D, L); transpose in, apply conv, transpose back.
+        # Trim the extra timesteps introduced by causal padding.
         x_in = self.conv1d(x_in.transpose(1, 2))[..., :residual.shape[1]]
         x_in = F.silu(x_in.transpose(1, 2))
+
+        # SSM output gated by z: controls how much of the memory to pass through.
         y = self.ssm(x_in) * F.silu(z)
+
+        # Project back to d_model and add residual to ease gradient flow.
         return self.out_proj(y) + residual
 
 
