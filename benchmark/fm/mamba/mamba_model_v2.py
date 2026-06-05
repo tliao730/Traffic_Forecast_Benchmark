@@ -84,6 +84,116 @@ class SelectiveSSMParallel(nn.Module):
         self.B_proj  = nn.Linear(d_inner, d_state, bias=False)
         self.C_proj  = nn.Linear(d_inner, d_state, bias=False)
 
+    # ------------------------------------------------------------------
+    # CompreSSM: in-training compression via balanced truncation
+    # ------------------------------------------------------------------
+
+    def compute_gramians(self, B_mean: torch.Tensor, C_mean: torch.Tensor):
+        """
+        Compute controllability gramian P and observability gramian Q
+        using the closed-form solution for diagonal A (paper Eq. 14).
+
+        Args:
+            B_mean: (D, S) — mean B matrix averaged over a batch of inputs
+            C_mean: (D, S) — mean C matrix averaged over a batch of inputs
+
+        Returns:
+            P: (D, S, S)  controllability gramian per channel
+            Q: (D, S, S)  observability gramian per channel
+        """
+        # Recover discrete eigenvalues λ = exp(dt * A). Here we use the
+        # raw A (before discretisation) as a proxy; the caller should pass
+        # B_mean/C_mean already discretised or use small fixed dt.
+        A = -torch.exp(self.A_log.float())   # (D, S)  negative reals
+
+        # λ_i * λ_j denominator: (D, S, S)
+        lam = A                              # use continuous A as surrogate
+        lam_outer = lam.unsqueeze(-1) + lam.unsqueeze(-2)   # (D, S, S)  λ_i + λ_j
+        # For stable discrete system: denom = 1 - λ_i * λ_j (continuous: -(λ_i+λ_j))
+        # Using continuous Lyapunov: A*P + P*A^T + B*B^T = 0  → P_ij = -(BB^T)_ij/(λ_i+λ_j)
+        denom = -(lam_outer)                 # (D, S, S), positive because λ < 0
+
+        # B_mean: (D, S) → BB^T: (D, S, S)
+        BBT = torch.bmm(B_mean.unsqueeze(-1), B_mean.unsqueeze(-2))   # (D, S, S)
+        # C_mean: (D, S) → C^T C: (D, S, S)
+        CTC = torch.bmm(C_mean.unsqueeze(-1), C_mean.unsqueeze(-2))   # (D, S, S)
+
+        P = BBT / (denom + 1e-8)
+        Q = CTC / (denom + 1e-8)
+        return P, Q
+
+    def compute_hsv(self, P: torch.Tensor, Q: torch.Tensor) -> torch.Tensor:
+        """
+        Compute Hankel Singular Values: HSV_i = sqrt(eigenvalues(P @ Q)).
+
+        Args:
+            P: (D, S, S)
+            Q: (D, S, S)
+
+        Returns:
+            hsv: (D, S) — singular values sorted descending per channel
+        """
+        PQ = torch.bmm(P, Q)                          # (D, S, S)
+        # eigenvalues of a symmetric product are real and non-negative
+        eigvals = torch.linalg.eigvalsh(PQ)           # (D, S) ascending
+        hsv = torch.sqrt(eigvals.clamp(min=0))        # (D, S)
+        hsv, _ = torch.sort(hsv, dim=-1, descending=True)
+        return hsv
+
+    @torch.no_grad()
+    def compress(self, sample_inputs: torch.Tensor, energy_threshold: float = 0.99):
+        """
+        Run one CompreSSM compression step on this SSM layer.
+
+        Computes mean B/C over sample_inputs, derives HSVs, selects the
+        minimum rank r that retains `energy_threshold` of total HSV energy,
+        then truncates A_log, B_proj, and C_proj to the new d_state = r.
+
+        Args:
+            sample_inputs: (B, L, D) — a representative batch of inputs
+            energy_threshold: fraction of HSV energy to retain (default 0.99)
+        """
+        device = self.A_log.device
+        x = sample_inputs.to(device)
+
+        # Collect mean B and C over the batch to form an LTI surrogate.
+        B_all = self.B_proj(x)    # (B, L, S)
+        C_all = self.C_proj(x)    # (B, L, S)
+        # Average over batch and time → (S,), then expand to (D, S)
+        B_mean = B_all.mean(dim=(0, 1)).unsqueeze(0).expand(self.d_inner, -1)  # (D, S)
+        C_mean = C_all.mean(dim=(0, 1)).unsqueeze(0).expand(self.d_inner, -1)  # (D, S)
+
+        P, Q = self.compute_gramians(B_mean, C_mean)
+        hsv  = self.compute_hsv(P, Q)                 # (D, S) descending
+
+        # Select rank r: smallest r such that sum(hsv[:r]) / sum(hsv) >= threshold.
+        # Average HSV across channels to get a single importance vector.
+        hsv_mean = hsv.mean(dim=0)                    # (S,)
+        total    = hsv_mean.sum()
+        cumsum   = torch.cumsum(hsv_mean, dim=0)
+        r = int((cumsum / (total + 1e-8) < energy_threshold).sum().item()) + 1
+        r = max(1, min(r, self.d_state))
+
+        if r >= self.d_state:
+            return   # nothing to compress
+
+        # Truncate parameters to rank r.
+        # A_log: (D, S) → keep top-r columns (highest HSV = lowest index after sort)
+        self.A_log = nn.Parameter(self.A_log[:, :r].detach())
+
+        # B_proj and C_proj: (d_inner → d_state) → shrink output to r
+        old_B_w = self.B_proj.weight.detach()   # (S, D)
+        old_C_w = self.C_proj.weight.detach()   # (S, D)
+        new_B   = nn.Linear(self.d_inner, r, bias=False).to(device)
+        new_C   = nn.Linear(self.d_inner, r, bias=False).to(device)
+        new_B.weight.data = old_B_w[:r]
+        new_C.weight.data = old_C_w[:r]
+        self.B_proj  = new_B
+        self.C_proj  = new_C
+        self.d_state = r
+
+    # ------------------------------------------------------------------
+
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         # x: (B, L, d_inner)
         B, L, D = x.shape
