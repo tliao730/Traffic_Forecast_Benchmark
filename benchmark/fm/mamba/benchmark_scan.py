@@ -1,5 +1,5 @@
 """
-Compare sequential vs parallel SSM scan speed.
+Compare sequential SSM vs parallel SSM + CompreSSM compression speed.
 
 Run from benchmark/:
     uv run --project fm/moirai python fm/mamba/benchmark_scan.py
@@ -29,26 +29,48 @@ def bench(model, x, n=50):
     return (time.perf_counter() - t0) / n * 1000  # ms per forward pass
 
 
+def compress_model(model, x):
+    """Apply CompreSSM compression to all MambaBlockV2 SSM layers using sample input."""
+    h = model.input_proj(x)  # (B, L, d_model)
+    for block in model.blocks:
+        if hasattr(block, 'ssm') and hasattr(block.ssm, 'compress'):
+            h_norm = block.norm(h)
+            x_in, _ = block.in_proj(h_norm).chunk(2, dim=-1)
+            x_in = block.conv1d(x_in.transpose(1, 2))[..., :h.shape[1]]
+            x_in = torch.nn.functional.silu(x_in.transpose(1, 2))
+            block.ssm.compress(x_in, energy_threshold=0.99)
+        h = block(h)  # update h for next block
+
+
 def run(batch_size, context_len, pred_len, d_model, num_layers, device_str, n=50):
     device = torch.device(device_str)
     cfg = dict(prediction_length=pred_len, d_model=d_model,
                d_state=16, d_conv=4, expand=2, num_layers=num_layers)
 
-    m_seq = MambaForecastModel(**cfg).to(device).eval()
-    m_par = MambaForecastModelV2(**cfg).to(device).eval()
+    m_seq  = MambaForecastModel(**cfg).to(device).eval()
+    m_comp = MambaForecastModelV2(**cfg).to(device).eval()
 
     x = torch.randn(batch_size, context_len, 1, device=device)
 
+    # Apply compression with a small calibration batch
+    x_calib = torch.randn(32, context_len, 1, device=device)
     with torch.no_grad():
-        warmup(m_seq, x)
-        warmup(m_par, x)
-        t_seq = bench(m_seq, x, n)
-        t_par = bench(m_par, x, n)
+        compress_model(m_comp, x_calib)
 
-    speedup = t_seq / t_par
+    # Report compressed d_state
+    compressed_states = [m.ssm.d_state for m in m_comp.modules() if hasattr(m, 'ssm') and hasattr(m.ssm, 'compress')]
+    r_str = str(compressed_states[0]) if compressed_states else '?'
+
+    with torch.no_grad():
+        warmup(m_seq,  x)
+        warmup(m_comp, x)
+        t_seq  = bench(m_seq,  x, n)
+        t_comp = bench(m_comp, x, n)
+
+    speedup = t_seq / t_comp
     print(
         f"  B={batch_size:<4} L={context_len:<5} d={d_model:<4} layers={num_layers}"
-        f" | seq={t_seq:7.2f}ms  par={t_par:7.2f}ms  speedup={speedup:.2f}x"
+        f" | seq={t_seq:7.2f}ms  comp(r={r_str})={t_comp:7.2f}ms  speedup={speedup:.2f}x"
     )
 
 

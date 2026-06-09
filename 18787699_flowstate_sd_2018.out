@@ -1,6 +1,0 @@
-Results will be saved to: /scratch/bcqc/tliao2/TrafficFM/results/FlowState-9.1M
-Found 0 completed datasets.
-Evaluating FlowState-9.1M from ibm-research/FlowState
-Processing dataset: sd_val/2018/15T (1 of 1)
-Prediction length: 3
-Dataset size: 14320

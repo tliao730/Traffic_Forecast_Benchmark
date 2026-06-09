@@ -1,28 +1,31 @@
 """
 Mamba for traffic forecasting using gift_eval data format.
-Trains on sd_train/2019/15T, validates on sd_val/2019/15T,
-evaluates on sd/2019/15T — same split as FM models.
+Trains on sd_train/{year}/15T, validates on sd_val/{year}/15T,
+evaluates via gift_eval standard evaluate_model() — same pipeline as other FM models.
 
 Run from benchmark/:
-  uv run --project fm/moirai python fm/mamba/mamba.py --term short
+  uv run --project fm/moirai python fm/mamba/mamba.py
 """
 
 import argparse
 import os
 import sys
+from typing import List
 
 import numpy as np
 import torch
 import torch.nn as nn
 import wandb
+from gluonts.itertools import batcher
+from gluonts.model import Forecast
 from torch.utils.data import DataLoader, TensorDataset
+from tqdm.auto import tqdm
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+from fm.fm_utils import get_entry_target, run_benchmark, to_sample_forecasts
 from fm.mamba.mamba_model import MambaForecastModel
+from fm.mamba.mamba_model_v2 import MambaForecastModelV2
 
-GIFT_EVAL_PATH = os.path.join(
-    os.path.dirname(__file__), "..", "..", "..", "dataset", "LargeST", "gift_eval"
-)
 TERM_TO_PRED_LEN = {"short": 3, "medium": 6, "long": 12}
 
 
@@ -34,20 +37,9 @@ def set_seed(seed: int):
     torch.cuda.manual_seed_all(seed)
 
 
-def load_gift_eval_entries(dataset_name: str) -> list:
-    os.environ["GIFT_EVAL"] = os.path.abspath(GIFT_EVAL_PATH)
-    from gift_eval.data import Dataset
-    ds = Dataset(name=dataset_name, term="short", to_univariate=False)
-    return list(ds.gluonts_dataset)
-
-
 def make_windows(entries, context_len: int, pred_len: int,
                  windows_per_sensor: int, num_sensors: int):
-    """
-    Slide (context_len + pred_len) windows over each sensor's series.
-    Returns normalized (X, Y) numpy arrays and per-window (mean, std) for denorm.
-    """
-    X, Y, means, stds = [], [], [], []
+    X, Y = [], []
     if num_sensors > 0:
         entries = entries[:num_sensors]
 
@@ -67,173 +59,62 @@ def make_windows(entries, context_len: int, pred_len: int,
         for s in indices:
             ctx = target[s : s + context_len]
             fut = target[s + context_len : s + span]
-            std_raw = ctx.std()
-            if std_raw < 1.0:  # skip near-zero / constant traffic windows
+            if ctx.std() < 1.0:
                 continue
-            m, std = ctx.mean(), std_raw + 1e-8
+            m, std = ctx.mean(), ctx.std() + 1e-8
             X.append((ctx - m) / std)
             Y.append((fut - m) / std)
-            means.append(m)
-            stds.append(std)
 
-    X = np.stack(X).astype(np.float32)[:, :, np.newaxis]  # (N, T, 1)
-    Y = np.stack(Y).astype(np.float32)                    # (N, H)
-    return X, Y, np.array(means), np.array(stds)
+    X = np.stack(X).astype(np.float32)[:, :, np.newaxis]
+    Y = np.stack(Y).astype(np.float32)
+    return X, Y
 
 
-def masked_mae(pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
-    mask = target != 0
-    if mask.sum() == 0:
-        return torch.tensor(0.0, device=pred.device)
-    return (pred - target).abs()[mask].mean()
+def train_one_term(args, term, device, train_entries, val_entries, model_tag):
+    """Train model for one term, return checkpoint path."""
+    pred_len = TERM_TO_PRED_LEN[term]
+    ckpt_path = os.path.join(args.log_dir, f"best_model_{term}_s{args.seed}.pt")
 
+    if os.path.exists(ckpt_path) and not args.force_retrain:
+        print(f"\n[{term}] Checkpoint found, skipping training: {ckpt_path}")
+        return ckpt_path
 
-# ── evaluation ─────────────────────────────────────────────────────────────
+    X_tr, Y_tr = make_windows(train_entries, args.context_length, pred_len,
+                               args.windows_per_sensor, args.num_sensors)
+    X_val, Y_val = make_windows(val_entries, args.context_length, pred_len,
+                                args.windows_per_sensor, args.num_sensors)
 
-def evaluate_on_test(model, entries, context_len, pred_len,
-                     windows_per_sensor, num_sensors, device):
-    """Compute MAE / RMSE / MAPE on original scale."""
-    model.eval()
-    maes, rmses, mapes = [], [], []
+    print(f"\n[{term}] Train: {X_tr.shape[0]} | Val: {X_val.shape[0]}")
+    wandb.log({f"{term}/train_windows": X_tr.shape[0], f"{term}/val_windows": X_val.shape[0]})
 
-    if num_sensors > 0:
-        entries = entries[:num_sensors]
+    train_loader = DataLoader(TensorDataset(torch.from_numpy(X_tr), torch.from_numpy(Y_tr)),
+                              batch_size=args.bs, shuffle=True, num_workers=2)
+    val_loader   = DataLoader(TensorDataset(torch.from_numpy(X_val), torch.from_numpy(Y_val)),
+                              batch_size=args.bs, shuffle=False, num_workers=2)
 
-    with torch.no_grad():
-        for entry in entries:
-            target = np.asarray(entry["target"], dtype=np.float32)
-            T = len(target)
-            span = context_len + pred_len
-            if T < span:
-                continue
-
-            max_start = T - span
-            if windows_per_sensor > 0 and max_start >= windows_per_sensor:
-                indices = np.linspace(0, max_start, windows_per_sensor, dtype=int)
-            else:
-                indices = np.arange(0, max_start + 1)
-
-            for s in indices:
-                ctx = target[s : s + context_len]
-                fut = target[s + context_len : s + span]
-                m, std = ctx.mean(), ctx.std() + 1e-8
-
-                x_norm = torch.tensor((ctx - m) / std).float()
-                x_norm = x_norm.unsqueeze(0).unsqueeze(-1).to(device)  # (1, T, 1)
-                pred_norm = model(x_norm).cpu().numpy()[0]
-                pred_orig = pred_norm * std + m
-
-                mask = fut != 0
-                if mask.sum() == 0:
-                    continue
-                err = np.abs(pred_orig[mask] - fut[mask])
-                maes.append(err.mean())
-                rmses.append((err ** 2).mean())
-                mapes.append((err / (np.abs(fut[mask]) + 1e-8)).mean())
-
-    mae  = float(np.mean(maes))
-    rmse = float(np.sqrt(np.mean(rmses)))
-    mape = float(np.mean(mapes))
-    return mae, rmse, mape
-
-
-# ── main ───────────────────────────────────────────────────────────────────
-
-def get_args():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--term",            type=str,   default="short",
-                        choices=["short", "medium", "long"])
-    parser.add_argument("--year",            type=str,   default="2019",
-                        help="dataset year, e.g. 2018 or 2019")
-    parser.add_argument("--context_length",  type=int,   default=48,
-                        help="context steps (default 48 = 12 h at 15T)")
-    parser.add_argument("--num_sensors",     type=int,   default=0,
-                        help="0 = all 716 sensors")
-    parser.add_argument("--windows_per_sensor", type=int, default=50)
-    parser.add_argument("--d_model",         type=int,   default=64)
-    parser.add_argument("--d_state",         type=int,   default=16)
-    parser.add_argument("--d_conv",          type=int,   default=4)
-    parser.add_argument("--expand",          type=int,   default=2)
-    parser.add_argument("--num_layers",      type=int,   default=2)
-    parser.add_argument("--bs",              type=int,   default=256)
-    parser.add_argument("--lrate",           type=float, default=1e-3)
-    parser.add_argument("--max_epochs",      type=int,   default=50)
-    parser.add_argument("--patience",        type=int,   default=15)
-    parser.add_argument("--seed",            type=int,   default=2023)
-    parser.add_argument("--device",          type=str,   default="cuda")
-    parser.add_argument("--log_dir",         type=str,
-                        default="/scratch/bcqc/tliao2/TrafficFM/experiments/mamba_fm/SD/2019/")
-    parser.add_argument("--wandb_project",   type=str,   default="TrafficFM")
-    return parser.parse_args()
-
-
-def main():
-    args = get_args()
-    set_seed(args.seed)
-    device = torch.device(args.device if torch.cuda.is_available() else "cpu")
-    pred_len = TERM_TO_PRED_LEN[args.term]
-    os.makedirs(args.log_dir, exist_ok=True)
-
-    print(f"term={args.term}, context={args.context_length}, pred={pred_len}")
-    print(f"num_sensors={args.num_sensors or 'all'}, windows_per_sensor={args.windows_per_sensor}")
-
-    # ── load data ──────────────────────────────────────────────────────
-    print("Loading gift_eval data …")
-    train_entries = load_gift_eval_entries(f"sd_train/{args.year}/15T")
-    val_entries   = load_gift_eval_entries(f"sd_val/{args.year}/15T")
-    test_entries  = load_gift_eval_entries(f"sd/{args.year}/15T")
-
-    X_tr, Y_tr, _, _ = make_windows(train_entries, args.context_length, pred_len,
-                                    args.windows_per_sensor, args.num_sensors)
-    X_val, Y_val, _, _ = make_windows(val_entries, args.context_length, pred_len,
-                                      args.windows_per_sensor, args.num_sensors)
-
-    print(f"Train: {X_tr.shape[0]} samples | Val: {X_val.shape[0]} samples")
-    print(f"X shape: {X_tr.shape}  (N, context_length, 1)")
-    print(f"Y shape: {Y_tr.shape}  (N, pred_len)")
-
-    train_ds = TensorDataset(torch.from_numpy(X_tr), torch.from_numpy(Y_tr))
-    val_ds   = TensorDataset(torch.from_numpy(X_val), torch.from_numpy(Y_val))
-    train_loader = DataLoader(train_ds, batch_size=args.bs, shuffle=True,  num_workers=2)
-    val_loader   = DataLoader(val_ds,   batch_size=args.bs, shuffle=False, num_workers=2)
-
-    # ── model ──────────────────────────────────────────────────────────
-    model = MambaForecastModel(
+    model_cls = MambaForecastModelV2 if args.model_version == 2 else MambaForecastModel
+    model = model_cls(
         prediction_length=pred_len,
         d_model=args.d_model, d_state=args.d_state,
         d_conv=args.d_conv, expand=args.expand,
         num_layers=args.num_layers,
     ).to(device)
-    print(f"Parameters: {model.param_num():,}")
 
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lrate)
-
-    # ── wandb ──────────────────────────────────────────────────────────
-    wandb.init(
-        project=args.wandb_project,
-        name=f"mamba_fm_SD_{args.year}_{args.term}_s{args.seed}",
-        config=vars(args),
-    )
-
-    # ── training ───────────────────────────────────────────────────────
     best_val, wait = np.inf, 0
-    ckpt_path = os.path.join(args.log_dir, f"best_model_{args.term}_s{args.seed}.pt")
 
     for epoch in range(1, args.max_epochs + 1):
-        # train
         model.train()
         train_losses = []
         for x_b, y_b in train_loader:
             x_b, y_b = x_b.to(device), y_b.to(device)
             optimizer.zero_grad()
-            pred = model(x_b)
-            loss = (pred - y_b).abs().mean()  # plain MAE on normalized data
+            loss = (model(x_b) - y_b).abs().mean()
             loss.backward()
             nn.utils.clip_grad_norm_(model.parameters(), 5.0)
             optimizer.step()
             train_losses.append(loss.item())
 
-        # val
         model.eval()
         val_losses = []
         with torch.no_grad():
@@ -243,30 +124,163 @@ def main():
 
         train_loss = np.mean(train_losses)
         val_loss   = np.mean(val_losses)
-
-        print(f"Epoch {epoch:03d} | train_loss={train_loss:.4f} | val_loss={val_loss:.4f}")
-        wandb.log({"epoch": epoch, "train/loss": train_loss, "val/loss": val_loss})
+        print(f"  Epoch {epoch:03d} | train={train_loss:.4f} | val={val_loss:.4f}")
+        wandb.log({"epoch": epoch, f"{term}/train_loss": train_loss, f"{term}/val_loss": val_loss})
 
         if val_loss < best_val:
             best_val = val_loss
             wait = 0
             torch.save(model.state_dict(), ckpt_path)
-            print(f"  ✓ val_loss improved to {best_val:.4f}")
         else:
             wait += 1
             if wait >= args.patience:
-                print(f"Early stop at epoch {epoch}")
+                print(f"  Early stop at epoch {epoch}")
                 break
 
-    # ── test evaluation ─────────────────────────────────────────────────
-    print("\nEvaluating on test set …")
-    model.load_state_dict(torch.load(ckpt_path, map_location=device))
-    mae, rmse, mape = evaluate_on_test(
-        model, test_entries, args.context_length, pred_len,
-        args.windows_per_sensor, args.num_sensors, device
+    print(f"  Best val_loss={best_val:.4f}, saved to {ckpt_path}")
+    return ckpt_path
+
+
+# ── predictor (gift_eval compatible) ───────────────────────────────────────
+
+class MambaPredictor:
+    """Wraps trained Mamba models to work with gift_eval evaluate_model()."""
+
+    def __init__(self, checkpoints: dict, args, device):
+        """
+        checkpoints: {"short": path, "medium": path, "long": path}
+        """
+        self.checkpoints = checkpoints
+        self.args = args
+        self.device = device
+        self._models = {}
+        self._current_pred_len = 3  # overwritten by predictor_factory before each call
+
+    def _get_model(self, prediction_length: int):
+        if prediction_length not in self._models:
+            model_cls = MambaForecastModelV2 if self.args.model_version == 2 else MambaForecastModel
+            model = model_cls(
+                prediction_length=prediction_length,
+                d_model=self.args.d_model, d_state=self.args.d_state,
+                d_conv=self.args.d_conv, expand=self.args.expand,
+                num_layers=self.args.num_layers,
+            ).to(self.device)
+            # find matching checkpoint
+            for term, pred_len in TERM_TO_PRED_LEN.items():
+                if pred_len == prediction_length and term in self.checkpoints:
+                    model.load_state_dict(torch.load(self.checkpoints[term], map_location=self.device))
+                    break
+            model.eval()
+            self._models[prediction_length] = model
+        return self._models[prediction_length]
+
+    def predict(self, test_data_input, batch_size: int = 256) -> List[Forecast]:
+        forecast_outputs = []
+        test_data_input = list(test_data_input)
+
+        # infer prediction_length from first entry's dataset
+        # (gift_eval passes consistent pred_len per call)
+        sample_entry = test_data_input[0]
+        # prediction_length is set by the dataset, we get it from the predictor_factory closure
+        pred_len = self._current_pred_len
+
+        model = self._get_model(pred_len)
+
+        with torch.no_grad():
+            for batch in tqdm(batcher(test_data_input, batch_size=batch_size)):
+                contexts, means, stds = [], [], []
+                for entry in batch:
+                    target = np.array(get_entry_target(entry), dtype=np.float32)
+                    ctx = target[-self.args.context_length:]
+                    if len(ctx) < self.args.context_length:
+                        ctx = np.pad(ctx, (self.args.context_length - len(ctx), 0))
+                    m, std = ctx.mean(), ctx.std() + 1e-8
+                    means.append(m)
+                    stds.append(std)
+                    contexts.append((ctx - m) / std)
+
+                x = torch.tensor(np.stack(contexts)[:, :, np.newaxis], dtype=torch.float32).to(self.device)
+                pred_norm = model(x).cpu().numpy()
+
+                for pn, m, s in zip(pred_norm, means, stds):
+                    forecast_outputs.append((pn * s + m)[np.newaxis, :])  # (1, pred_len)
+
+        return to_sample_forecasts(forecast_outputs, test_data_input)
+
+
+# ── main ───────────────────────────────────────────────────────────────────
+
+def get_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--year",               type=str,   default="2019")
+    parser.add_argument("--context_length",     type=int,   default=48)
+    parser.add_argument("--num_sensors",        type=int,   default=0)
+    parser.add_argument("--windows_per_sensor", type=int,   default=50)
+    parser.add_argument("--d_model",            type=int,   default=64)
+    parser.add_argument("--d_state",            type=int,   default=16)
+    parser.add_argument("--d_conv",             type=int,   default=4)
+    parser.add_argument("--expand",             type=int,   default=2)
+    parser.add_argument("--num_layers",         type=int,   default=2)
+    parser.add_argument("--bs",                 type=int,   default=256)
+    parser.add_argument("--lrate",              type=float, default=1e-3)
+    parser.add_argument("--max_epochs",         type=int,   default=50)
+    parser.add_argument("--patience",           type=int,   default=15)
+    parser.add_argument("--model_version",      type=int,   default=1, choices=[1, 2])
+    parser.add_argument("--seed",               type=int,   default=2023)
+    parser.add_argument("--device",             type=str,   default="cuda")
+    parser.add_argument("--log_dir",            type=str,
+                        default="/scratch/bcqc/tliao2/TrafficFM/experiments/mamba_fm/SD/2019/")
+    parser.add_argument("--wandb_project",      type=str,   default="TrafficFM")
+    parser.add_argument("--force_retrain",      action="store_true")
+    return parser.parse_args()
+
+
+def main():
+    args = get_args()
+    set_seed(args.seed)
+    device = torch.device(args.device if torch.cuda.is_available() else "cpu")
+    os.makedirs(args.log_dir, exist_ok=True)
+    model_tag = f"mamba_v{args.model_version}"
+
+    # ── load train/val from gift_eval ───────────────────────────────────
+    print("Loading gift_eval data …")
+    from config import config
+    from gift_eval.data import Dataset
+
+    os.environ["GIFT_EVAL"] = config.gift_eval_datasets_path
+
+    train_entries = list(Dataset(name=f"sd_train/{args.year}/15T", term="short").gluonts_dataset)
+    val_entries   = list(Dataset(name=f"sd_val/{args.year}/15T",   term="short").gluonts_dataset)
+
+    # ── wandb ──────────────────────────────────────────────────────────
+    wandb.init(
+        project=args.wandb_project,
+        name=f"{model_tag}_SD_{args.year}_s{args.seed}",
+        config=vars(args),
     )
-    print(f"\n[{args.term.upper()}] MAE={mae:.4f} | RMSE={rmse:.4f} | MAPE={mape:.4f}")
-    wandb.log({"test/mae": mae, "test/rmse": rmse, "test/mape": mape})
+
+    # ── train all three terms ───────────────────────────────────────────
+    checkpoints = {}
+    for term in ["short", "medium", "long"]:
+        ckpt = train_one_term(args, term, device, train_entries, val_entries, model_tag)
+        checkpoints[term] = ckpt
+
+    # ── test via gift_eval standard pipeline ───────────────────────────
+    print("\nEvaluating via gift_eval …")
+    predictor = MambaPredictor(checkpoints=checkpoints, args=args, device=device)
+
+    def predictor_factory(dataset):
+        predictor._current_pred_len = dataset.prediction_length
+        return predictor
+
+    run_benchmark(
+        eval_time_only=False,
+        model_name=f"{model_tag}_SD{args.year}",
+        model_path=args.log_dir,
+        predictor_factory=predictor_factory,
+        batch_size=args.bs,
+    )
+
     wandb.finish()
 
 

@@ -1,0 +1,27 @@
+#!/bin/bash
+#SBATCH --time=24:00:00
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
+#SBATCH --gpus-per-node=1
+#SBATCH --mem=32G
+#SBATCH --job-name=mamba_fm
+#SBATCH --account=bcqc-delta-gpu
+#SBATCH --partition=gpuA40x4
+#SBATCH --output=log/mamba/%j_run_mamba_fm_sd_2019.out
+#SBATCH --error=log/mamba/%j_run_mamba_fm_sd_2019.err
+
+cd /u/tliao2/TrafficFM/benchmark
+
+for TERM in long; do
+    uv run --project fm/moirai python fm/mamba/mamba.py \
+        --term ${TERM} \
+        --context_length 48 \
+        --num_sensors 0 \
+        --windows_per_sensor 1000 \
+        --bs 256 \
+        --lrate 1e-3 \
+        --max_epochs 50 \
+        --patience 15 \
+        --wandb_project TrafficFM \
+        --log_dir /u/tliao2/TrafficFM/benchmark/experiments/mamba_fm/SD/2019/
+done
