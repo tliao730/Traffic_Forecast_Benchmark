@@ -155,10 +155,23 @@ def main():
                             seed=args.seed
                             )
 
+    try:
+        import wandb
+        wandb.init(project="TrafficFM", name=f"DSTAGNN_SD{args.years}_s{args.seed}", config=vars(args))
+    except Exception:
+        pass
+
     if args.mode == 'train':
         engine.train()
     else:
         engine.evaluate(args.mode)
+
+    try:
+        import wandb
+        if getattr(wandb, 'run', None) is not None:
+            wandb.finish()
+    except Exception:
+        pass
 
 
 if __name__ == "__main__":
