@@ -7,13 +7,14 @@
 #SBATCH --job-name=mamba_v2_2018
 #SBATCH --account=bcqc-delta-gpu
 #SBATCH --partition=gpuA40x4
-#SBATCH --output=log/mamba/%j_run_mamba_v2_sd_2018.out
-#SBATCH --error=log/mamba/%j_run_mamba_v2_sd_2018.err
+#SBATCH --output=/u/tliao2/TrafficFM/log/mamba/%j_run_mamba_v2_sd_2018.out
+#SBATCH --error=/u/tliao2/TrafficFM/log/mamba/%j_run_mamba_v2_sd_2018.err
 
 cd /u/tliao2/TrafficFM/benchmark
 
-BENCHMARK_CONFIG=configs/sd_2018_finetune.yaml \
+BENCHMARK_CONFIG=configs/mamba_train.yaml \
 uv run --project fm/moirai python fm/mamba/mamba.py \
+    --dataset sd \
     --year 2018 \
     --model_version 2 \
     --context_length 48 \

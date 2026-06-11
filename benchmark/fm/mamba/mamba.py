@@ -212,6 +212,7 @@ class MambaPredictor:
 
 def get_args():
     parser = argparse.ArgumentParser()
+    parser.add_argument("--dataset",             type=str,   default="sd")
     parser.add_argument("--year",               type=str,   default="2019")
     parser.add_argument("--context_length",     type=int,   default=48)
     parser.add_argument("--num_sensors",        type=int,   default=0)
@@ -249,13 +250,13 @@ def main():
 
     os.environ["GIFT_EVAL"] = config.gift_eval_datasets_path
 
-    train_entries = list(Dataset(name=f"sd_train/{args.year}/15T", term="short").gluonts_dataset)
-    val_entries   = list(Dataset(name=f"sd_val/{args.year}/15T",   term="short").gluonts_dataset)
+    train_entries = list(Dataset(name=f"{args.dataset}_train/{args.year}/15T", term="short").gluonts_dataset)
+    val_entries   = list(Dataset(name=f"{args.dataset}_val/{args.year}/15T",   term="short").gluonts_dataset)
 
     # ── wandb ──────────────────────────────────────────────────────────
     wandb.init(
         project=args.wandb_project,
-        name=f"{model_tag}_SD_{args.year}_s{args.seed}",
+        name=f"{model_tag}_{args.dataset.upper()}_{args.year}_s{args.seed}",
         config=vars(args),
     )
 
@@ -273,9 +274,14 @@ def main():
         predictor._current_pred_len = dataset.prediction_length
         return predictor
 
+    # Override config datasets dynamically so any region/year works
+    test_dataset = f"{args.dataset}/{args.year}/15T"
+    config.short_datasets = test_dataset
+    config.med_long_datasets = test_dataset
+
     run_benchmark(
         eval_time_only=False,
-        model_name=f"{model_tag}_SD{args.year}",
+        model_name=f"{model_tag}_{args.dataset.upper()}{args.year}",
         model_path=args.log_dir,
         predictor_factory=predictor_factory,
         batch_size=args.bs,

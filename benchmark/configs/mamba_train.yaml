@@ -1,6 +1,3 @@
-short_datasets: "sd_val/2019/15T"
-med_long_datasets: "sd_val/2019/15T"
-hf_home: "/scratch/bcqc/tliao2/huggingface"
 result_root: "/scratch/bcqc/tliao2/TrafficFM/results"
 gift_eval_datasets_path: "../dataset/LargeST/gift_eval"
 device: "cuda:0"
