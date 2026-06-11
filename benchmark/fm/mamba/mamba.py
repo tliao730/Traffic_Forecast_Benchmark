@@ -250,6 +250,7 @@ def main():
 
     os.environ["GIFT_EVAL"] = config.gift_eval_datasets_path
 
+    # using gift_eval to get train/val datasets
     train_entries = list(Dataset(name=f"{args.dataset}_train/{args.year}/15T", term="short").gluonts_dataset)
     val_entries   = list(Dataset(name=f"{args.dataset}_val/{args.year}/15T",   term="short").gluonts_dataset)
 
