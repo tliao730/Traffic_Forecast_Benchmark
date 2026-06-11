@@ -36,7 +36,7 @@ def set_seed(seed: int):
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
 
-
+# cut a long time series into many small windows for training/ validation
 def make_windows(entries, context_len: int, pred_len: int,
                  windows_per_sensor: int, num_sensors: int):
     X, Y = [], []
