@@ -13,5 +13,6 @@ dependencies = [
     "scipy>=1.15.3",
     "tables>=3.10.1",
     "torch>=2.10.0",
+    "torchdiffeq>=0.2.5",
     "wandb>=0.26.1",
 ]

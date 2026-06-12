@@ -18,4 +18,5 @@ uv run python dstagnn.py \
     --years 2018 \
     --model_name DSTAGNN \
     --seed 2023 \
+    --input_dim 1 \
     --mode train
