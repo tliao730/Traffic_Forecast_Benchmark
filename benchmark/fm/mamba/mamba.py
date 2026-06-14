@@ -102,8 +102,37 @@ def train_one_term(args, term, device, train_entries, val_entries, model_tag):
 
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lrate)
     best_val, wait = np.inf, 0
+    compressed = False  # track whether compression has been applied
+
+    # calibration batch for compression (fixed subset of train data)
+    x_calib = torch.from_numpy(X_tr[:min(256, len(X_tr))]).to(device)
 
     for epoch in range(1, args.max_epochs + 1):
+        # ── progressive compression (v2 only) ─────────────────────────
+        if (args.model_version == 2
+                and epoch > args.compress_warmup
+                and (epoch - args.compress_warmup) % args.compress_every == 1
+                and not compressed):
+            model.eval()
+            with torch.no_grad():
+                # pass calibration batch through input_proj first
+                h_calib = model.input_proj(x_calib)
+                for block in model.blocks:
+                    if hasattr(block, 'ssm') and hasattr(block.ssm, 'compress'):
+                        h_norm = block.norm(h_calib)
+                        x_in, _ = block.in_proj(h_norm).chunk(2, dim=-1)
+                        x_in = block.conv1d(x_in.transpose(1, 2))[..., :h_calib.shape[1]]
+                        x_in = nn.functional.silu(x_in.transpose(1, 2))
+                        old_d = block.ssm.d_state
+                        block.ssm.compress(x_in, energy_threshold=args.compress_energy)
+                        new_d = block.ssm.d_state
+                        print(f"  [compress] epoch {epoch}: d_state {old_d} → {new_d}")
+                        wandb.log({f"{term}/d_state": new_d, "epoch": epoch})
+                    h_calib = block(h_calib)
+            # rebuild optimizer so it tracks the new (smaller) parameters
+            optimizer = torch.optim.Adam(model.parameters(), lr=args.lrate)
+            compressed = True
+
         model.train()
         train_losses = []
         for x_b, y_b in train_loader:
@@ -159,17 +188,35 @@ class MambaPredictor:
     def _get_model(self, prediction_length: int):
         if prediction_length not in self._models:
             model_cls = MambaForecastModelV2 if self.args.model_version == 2 else MambaForecastModel
+            ckpt_path = None
+            for term, pred_len in TERM_TO_PRED_LEN.items():
+                if pred_len == prediction_length and term in self.checkpoints:
+                    ckpt_path = self.checkpoints[term]
+                    break
+
+            # For v2 with compression, each block may have different d_state.
+            # Rebuild each SSM layer to match the checkpoint's actual shape.
             model = model_cls(
                 prediction_length=prediction_length,
                 d_model=self.args.d_model, d_state=self.args.d_state,
                 d_conv=self.args.d_conv, expand=self.args.expand,
                 num_layers=self.args.num_layers,
             ).to(self.device)
-            # find matching checkpoint
-            for term, pred_len in TERM_TO_PRED_LEN.items():
-                if pred_len == prediction_length and term in self.checkpoints:
-                    model.load_state_dict(torch.load(self.checkpoints[term], map_location=self.device))
-                    break
+            if ckpt_path is not None:
+                sd = torch.load(ckpt_path, map_location=self.device)
+                if self.args.model_version == 2:
+                    # resize each SSM block to match compressed d_state in checkpoint
+                    from fm.mamba.mamba_model_v2 import SelectiveSSMParallel
+                    import torch.nn as _nn
+                    for i, block in enumerate(model.blocks):
+                        key = f"blocks.{i}.ssm.A_log"
+                        if key in sd:
+                            r = sd[key].shape[1]
+                            d_inner = block.ssm.d_inner
+                            if r != block.ssm.d_state:
+                                new_ssm = SelectiveSSMParallel(d_inner, r).to(self.device)
+                                block.ssm = new_ssm
+                model.load_state_dict(sd)
             model.eval()
             self._models[prediction_length] = model
         return self._models[prediction_length]
@@ -233,6 +280,12 @@ def get_args():
                         default="/scratch/bcqc/tliao2/TrafficFM/experiments/mamba_fm/SD/2019/")
     parser.add_argument("--wandb_project",      type=str,   default="TrafficFM")
     parser.add_argument("--force_retrain",      action="store_true")
+    parser.add_argument("--compress_warmup",    type=int,   default=10,
+                        help="epochs to train before first compression")
+    parser.add_argument("--compress_every",     type=int,   default=5,
+                        help="compress again every N epochs after warmup")
+    parser.add_argument("--compress_energy",    type=float, default=0.99,
+                        help="HSV energy threshold for compression")
     return parser.parse_args()
 
 

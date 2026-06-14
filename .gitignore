@@ -191,3 +191,9 @@ dataset/
 *.err
 *.out
 log/
+
+# Weights & Biases
+**/wandb/
+
+# drawio
+**/docs/
