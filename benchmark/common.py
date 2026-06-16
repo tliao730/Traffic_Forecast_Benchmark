@@ -1,6 +1,7 @@
 import csv
 import json
 import logging
+import math
 import os
 import time
 from typing import Optional
@@ -410,6 +411,7 @@ def eval_time(model_name, model_path, predictor_factory, estimation_samples=10):
             dataset = Dataset(name=ds_name, term=term, to_univariate=to_univariate)
             prediction_length = get_prediction_length(term)
             dataset.prediction_length = prediction_length
+            dataset.windows = min(max(1, math.ceil(0.1 * dataset._min_series_length / prediction_length)), 20)
 
             num_test_samples = len(dataset.test_data)
             measure_samples = min(estimation_samples, num_test_samples)
@@ -623,9 +625,12 @@ def eval(
             dataset = Dataset(name=ds_name, term=term, to_univariate=to_univariate)
             season_length = get_seasonality(dataset.freq)
             prediction_length = get_prediction_length(term)
-            # Override dataset's prediction_length with our custom values
+            # Override dataset's prediction_length and windows with our custom values.
+            # windows is a cached_property so must be explicitly overridden after
+            # prediction_length to keep test_data split consistent.
             dataset.prediction_length = prediction_length
-            print(f"Prediction length: {prediction_length}")
+            dataset.windows = min(max(1, math.ceil(0.1 * dataset._min_series_length / prediction_length)), 20)
+            print(f"Prediction length: {prediction_length}, windows: {dataset.windows}")
             raw_num_windows = (
                 num_test_windows
                 if num_test_windows is not None
