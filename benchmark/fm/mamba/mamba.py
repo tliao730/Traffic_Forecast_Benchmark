@@ -23,7 +23,6 @@ from tqdm.auto import tqdm
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 from fm.fm_utils import get_entry_target, run_benchmark, to_sample_forecasts
-from fm.mamba.mamba_model import MambaForecastModel
 from fm.mamba.mamba_model_v2 import MambaForecastModelV2
 
 TERM_TO_PRED_LEN = {"short": 3, "medium": 6, "long": 12}
@@ -92,8 +91,7 @@ def train_one_term(args, term, device, train_entries, val_entries, model_tag):
     val_loader   = DataLoader(TensorDataset(torch.from_numpy(X_val), torch.from_numpy(Y_val)),
                               batch_size=args.bs, shuffle=False, num_workers=2)
 
-    model_cls = MambaForecastModelV2 if args.model_version == 2 else MambaForecastModel
-    model = model_cls(
+    model = MambaForecastModelV2(
         prediction_length=pred_len,
         d_model=args.d_model, d_state=args.d_state,
         d_conv=args.d_conv, expand=args.expand,
@@ -109,8 +107,7 @@ def train_one_term(args, term, device, train_entries, val_entries, model_tag):
 
     for epoch in range(1, args.max_epochs + 1):
         # ── progressive compression (v2 only) ─────────────────────────
-        if (args.model_version == 2
-                and epoch > args.compress_warmup
+        if (epoch > args.compress_warmup
                 and (epoch - args.compress_warmup) % args.compress_every == 1
                 and not compressed):
             model.eval()
@@ -187,7 +184,6 @@ class MambaPredictor:
 
     def _get_model(self, prediction_length: int):
         if prediction_length not in self._models:
-            model_cls = MambaForecastModelV2 if self.args.model_version == 2 else MambaForecastModel
             ckpt_path = None
             for term, pred_len in TERM_TO_PRED_LEN.items():
                 if pred_len == prediction_length and term in self.checkpoints:
@@ -196,7 +192,7 @@ class MambaPredictor:
 
             # For v2 with compression, each block may have different d_state.
             # Rebuild each SSM layer to match the checkpoint's actual shape.
-            model = model_cls(
+            model = MambaForecastModelV2(
                 prediction_length=prediction_length,
                 d_model=self.args.d_model, d_state=self.args.d_state,
                 d_conv=self.args.d_conv, expand=self.args.expand,
@@ -204,18 +200,17 @@ class MambaPredictor:
             ).to(self.device)
             if ckpt_path is not None:
                 sd = torch.load(ckpt_path, map_location=self.device)
-                if self.args.model_version == 2:
-                    # resize each SSM block to match compressed d_state in checkpoint
-                    from fm.mamba.mamba_model_v2 import SelectiveSSMParallel
-                    import torch.nn as _nn
-                    for i, block in enumerate(model.blocks):
-                        key = f"blocks.{i}.ssm.A_log"
-                        if key in sd:
-                            r = sd[key].shape[1]
-                            d_inner = block.ssm.d_inner
-                            if r != block.ssm.d_state:
-                                new_ssm = SelectiveSSMParallel(d_inner, r).to(self.device)
-                                block.ssm = new_ssm
+                # resize each SSM block to match compressed d_state in checkpoint
+                from fm.mamba.mamba_model_v2 import SelectiveSSMParallel
+                import torch.nn as _nn
+                for i, block in enumerate(model.blocks):
+                    key = f"blocks.{i}.ssm.A_log"
+                    if key in sd:
+                        r = sd[key].shape[1]
+                        d_inner = block.ssm.d_inner
+                        if r != block.ssm.d_state:
+                            new_ssm = SelectiveSSMParallel(d_inner, r).to(self.device)
+                            block.ssm = new_ssm
                 model.load_state_dict(sd)
             model.eval()
             self._models[prediction_length] = model
@@ -273,7 +268,6 @@ def get_args():
     parser.add_argument("--lrate",              type=float, default=1e-3)
     parser.add_argument("--max_epochs",         type=int,   default=50)
     parser.add_argument("--patience",           type=int,   default=15)
-    parser.add_argument("--model_version",      type=int,   default=1, choices=[1, 2])
     parser.add_argument("--seed",               type=int,   default=2023)
     parser.add_argument("--device",             type=str,   default="cuda")
     parser.add_argument("--log_dir",            type=str,
@@ -294,7 +288,7 @@ def main():
     set_seed(args.seed)
     device = torch.device(args.device if torch.cuda.is_available() else "cpu")
     os.makedirs(args.log_dir, exist_ok=True)
-    model_tag = f"mamba_v{args.model_version}"
+    model_tag = "mamba_v2"
 
     # ── load train/val from gift_eval ───────────────────────────────────
     print("Loading gift_eval data …")

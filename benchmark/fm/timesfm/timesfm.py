@@ -17,7 +17,7 @@ from tqdm.auto import tqdm
 warnings.filterwarnings("ignore")
 
 MODEL_NAME = "timesfm_2_0_500m"
-MODEL_PATH = "google/timesfm-2.0-500m-jax"
+MODEL_PATH = "google/timesfm-2.0-500m-pytorch"
 DEFAULT_BATCH_SIZE = 1024
 
 _MODEL_RUNTIME = setup_model_runtime("timesfm", __file__)
@@ -54,8 +54,7 @@ def _load_timesfm_model():
             per_core_batch_size=32,
             num_layers=50,
             horizon_len=128,
-            context_len=2048,
-            use_positional_embedding=False,
+            context_len=512,
             output_patch_len=128,
         ),
         checkpoint=timesfm.TimesFmCheckpoint(
@@ -96,7 +95,7 @@ class TimesFmPredictor:
         for batch in tqdm(batcher(test_data_input, batch_size=batch_size)):
             context = [np.array(get_entry_target(entry)) for entry in batch]
             freqs = [self.freq] * len(context)
-            _, full_preds = self.tfm.forecast(context, freqs, normalize=True)
+            _, full_preds = self.tfm.forecast(context, freqs)
             full_preds = full_preds[:, 0 : self.prediction_length, 1:]
             forecast_outputs.append(full_preds.transpose((0, 2, 1)))
         forecast_outputs = np.concatenate(forecast_outputs)

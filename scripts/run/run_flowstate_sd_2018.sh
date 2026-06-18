@@ -6,7 +6,7 @@
 #SBATCH --mem=64G
 #SBATCH --job-name=flowstate_sd2018
 #SBATCH --account=bcqc-delta-gpu
-#SBATCH --partition=gpuA100x8
+#SBATCH --partition=gpuH200x8
 #SBATCH --output=/u/tliao2/TrafficFM/log/fm/%j_run_flowstate_sd_2018.out
 #SBATCH --error=/u/tliao2/TrafficFM/log/fm/%j_run_flowstate_sd_2018.err
 
@@ -16,4 +16,7 @@ BENCHMARK_CONFIG=configs/fm_sd_2018.yaml \
 GRANITE_TSFM_PATH=/u/tliao2/TrafficFM/benchmark/fm/flowstate/granite-tsfm \
 PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True \
 HF_HOME=/u/tliao2/.cache/huggingface \
-uv run --project fm/flowstate python -m fm.flowstate.flowstate --batch-size 4
+TRANSFORMERS_CACHE=/u/tliao2/.cache/huggingface/hub \
+HF_HUB_CACHE=/u/tliao2/.cache/huggingface/hub \
+FLOWSTATE_CONTEXT_LENGTH=512 \
+uv run --project fm/flowstate python -m fm.flowstate.flowstate --batch-size 1
