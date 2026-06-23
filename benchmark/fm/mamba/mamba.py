@@ -329,7 +329,7 @@ def main():
 
     run_benchmark(
         eval_time_only=False,
-        model_name=f"{model_tag}_{args.dataset.upper()}{args.year}",
+        model_name=f"{model_tag}_{args.dataset.upper()}{args.year}_ctx{args.context_length}_w{args.windows_per_sensor}{'_comp' if args.compress_warmup > 0 else ''}",
         model_path=args.log_dir,
         predictor_factory=predictor_factory,
         batch_size=args.bs,

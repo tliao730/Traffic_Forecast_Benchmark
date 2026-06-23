@@ -28,3 +28,4 @@ uv run --project fm/moirai python fm/mamba/mamba.py \
     --compress_energy 0.99 \
     --wandb_project TrafficFM \
     --log_dir /u/tliao2/TrafficFM/benchmark/experiments/mamba_fm/SD/2018/
+    # --force_retrain

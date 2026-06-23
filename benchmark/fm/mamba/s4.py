@@ -227,7 +227,7 @@ def main():
     val_entries   = list(Dataset(name=f"{args.dataset}_val/{args.year}/15T",
                                  term="short").gluonts_dataset)
 
-    model_name = f"s4_{args.dataset.upper()}{args.year}"
+    model_name = f"s4_{args.dataset.upper()}{args.year}_ctx{args.context_length}_w{args.windows_per_sensor}"
     wandb.init(
         project=args.wandb_project,
         name=f"{model_name}_s{args.seed}",

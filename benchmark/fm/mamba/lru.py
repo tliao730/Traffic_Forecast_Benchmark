@@ -250,7 +250,8 @@ def main():
     val_entries   = list(Dataset(name=f"{args.dataset}_val/{args.year}/15T",
                                  term="short").gluonts_dataset)
 
-    model_name = f"lru_{args.dataset.upper()}{args.year}"
+    comp_tag   = "_comp" if args.compress_warmup > 0 else ""
+    model_name = f"lru_{args.dataset.upper()}{args.year}_ctx{args.context_length}_w{args.windows_per_sensor}{comp_tag}"
     wandb.init(
         project=args.wandb_project,
         name=f"{model_name}_s{args.seed}",

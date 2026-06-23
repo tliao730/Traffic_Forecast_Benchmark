@@ -26,4 +26,5 @@ uv run --project fm/moirai python fm/mamba/s4.py \
     --lrate 1e-3 \
     --max_epochs 50 \
     --patience 15 \
-    --log_dir /scratch/bcqc/tliao2/TrafficFM/experiments/ssm_bench/s4/SD/2018/
+    --log_dir /u/tliao2/TrafficFM/benchmark/experiments/ssm_bench/s4/SD/2018/
+    # --force_retrain
