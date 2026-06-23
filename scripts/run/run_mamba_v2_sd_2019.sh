@@ -16,7 +16,7 @@ BENCHMARK_CONFIG=configs/mamba_train.yaml \
 uv run --project fm/moirai python fm/mamba/mamba.py \
     --dataset sd \
     --year 2019 \
-    --context_length 48 \
+    --context_length 96 \
     --num_sensors 0 \
     --windows_per_sensor 3000 \
     --bs 64 \

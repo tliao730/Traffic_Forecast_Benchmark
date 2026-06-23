@@ -6,7 +6,7 @@
 #SBATCH --mem=32G
 #SBATCH --job-name=d2stgnn_sd2018
 #SBATCH --account=bcqc-delta-gpu
-#SBATCH --partition=gpuA100x8
+#SBATCH --partition=gpuH200x8
 #SBATCH --output=log/gnn/%j_run_d2stgnn_sd_2018.out
 #SBATCH --error=log/gnn/%j_run_d2stgnn_sd_2018.err
 
