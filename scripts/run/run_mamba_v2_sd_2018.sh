@@ -23,9 +23,8 @@ uv run --project fm/moirai python fm/mamba/mamba.py \
     --lrate 1e-3 \
     --max_epochs 50 \
     --patience 15 \
-    --compress_warmup 10 \
-    --compress_every 5 \
-    --compress_energy 0.99 \
+    --compress_epochs 3 6 9 12 \
+    --compress_energy 0.95 \
     --wandb_project TrafficFM \
-    --log_dir /u/tliao2/TrafficFM/benchmark/experiments/mamba_fm/SD/2018/
-    # --force_retrain
+    --log_dir /u/tliao2/TrafficFM/benchmark/experiments/mamba_fm/SD/2018/ \
+    --force_retrain

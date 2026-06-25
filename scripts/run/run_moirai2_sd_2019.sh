@@ -6,7 +6,7 @@
 #SBATCH --mem=64G
 #SBATCH --job-name=moirai2_sd2019
 #SBATCH --account=bcqc-delta-gpu
-#SBATCH --partition=gpuA100x4
+#SBATCH --partition=gpuA40x4
 #SBATCH --output=/u/tliao2/TrafficFM/log/fm/%j_run_moirai2_sd_2019.out
 #SBATCH --error=/u/tliao2/TrafficFM/log/fm/%j_run_moirai2_sd_2019.err
 

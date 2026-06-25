@@ -25,5 +25,7 @@ uv run --project fm/moirai python fm/mamba/lru.py \
     --lrate 1e-3 \
     --max_epochs 50 \
     --patience 15 \
-    --log_dir /u/tliao2/TrafficFM/benchmark/experiments/ssm_bench/lru/SD/2019/
-    # --force_retrain
+    --compress_epochs 3 6 9 12 \
+    --compress_energy 0.95 \
+    --log_dir /u/tliao2/TrafficFM/benchmark/experiments/ssm_bench/lru/SD/2019/ \
+    --force_retrain
