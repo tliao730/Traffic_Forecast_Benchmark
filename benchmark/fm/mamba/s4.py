@@ -96,6 +96,20 @@ def train_one_term(args, term, device, train_entries, val_entries):
     best_val, wait = np.inf, 0
 
     for epoch in range(1, args.max_epochs + 1):
+        if epoch in args.compress_epochs:
+            pre_ckpt = ckpt_path + f".pre_compress_epoch{epoch}"
+            torch.save(model.state_dict(), pre_ckpt)
+            print(f"  [compress] pre-compression ckpt saved: {pre_ckpt}")
+            model.eval()
+            with torch.no_grad():
+                for i, block in enumerate(model.blocks):
+                    old_d = block.s4.d_state
+                    block.s4.compress(energy_threshold=args.compress_energy)
+                    new_d = block.s4.d_state
+                    print(f"  [compress] epoch {epoch} block {i}: d_state {old_d} → {new_d}")
+                    wandb.log({f"{term}/block{i}_d_state": new_d, "epoch": epoch})
+            optimizer = torch.optim.Adam(model.parameters(), lr=args.lrate)
+
         model.train()
         train_losses = []
         for x_b, y_b in train_loader:
@@ -153,8 +167,17 @@ class S4Predictor:
             ).to(self.device)
             for term, plen in TERM_TO_PRED_LEN.items():
                 if plen == prediction_length and term in self.checkpoints:
-                    model.load_state_dict(
-                        torch.load(self.checkpoints[term], map_location=self.device))
+                    sd = torch.load(self.checkpoints[term], map_location=self.device)
+                    for i, block in enumerate(model.blocks):
+                        key = f"blocks.{i}.s4.Lambda_re"
+                        if key in sd:
+                            r = sd[key].shape[1]
+                            if r != block.s4.d_state:
+                                from fm.mamba.s4_model import S4Layer
+                                block.s4 = S4Layer(
+                                    self.args.d_model, r, self.args.dt
+                                ).to(self.device)
+                    model.load_state_dict(sd)
                     break
             model.eval()
             self._models[prediction_length] = model
@@ -195,7 +218,7 @@ def get_args():
     parser.add_argument("--num_sensors",         type=int,   default=0)
     parser.add_argument("--windows_per_sensor",  type=int,   default=50)
     parser.add_argument("--d_model",             type=int,   default=64)
-    parser.add_argument("--d_state",             type=int,   default=16)
+    parser.add_argument("--d_state",             type=int,   default=64)
     parser.add_argument("--num_layers",          type=int,   default=2)
     parser.add_argument("--dt",                  type=float, default=0.01)
     parser.add_argument("--bs",                  type=int,   default=256)
@@ -208,6 +231,10 @@ def get_args():
                         default="/scratch/bcqc/tliao2/TrafficFM/experiments/ssm_bench/s4/SD/2019/")
     parser.add_argument("--wandb_project",       type=str,   default="TrafficFM")
     parser.add_argument("--force_retrain",       action="store_true")
+    parser.add_argument("--compress_epochs",     type=int,   nargs="+", default=[3, 6, 9, 12],
+                        help="epochs at which to trigger compression (empty list = disabled)")
+    parser.add_argument("--compress_energy",     type=float, default=0.8,
+                        help="HSV energy threshold for compression")
     return parser.parse_args()
 
 
@@ -227,7 +254,7 @@ def main():
     val_entries   = list(Dataset(name=f"{args.dataset}_val/{args.year}/15T",
                                  term="short").gluonts_dataset)
 
-    model_name = f"s4_{args.dataset.upper()}{args.year}_ctx{args.context_length}_w{args.windows_per_sensor}"
+    model_name = f"s4_{args.dataset.upper()}{args.year}_ctx{args.context_length}_w{args.windows_per_sensor}{'_comp' if args.compress_epochs else ''}"
     wandb.init(
         project=args.wandb_project,
         name=f"{model_name}_s{args.seed}",

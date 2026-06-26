@@ -100,21 +100,19 @@ def train_one_term(args, term, device, train_entries, val_entries, model_tag):
 
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lrate)
     best_val, wait = np.inf, 0
-    compressed = False  # track whether compression has been applied
 
     # calibration batch for compression (fixed subset of train data)
     x_calib = torch.from_numpy(X_tr[:min(256, len(X_tr))]).to(device)
 
     for epoch in range(1, args.max_epochs + 1):
-        # ── progressive compression (v2 only) ─────────────────────────
-        if (epoch > args.compress_warmup
-                and (epoch - args.compress_warmup) % args.compress_every == 1
-                and not compressed):
+        if epoch in args.compress_epochs:
+            pre_ckpt = ckpt_path + f".pre_compress_epoch{epoch}"
+            torch.save(model.state_dict(), pre_ckpt)
+            print(f"  [compress] pre-compression ckpt saved: {pre_ckpt}")
             model.eval()
             with torch.no_grad():
-                # pass calibration batch through input_proj first
                 h_calib = model.input_proj(x_calib)
-                for block in model.blocks:
+                for i, block in enumerate(model.blocks):
                     if hasattr(block, 'ssm') and hasattr(block.ssm, 'compress'):
                         h_norm = block.norm(h_calib)
                         x_in, _ = block.in_proj(h_norm).chunk(2, dim=-1)
@@ -123,12 +121,10 @@ def train_one_term(args, term, device, train_entries, val_entries, model_tag):
                         old_d = block.ssm.d_state
                         block.ssm.compress(x_in, energy_threshold=args.compress_energy)
                         new_d = block.ssm.d_state
-                        print(f"  [compress] epoch {epoch}: d_state {old_d} → {new_d}")
-                        wandb.log({f"{term}/d_state": new_d, "epoch": epoch})
+                        print(f"  [compress] epoch {epoch} block {i}: d_state {old_d} → {new_d}")
+                        wandb.log({f"{term}/block{i}_d_state": new_d, "epoch": epoch})
                     h_calib = block(h_calib)
-            # rebuild optimizer so it tracks the new (smaller) parameters
             optimizer = torch.optim.Adam(model.parameters(), lr=args.lrate)
-            compressed = True
 
         model.train()
         train_losses = []
@@ -274,11 +270,9 @@ def get_args():
                         default="/scratch/bcqc/tliao2/TrafficFM/experiments/mamba_fm/SD/2019/")
     parser.add_argument("--wandb_project",      type=str,   default="TrafficFM")
     parser.add_argument("--force_retrain",      action="store_true")
-    parser.add_argument("--compress_warmup",    type=int,   default=10,
-                        help="epochs to train before first compression")
-    parser.add_argument("--compress_every",     type=int,   default=5,
-                        help="compress again every N epochs after warmup")
-    parser.add_argument("--compress_energy",    type=float, default=0.99,
+    parser.add_argument("--compress_epochs",    type=int,   nargs="+", default=[3, 6, 9, 12],
+                        help="epochs at which to trigger compression (empty list = disabled)")
+    parser.add_argument("--compress_energy",    type=float, default=0.8,
                         help="HSV energy threshold for compression")
     return parser.parse_args()
 
@@ -329,7 +323,7 @@ def main():
 
     run_benchmark(
         eval_time_only=False,
-        model_name=f"{model_tag}_{args.dataset.upper()}{args.year}_ctx{args.context_length}_w{args.windows_per_sensor}{'_comp' if args.compress_warmup > 0 else ''}",
+        model_name=f"{model_tag}_{args.dataset.upper()}{args.year}_ctx{args.context_length}_w{args.windows_per_sensor}{'_comp' if args.compress_epochs else ''}",
         model_path=args.log_dir,
         predictor_factory=predictor_factory,
         batch_size=args.bs,

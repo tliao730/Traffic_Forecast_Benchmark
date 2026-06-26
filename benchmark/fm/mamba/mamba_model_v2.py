@@ -88,35 +88,74 @@ class SelectiveSSMParallel(nn.Module):
     # CompreSSM: in-training compression via balanced truncation
     # ------------------------------------------------------------------
 
-    def compute_gramians(self, B_mean: torch.Tensor, C_mean: torch.Tensor):
+    def compute_gramians(self, sample_inputs: torch.Tensor):
         """
-        Compute controllability gramian P and observability gramian Q
-        using the closed-form solution for diagonal A (paper Eq. 14).
+        Compute controllability gramian P and observability gramian Q for
+        the *mean LTI surrogate* of this input-dependent (LTV) SSM.
+
+        Because Mamba's B, C, and dt all depend on the input, the system is
+        strictly LTV and Gramian theory does not directly apply.  To obtain
+        a tractable compression signal we approximate the LTV system with a
+        single fixed LTI system by replacing each input-dependent quantity
+        with its empirical mean over `sample_inputs`:
+
+            Assumptions / approximations made here:
+            1. dt is replaced by dt_mean = mean over (batch, time) of
+               softplus(dt_proj(x) + dt_bias).  This is an empirical average
+               of the time-varying step size, not a true system constant.
+            2. B is replaced by B̄_mean = dt_mean * B_proj(x).mean(batch,time),
+               i.e. the ZOH-discretised B at the mean dt.  (ZOH: B̄ = dt * B)
+            3. C is replaced by C_mean = C_proj(x).mean(batch,time).
+            4. The discrete eigenvalue is λ = exp(dt_mean * A), consistently
+               with the ZOH discretisation used in forward().
+
+        The resulting Gramians are those of the approximate fixed LTI system
+            h_t = diag(λ) h_{t-1} + B̄_mean x_t
+            y_t = C_mean h_t
+        and are computed via the closed-form solution of the discrete
+        Lyapunov equation for diagonal A:
+            P_ij = (B̄B̄ᵀ)_ij / (1 - λ_i λ_j)
+            Q_ij = (CᵀC)_ij  / (1 - λ_i λ_j)
+
+        This approximation is deterministic for a fixed `sample_inputs` and
+        is intentionally analogous to the B_mean / C_mean averaging already
+        used in compress().  For LTI models (LRU, S4) the equivalent
+        compute_gramians() is exact; the gap between the two is a research
+        finding about the limits of applying CompreSSM to LTV systems.
 
         Args:
-            B_mean: (D, S) — mean B matrix averaged over a batch of inputs
-            C_mean: (D, S) — mean C matrix averaged over a batch of inputs
+            sample_inputs: (B, L, d_inner) — representative batch of
+                intermediate activations (the x fed into the SSM layer).
 
         Returns:
-            P: (D, S, S)  controllability gramian per channel
-            Q: (D, S, S)  observability gramian per channel
+            P: (D, S, S)  controllability gramian of the mean LTI surrogate
+            Q: (D, S, S)  observability gramian of the mean LTI surrogate
         """
-        # Recover discrete eigenvalues λ = exp(dt * A). Here we use the
-        # raw A (before discretisation) as a proxy; the caller should pass
-        # B_mean/C_mean already discretised or use small fixed dt.
-        A = -torch.exp(self.A_log.float())   # (D, S)  negative reals
+        x = sample_inputs.float()
 
-        # λ_i * λ_j denominator: (D, S, S)
-        lam = A                              # use continuous A as surrogate
-        lam_outer = lam.unsqueeze(-1) + lam.unsqueeze(-2)   # (D, S, S)  λ_i + λ_j
-        # For stable discrete system: denom = 1 - λ_i * λ_j (continuous: -(λ_i+λ_j))
-        # Using continuous Lyapunov: A*P + P*A^T + B*B^T = 0  → P_ij = -(BB^T)_ij/(λ_i+λ_j)
-        denom = -(lam_outer)                 # (D, S, S), positive because λ < 0
+        # --- Step 1: empirical mean dt → fixed discrete eigenvalues λ ---
+        dt_mean = F.softplus(
+            self.dt_proj(x) + self.dt_bias
+        ).mean(dim=(0, 1))                                # (D,)
 
-        # B_mean: (D, S) → BB^T: (D, S, S)
-        BBT = torch.bmm(B_mean.unsqueeze(-1), B_mean.unsqueeze(-2))   # (D, S, S)
-        # C_mean: (D, S) → C^T C: (D, S, S)
-        CTC = torch.bmm(C_mean.unsqueeze(-1), C_mean.unsqueeze(-2))   # (D, S, S)
+        A = -torch.exp(self.A_log.float())                # (D, S) continuous, negative
+        lam = torch.exp(dt_mean.unsqueeze(-1) * A)        # (D, S)
+
+        # --- Step 2: ZOH-discretised B̄ = dt_mean * B_mean ---
+        B_raw  = self.B_proj(x).mean(dim=(0, 1))          # (S,)
+        B_mean = B_raw.unsqueeze(0).expand(self.d_inner, -1)   # (D, S)
+        B_bar  = dt_mean.unsqueeze(-1) * B_mean            # (D, S)
+
+        # --- Step 3: mean C ---
+        C_raw  = self.C_proj(x).mean(dim=(0, 1))          # (S,)
+        C_mean = C_raw.unsqueeze(0).expand(self.d_inner, -1)   # (D, S)
+
+        # --- Step 4: discrete Lyapunov Gramians ---
+        lam_outer = lam.unsqueeze(-1) * lam.unsqueeze(-2)  # (D, S, S)
+        denom = 1.0 - lam_outer                             # (D, S, S)
+
+        BBT = torch.bmm(B_bar.unsqueeze(-1),  B_bar.unsqueeze(-2))   # (D, S, S)
+        CTC = torch.bmm(C_mean.unsqueeze(-1), C_mean.unsqueeze(-2))  # (D, S, S)
 
         P = BBT / (denom + 1e-8)
         Q = CTC / (denom + 1e-8)
@@ -156,14 +195,7 @@ class SelectiveSSMParallel(nn.Module):
         device = self.A_log.device
         x = sample_inputs.to(device)
 
-        # Collect mean B and C over the batch to form an LTI surrogate.
-        B_all = self.B_proj(x)    # (B, L, S)
-        C_all = self.C_proj(x)    # (B, L, S)
-        # Average over batch and time → (S,), then expand to (D, S)
-        B_mean = B_all.mean(dim=(0, 1)).unsqueeze(0).expand(self.d_inner, -1)  # (D, S)
-        C_mean = C_all.mean(dim=(0, 1)).unsqueeze(0).expand(self.d_inner, -1)  # (D, S)
-
-        P, Q = self.compute_gramians(B_mean, C_mean)
+        P, Q = self.compute_gramians(x)
         hsv  = self.compute_hsv(P, Q)                 # (D, S) descending
 
         # Select rank r: smallest r such that sum(hsv[:r]) / sum(hsv) >= threshold.
