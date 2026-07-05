@@ -1,0 +1,6 @@
+result_root: "/scratch/bcqc/tliao2/TrafficFM/results"
+gift_eval_datasets_path: "../dataset/LargeST/gift_eval"
+hf_home: "/u/tliao2/.cache/huggingface/hub"
+device: "cuda:0"
+short_datasets: "ca/2019/15T"
+med_long_datasets: "ca/2019/15T"
