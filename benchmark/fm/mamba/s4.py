@@ -96,20 +96,6 @@ def train_one_term(args, term, device, train_entries, val_entries):
     best_val, wait = np.inf, 0
 
     for epoch in range(1, args.max_epochs + 1):
-        if epoch in args.compress_epochs:
-            pre_ckpt = ckpt_path + f".pre_compress_epoch{epoch}"
-            torch.save(model.state_dict(), pre_ckpt)
-            print(f"  [compress] pre-compression ckpt saved: {pre_ckpt}")
-            model.eval()
-            with torch.no_grad():
-                for i, block in enumerate(model.blocks):
-                    old_d = block.s4.d_state
-                    block.s4.compress(energy_threshold=args.compress_energy)
-                    new_d = block.s4.d_state
-                    print(f"  [compress] epoch {epoch} block {i}: d_state {old_d} → {new_d}")
-                    wandb.log({f"{term}/block{i}_d_state": new_d, "epoch": epoch})
-            optimizer = torch.optim.Adam(model.parameters(), lr=args.lrate)
-
         model.train()
         train_losses = []
         for x_b, y_b in train_loader:
@@ -228,13 +214,9 @@ def get_args():
     parser.add_argument("--seed",                type=int,   default=2023)
     parser.add_argument("--device",              type=str,   default="cuda")
     parser.add_argument("--log_dir",             type=str,
-                        default="/scratch/bcqc/tliao2/TrafficFM/experiments/ssm_bench/s4/SD/2019/")
+                        default="/u/tliao2/TrafficFM/benchmark/experiments/ssm_bench/s4/SD/2019/")
     parser.add_argument("--wandb_project",       type=str,   default="TrafficFM")
     parser.add_argument("--force_retrain",       action="store_true")
-    parser.add_argument("--compress_epochs",     type=int,   nargs="+", default=[3, 6, 9, 12],
-                        help="epochs at which to trigger compression (empty list = disabled)")
-    parser.add_argument("--compress_energy",     type=float, default=0.8,
-                        help="HSV energy threshold for compression")
     return parser.parse_args()
 
 
@@ -254,7 +236,7 @@ def main():
     val_entries   = list(Dataset(name=f"{args.dataset}_val/{args.year}/15T",
                                  term="short").gluonts_dataset)
 
-    model_name = f"s4_{args.dataset.upper()}{args.year}_ctx{args.context_length}_w{args.windows_per_sensor}{'_comp' if args.compress_epochs else ''}"
+    model_name = f"s4_{args.dataset.upper()}{args.year}_ctx{args.context_length}_w{args.windows_per_sensor}"
     wandb.init(
         project=args.wandb_project,
         name=f"{model_name}_s{args.seed}",

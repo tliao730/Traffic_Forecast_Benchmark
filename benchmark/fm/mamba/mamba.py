@@ -267,10 +267,10 @@ def get_args():
     parser.add_argument("--seed",               type=int,   default=2023)
     parser.add_argument("--device",             type=str,   default="cuda")
     parser.add_argument("--log_dir",            type=str,
-                        default="/scratch/bcqc/tliao2/TrafficFM/experiments/mamba_fm/SD/2019/")
+                        default="/u/tliao2/TrafficFM/benchmark/experiments/mamba_fm/SD/2019/")
     parser.add_argument("--wandb_project",      type=str,   default="TrafficFM")
     parser.add_argument("--force_retrain",      action="store_true")
-    parser.add_argument("--compress_epochs",    type=int,   nargs="+", default=[3, 6, 9, 12],
+    parser.add_argument("--compress_epochs",    type=int,   nargs="*", default=[3, 6, 9, 12],
                         help="epochs at which to trigger compression (empty list = disabled)")
     parser.add_argument("--compress_energy",    type=float, default=0.8,
                         help="HSV energy threshold for compression")

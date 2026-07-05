@@ -202,7 +202,7 @@ def get_args():
     parser.add_argument("--seed",                type=int,   default=2023)
     parser.add_argument("--device",              type=str,   default="cuda")
     parser.add_argument("--log_dir",             type=str,
-                        default="/scratch/bcqc/tliao2/TrafficFM/experiments/ssm_bench/linear_ssm/SD/2019/")
+                        default="/u/tliao2/TrafficFM/benchmark/experiments/ssm_bench/linear_ssm/SD/2019/")
     parser.add_argument("--wandb_project",       type=str,   default="TrafficFM")
     parser.add_argument("--force_retrain",       action="store_true")
     return parser.parse_args()
