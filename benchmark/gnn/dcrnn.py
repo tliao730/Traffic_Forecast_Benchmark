@@ -36,9 +36,13 @@ def get_config():
     parser.add_argument('--lrate', type=float, default=1e-2)
     parser.add_argument('--wdecay', type=float, default=0)
     parser.add_argument('--clip_grad_value', type=float, default=5)
+    parser.add_argument('--lr_milestones', type=int, nargs='+', default=[10, 50, 90],
+                        help='epochs at which LR is multiplied by gamma=0.1; lower these '
+                             'for large-N datasets (GBA/GLA/CA) where training diverges '
+                             'before the default milestones kick in')
     args = parser.parse_args()
 
-    log_dir = './experiments/{}/{}/'.format(args.model_name, args.dataset)
+    log_dir = './experiments/{}/{}/{}/'.format(args.model_name, args.dataset, args.years)
     logger = get_logger(log_dir, __name__, 'record_s{}.log'.format(args.seed))
     logger.info(args)
     
@@ -105,8 +109,7 @@ def main():
 
     loss_fn = masked_mae
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lrate, weight_decay=args.wdecay)
-    steps = [10, 50, 90]  # CA: [5, 50, 90], others: [10, 50, 90]
-    scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=steps, gamma=0.1)
+    scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=args.lr_milestones, gamma=0.1)
 
     engine = DCRNN_Engine(device=device,
                           model=model,
