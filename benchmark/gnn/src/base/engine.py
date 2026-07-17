@@ -1,4 +1,5 @@
 import os
+import random
 import time
 
 import h5py
@@ -92,6 +93,85 @@ class BaseEngine:
             )
         )
 
+    def _extra_checkpoint_state(self):
+        # Curriculum-learning engines (D2STGNN, DGCRN) override this to
+        # persist state that lives outside the model/optimizer.
+        return {}
+
+    def _load_extra_checkpoint_state(self, state):
+        pass
+
+    def _checkpoint_path(self):
+        return os.path.join(
+            self._save_path, "last_checkpoint_s{}.pt".format(self._seed)
+        )
+
+    def save_checkpoint(self, epoch, min_loss, wait, finished=False):
+        if not os.path.exists(self._save_path):
+            os.makedirs(self._save_path)
+        ckpt = {
+            "epoch": epoch,
+            "min_loss": min_loss,
+            "wait": wait,
+            "finished": finished,
+            "iter_cnt": self._iter_cnt,
+            "model": self.model.state_dict(),
+            "optimizer": self._optimizer.state_dict(),
+            "scheduler": (
+                self._lr_scheduler.state_dict()
+                if self._lr_scheduler is not None
+                else None
+            ),
+            "rng": {
+                "torch": torch.get_rng_state(),
+                "cuda": (
+                    torch.cuda.get_rng_state_all()
+                    if torch.cuda.is_available()
+                    else None
+                ),
+                "numpy": np.random.get_state(),
+                "python": random.getstate(),
+            },
+            "extra": self._extra_checkpoint_state(),
+        }
+        path = self._checkpoint_path()
+        # write-then-rename so a job killed mid-save can't corrupt the checkpoint
+        torch.save(ckpt, path + ".tmp")
+        os.replace(path + ".tmp", path)
+
+    def load_checkpoint(self):
+        path = self._checkpoint_path()
+        if not os.path.exists(path):
+            return 0, np.inf, 0, False
+        ckpt = torch.load(path, map_location="cpu", weights_only=False)
+        self.model.load_state_dict(ckpt["model"])
+        # optimizer/scheduler states are moved to the params' device automatically.
+        # optimizer may be None in bootstrapped checkpoints (built from a
+        # weights-only best model); training then resumes with fresh moments.
+        if ckpt["optimizer"] is not None:
+            self._optimizer.load_state_dict(ckpt["optimizer"])
+        if self._lr_scheduler is not None and ckpt["scheduler"] is not None:
+            self._lr_scheduler.load_state_dict(ckpt["scheduler"])
+        self._iter_cnt = ckpt.get("iter_cnt", 0)
+        rng = ckpt.get("rng", {})
+        if rng.get("torch") is not None:
+            torch.set_rng_state(rng["torch"])
+        if rng.get("cuda") is not None and torch.cuda.is_available():
+            torch.cuda.set_rng_state_all(rng["cuda"])
+        if rng.get("numpy") is not None:
+            np.random.set_state(rng["numpy"])
+        if rng.get("python") is not None:
+            random.setstate(rng["python"])
+        self._load_extra_checkpoint_state(ckpt.get("extra", {}))
+        self._logger.info(
+            "Resumed from checkpoint: epoch {}, min_loss {:.4f}, wait {}".format(
+                ckpt["epoch"], ckpt["min_loss"], ckpt["wait"]
+            )
+        )
+        return ckpt["epoch"], ckpt["min_loss"], ckpt["wait"], ckpt.get(
+            "finished", False
+        )
+
     def train_batch(self):
         self.model.train()
 
@@ -133,11 +213,20 @@ class BaseEngine:
         return np.mean(train_loss), np.mean(train_mape), np.mean(train_rmse)
 
     def train(self):
-        self._logger.info("Start training!")
+        start_epoch, min_loss, wait, finished = self.load_checkpoint()
+        if finished:
+            self._logger.info(
+                "Training already finished according to checkpoint, "
+                "running test only. Delete {} to retrain from scratch.".format(
+                    self._checkpoint_path()
+                )
+            )
+            self.evaluate("test")
+            return
+        if start_epoch == 0:
+            self._logger.info("Start training!")
 
-        wait = 0
-        min_loss = np.inf
-        for epoch in range(self._max_epochs):
+        for epoch in range(start_epoch, self._max_epochs):
             t1 = time.time()
             mtrain_loss, mtrain_mape, mtrain_rmse = self.train_batch()
             t2 = time.time()
@@ -183,6 +272,7 @@ class BaseEngine:
             except Exception:
                 pass
 
+            finished = False
             if mvalid_loss < min_loss:
                 self.save_model(self._save_path)
                 self._logger.info(
@@ -194,13 +284,19 @@ class BaseEngine:
                 wait = 0
             else:
                 wait += 1
-                if wait == self._patience:
+                if wait >= self._patience:
                     self._logger.info(
                         "Early stop at epoch {}, loss = {:.6f}".format(
                             epoch + 1, min_loss
                         )
                     )
-                    break
+                    finished = True
+
+            if epoch + 1 == self._max_epochs:
+                finished = True
+            self.save_checkpoint(epoch + 1, min_loss, wait, finished)
+            if finished:
+                break
 
         self.evaluate("test")
 

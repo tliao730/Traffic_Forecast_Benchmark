@@ -12,6 +12,13 @@ class D2STGNN_Engine(BaseEngine):
         self._cl_len = 0
 
 
+    def _extra_checkpoint_state(self):
+        return {'cl_len': self._cl_len}
+
+    def _load_extra_checkpoint_state(self, state):
+        self._cl_len = state.get('cl_len', self._cl_len)
+
+
     def train_batch(self):
         self.model.train()
 

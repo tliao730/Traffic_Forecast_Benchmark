@@ -11,6 +11,13 @@ class DGCRN_Engine(BaseEngine):
         self._task_level = 0
 
 
+    def _extra_checkpoint_state(self):
+        return {'task_level': self._task_level}
+
+    def _load_extra_checkpoint_state(self, state):
+        self._task_level = state.get('task_level', self._task_level)
+
+
     def train_batch(self):
         self.model.train()
 
