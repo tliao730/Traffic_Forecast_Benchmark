@@ -2,6 +2,7 @@ import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.utils.checkpoint import checkpoint
 from src.base.model import BaseModel
 
 class D2STGNN(BaseModel):
@@ -197,6 +198,12 @@ class STLocalizedConv(nn.Module):
             self.pre_defined_graph) * int(dy_graph) + int(sta_graph)) * self.k_s + 1
         self.dropout = nn.Dropout(model_args['dropout'])
         self.pre_defined_graph = self.get_graph(self.pre_defined_graph)
+        # torch.matmul(graph, X_k) is O(batch * seq_len * N * k_t*N); on large-N
+        # datasets (GBA/GLA/CA) this OOMs. Chunking over batch + recomputing via
+        # checkpoint during backward keeps the same math but caps peak memory to
+        # one chunk's worth instead of holding every graph-matmul's activations
+        # resident at once (same idea as STTN's SpatialAttention chunking).
+        self.gconv_chunk_size = model_args.get('gconv_chunk_size', 0)
 
         self.fc_list_updt = nn.Linear(
             self.k_t * hidden_dim, self.k_t * hidden_dim, bias=False)
@@ -207,16 +214,28 @@ class STLocalizedConv(nn.Module):
         self.activation = nn.ReLU()
 
 
+    def _gconv_chunk(self, X_k_chunk, *support_chunk):
+        return torch.cat([torch.matmul(g, X_k_chunk) for g in support_chunk], dim=-1)
+
+
     def gconv(self, support, X_k, X_0):
-        out = [X_0]
-        for graph in support:
-            if len(graph.shape) == 2:
-                pass
-            else:
-                graph = graph.unsqueeze(1)
-            H_k = torch.matmul(graph, X_k)
-            out.append(H_k)
-        out = torch.cat(out, dim=-1)
+        support = [g if len(g.shape) == 2 else g.unsqueeze(1) for g in support]
+
+        chunk_size = self.gconv_chunk_size
+        batch_size = X_k.shape[0]
+        if not chunk_size or chunk_size >= batch_size:
+            H_cat = self._gconv_chunk(X_k, *support)
+        else:
+            chunks = []
+            for start in range(0, batch_size, chunk_size):
+                end = min(start + chunk_size, batch_size)
+                X_k_chunk = X_k[start:end]
+                # 2D (no-batch) graphs broadcast as-is; batched graphs are sliced to match.
+                support_chunk = [g if len(g.shape) == 2 else g[start:end] for g in support]
+                chunks.append(checkpoint(self._gconv_chunk, X_k_chunk, *support_chunk, use_reentrant=False))
+            H_cat = torch.cat(chunks, dim=0)
+
+        out = torch.cat([X_0, H_cat], dim=-1)
         out = self.gcn_updt(out)
         out = self.dropout(out)
         return out

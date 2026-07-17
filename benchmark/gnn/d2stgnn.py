@@ -44,9 +44,13 @@ def get_config():
     parser.add_argument('--wdecay', type=float, default=1e-5)
     parser.add_argument('--dropout', type=float, default=0.1)
     parser.add_argument('--clip_grad_value', type=float, default=5)
+    parser.add_argument('--gconv_chunk_size', type=int, default=0,
+                        help='chunk size (over batch dim) for the graph-conv matmul in gconv(); '
+                             '0=no chunking. Lower this to trade speed for peak GPU memory on '
+                             'large-N datasets (GBA/GLA/CA).')
     args = parser.parse_args()
 
-    log_dir = './experiments/{}/{}/'.format(args.model_name, args.dataset)
+    log_dir = './experiments/{}/{}/{}/'.format(args.model_name, args.dataset, args.years)
     logger = get_logger(log_dir, __name__, 'record_s{}.log'.format(args.seed))
     logger.info(args)
     
