@@ -4,6 +4,7 @@ import torch.nn.functional as F
 import numpy as np
 
 from torch.autograd import Variable
+from torch.utils.checkpoint import checkpoint
 from collections import OrderedDict
 from src.base.model import BaseModel
 
@@ -12,7 +13,8 @@ class DGCRN(BaseModel):
     Reference code: https://github.com/tsinghua-fib-lab/Traffic-Benchmark/tree/master/methods/DGCRN
     '''
     def __init__(self, device, predefined_adj, gcn_depth, rnn_size, hyperGNN_dim, node_dim, \
-                 middle_dim, list_weight, tpd, tanhalpha, cl_decay_step, dropout, **args):
+                 middle_dim, list_weight, tpd, tanhalpha, cl_decay_step, dropout,
+                 checkpoint_steps=False, checkpoint_encoder=True, checkpoint_decoder=True, **args):
         super(DGCRN, self).__init__(**args)
         self.device = device
         self.predefined_adj = predefined_adj
@@ -20,6 +22,17 @@ class DGCRN(BaseModel):
         self.tpd = tpd
         self.alpha = tanhalpha
         self.cl_decay_step = cl_decay_step
+        # Each step() call rebuilds a dense (batch, N, N) adaptive adjacency and
+        # runs it through several gcn modules; BPTT over all encoder+decoder
+        # timesteps keeps every one of those resident, which OOMs on large-N
+        # datasets (GBA/GLA/CA). Checkpointing recomputes a timestep's
+        # activations during backward instead of holding them all at once, at
+        # the cost of a repeated forward per step -- checkpointing only the
+        # decoder (or only the encoder) trades some of that memory saving back
+        # for less recompute overhead when full checkpointing is slower than
+        # needed to fit in memory.
+        self.checkpoint_encoder = checkpoint_steps and checkpoint_encoder
+        self.checkpoint_decoder = checkpoint_steps and checkpoint_decoder
         self.use_curriculum_learning = True
 
         self.emb1 = nn.Embedding(self.node_num, node_dim)
@@ -172,9 +185,14 @@ class DGCRN(BaseModel):
             x_step = x[..., i]
             if x_step.dim() < 2:
                 x_step = x_step.unsqueeze(-1)
-            Hidden_State, Cell_State = self.step(x_step,
-                                                 Hidden_State, Cell_State,
-                                                 self.predefined_adj, 'encoder', i)
+            if self.checkpoint_encoder and self.training:
+                Hidden_State, Cell_State = checkpoint(
+                    lambda xs, hs, cs: self.step(xs, hs, cs, self.predefined_adj, 'encoder', i),
+                    x_step, Hidden_State, Cell_State, use_reentrant=False)
+            else:
+                Hidden_State, Cell_State = self.step(x_step,
+                                                     Hidden_State, Cell_State,
+                                                     self.predefined_adj, 'encoder', i)
             if outputs is None:
                 outputs = Hidden_State.unsqueeze(1)
             else:
@@ -189,9 +207,14 @@ class DGCRN(BaseModel):
             except:
                 print(decoder_input.shape, timeofday.shape)
                 sys.exit(0)
-            Hidden_State, Cell_State = self.step(decoder_input, Hidden_State,
-                                                 Cell_State, self.predefined_adj,
-                                                 'decoder', None)
+            if self.checkpoint_decoder and self.training:
+                Hidden_State, Cell_State = checkpoint(
+                    lambda di, hs, cs: self.step(di, hs, cs, self.predefined_adj, 'decoder', None),
+                    decoder_input, Hidden_State, Cell_State, use_reentrant=False)
+            else:
+                Hidden_State, Cell_State = self.step(decoder_input, Hidden_State,
+                                                     Cell_State, self.predefined_adj,
+                                                     'decoder', None)
 
             decoder_output = self.fc_final(Hidden_State)
             decoder_input = decoder_output.view(batch_size, self.node_num,

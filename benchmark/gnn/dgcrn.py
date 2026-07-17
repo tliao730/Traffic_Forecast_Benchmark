@@ -41,9 +41,20 @@ def get_config():
     parser.add_argument('--wdecay', type=float, default=1e-4)
     parser.add_argument('--dropout', type=float, default=0.3)
     parser.add_argument('--clip_grad_value', type=float, default=5)
+    parser.add_argument('--checkpoint_steps', action='store_true',
+                        help='gradient-checkpoint each encoder/decoder RNN step instead of '
+                             'keeping all timesteps resident for BPTT; trades speed for peak '
+                             'GPU memory on large-N datasets (GBA/GLA/CA).')
+    parser.add_argument('--no_checkpoint_encoder', action='store_true',
+                        help='with --checkpoint_steps, skip checkpointing the encoder steps '
+                             '(only checkpoint the decoder) to reduce recompute overhead when '
+                             'full checkpointing is slower than needed to fit in memory.')
+    parser.add_argument('--no_checkpoint_decoder', action='store_true',
+                        help='with --checkpoint_steps, skip checkpointing the decoder steps '
+                             '(only checkpoint the encoder).')
     args = parser.parse_args()
 
-    log_dir = './experiments/{}/{}/'.format(args.model_name, args.dataset)
+    log_dir = './experiments/{}/{}/{}/'.format(args.model_name, args.dataset, args.years)
     logger = get_logger(log_dir, __name__, 'record_s{}.log'.format(args.seed))
     logger.info(args)
     
@@ -116,7 +127,10 @@ def main():
                   tpd=args.tpd,
                   tanhalpha=args.tanhalpha,
                   cl_decay_step=args.cl_decay_step,
-                  dropout=args.dropout
+                  dropout=args.dropout,
+                  checkpoint_steps=args.checkpoint_steps,
+                  checkpoint_encoder=not args.no_checkpoint_encoder,
+                  checkpoint_decoder=not args.no_checkpoint_decoder,
                   )
     
     loss_fn = masked_mae
