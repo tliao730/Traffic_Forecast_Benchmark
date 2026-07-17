@@ -40,9 +40,13 @@ def get_config():
     parser.add_argument('--lrate', type=float, default=1e-4)
     parser.add_argument('--wdecay', type=float, default=0)
     parser.add_argument('--clip_grad_value', type=float, default=0)
+    parser.add_argument('--checkpoint_cheb_conv', action='store_true',
+                        help='gradient-checkpoint each (time_step, k) pair in cheb_conv_withSAt '
+                             'instead of keeping all of them resident for backward; trades speed '
+                             'for peak GPU memory on large-N datasets (GBA/GLA/CA).')
     args = parser.parse_args()
 
-    log_dir = './experiments/{}/{}/'.format(args.model_name, args.dataset)
+    log_dir = './experiments/{}/{}/{}/'.format(args.model_name, args.dataset, args.years)
     logger = get_logger(log_dir, __name__, 'record_s{}.log'.format(args.seed))
     logger.info(args)
     
@@ -131,7 +135,8 @@ def main():
                     d_model=args.d_model,
                     d_k=args.d_k,
                     d_v=args.d_k,
-                    n_head=args.n_head
+                    n_head=args.n_head,
+                    checkpoint_cheb_conv=args.checkpoint_cheb_conv,
                     )
     
     loss_fn = masked_mae

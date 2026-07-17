@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
+from torch.utils.checkpoint import checkpoint
 from src.base.model import BaseModel
 
 class DSTAGNN(BaseModel):
@@ -9,16 +10,18 @@ class DSTAGNN(BaseModel):
     Reference code: https://github.com/SYLan2019/DSTAGNN
     '''
     def __init__(self, device, cheb_poly, order, nb_block, nb_chev_filter, nb_time_filter, \
-                 time_stride, adj_pa, d_model, d_k, d_v, n_head, **args):
+                 time_stride, adj_pa, d_model, d_k, d_v, n_head, checkpoint_cheb_conv=False, **args):
         super(DSTAGNN, self).__init__(**args)
 
         self.BlockList = nn.ModuleList([DSTAGNN_block(device, self.input_dim, self.input_dim, order,
                                                      nb_chev_filter, nb_time_filter, time_stride, cheb_poly,
-                                                     adj_pa, self.node_num, self.seq_len, d_model, d_k, d_v, n_head)])
+                                                     adj_pa, self.node_num, self.seq_len, d_model, d_k, d_v, n_head,
+                                                     checkpoint_cheb_conv=checkpoint_cheb_conv)])
 
         self.BlockList.extend([DSTAGNN_block(device, self.input_dim * nb_time_filter, nb_chev_filter, order,
                                             nb_chev_filter, nb_time_filter, 1, cheb_poly,
-                                            adj_pa, self.node_num, self.seq_len // time_stride, d_model, d_k, d_v, n_head) for _ in range(nb_block - 1)])
+                                            adj_pa, self.node_num, self.seq_len // time_stride, d_model, d_k, d_v, n_head,
+                                            checkpoint_cheb_conv=checkpoint_cheb_conv) for _ in range(nb_block - 1)])
 
         self.final_conv = nn.Conv2d(int((self.seq_len / time_stride) * nb_block), 128, kernel_size=(1, nb_time_filter))
         self.final_fc = nn.Linear(128, self.horizon)
@@ -43,7 +46,7 @@ class DSTAGNN(BaseModel):
 
 class DSTAGNN_block(nn.Module):
     def __init__(self, device, num_of_d, in_channels, K, nb_chev_filter, nb_time_filter, time_stride,
-                 cheb_polynomials, adj_pa, node_num, seq_len, d_model, d_k, d_v, n_head):
+                 cheb_polynomials, adj_pa, node_num, seq_len, d_model, d_k, d_v, n_head, checkpoint_cheb_conv=False):
         super(DSTAGNN_block, self).__init__()
         self.sigmoid = nn.Sigmoid()
         self.tanh = nn.Tanh()
@@ -59,7 +62,8 @@ class DSTAGNN_block(nn.Module):
         self.TAt = MultiHeadAttention(device, node_num, d_k, d_v, n_head, num_of_d)
         self.SAt = SMultiHeadAttention(device, d_model, d_k, d_v, K)
 
-        self.cheb_conv_SAt = cheb_conv_withSAt(K, cheb_polynomials, in_channels, nb_chev_filter, node_num)
+        self.cheb_conv_SAt = cheb_conv_withSAt(K, cheb_polynomials, in_channels, nb_chev_filter, node_num,
+                                                use_checkpoint=checkpoint_cheb_conv)
 
         self.gtu3 = GTU(nb_time_filter, time_stride, 3)
         self.gtu5 = GTU(nb_time_filter, time_stride, 5)
@@ -217,7 +221,7 @@ class SScaledDotProductAttention(nn.Module):
 
 
 class cheb_conv_withSAt(nn.Module):
-    def __init__(self, K, cheb_polynomials, in_channels, out_channels, node_num):
+    def __init__(self, K, cheb_polynomials, in_channels, out_channels, node_num, use_checkpoint=False):
         super(cheb_conv_withSAt, self).__init__()
         self.K = K
         self.cheb_polynomials = cheb_polynomials
@@ -229,6 +233,21 @@ class cheb_conv_withSAt(nn.Module):
             [nn.Parameter(torch.FloatTensor(in_channels, out_channels).to(self.device)) for _ in range(K)])
         self.mask = nn.ParameterList(
             [nn.Parameter(torch.FloatTensor(node_num,node_num).to(self.device)) for _ in range(K)])
+        # Each (time_step, k) pair builds a dense (bs, N, N) softmax attention
+        # matrix; BPTT across all seq_len*K pairs (x nb_block outer blocks) keeps
+        # every one resident, which OOMs on large-N datasets (GBA/GLA/CA).
+        # Checkpointing recomputes a pair's activations during backward instead.
+        self.use_checkpoint = use_checkpoint
+
+
+    def _conv_step(self, graph_signal, T_k, mask, adj_pa, theta_k, spatial_attention_k):
+        myspatial_attention = spatial_attention_k + adj_pa.mul(mask)
+        myspatial_attention = F.softmax(myspatial_attention, dim=1)
+
+        T_k_with_at = T_k.mul(myspatial_attention)
+
+        rhs = T_k_with_at.permute(0, 2, 1).matmul(graph_signal)
+        return rhs.matmul(theta_k)
 
 
     def forward(self, x, spatial_attention, adj_pa):
@@ -242,15 +261,16 @@ class cheb_conv_withSAt(nn.Module):
             for k in range(self.K):
                 T_k = self.cheb_polynomials[k]
                 mask = self.mask[k]
-
-                myspatial_attention = spatial_attention[:, k, :, :] + adj_pa.mul(mask)
-                myspatial_attention = F.softmax(myspatial_attention, dim=1)
-
-                T_k_with_at = T_k.mul(myspatial_attention)
                 theta_k = self.Theta[k]
+                spatial_attention_k = spatial_attention[:, k, :, :]
 
-                rhs = T_k_with_at.permute(0, 2, 1).matmul(graph_signal)
-                output = output + rhs.matmul(theta_k)
+                if self.use_checkpoint and self.training:
+                    output = output + checkpoint(
+                        self._conv_step, graph_signal, T_k, mask, adj_pa, theta_k, spatial_attention_k,
+                        use_reentrant=False)
+                else:
+                    output = output + self._conv_step(
+                        graph_signal, T_k, mask, adj_pa, theta_k, spatial_attention_k)
 
             outputs.append(output.unsqueeze(-1))
 
