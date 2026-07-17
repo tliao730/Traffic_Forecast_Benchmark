@@ -29,7 +29,7 @@ def get_config():
     parser = get_public_config()
     args = parser.parse_args()
 
-    log_dir = './experiments/{}/{}/'.format(args.model_name, args.dataset)
+    log_dir = './experiments/{}/{}/{}/'.format(args.model_name, args.dataset, args.years)
     logger = get_logger(log_dir, __name__, 'record_s{}.log'.format(args.seed))
     logger.info(args)
     

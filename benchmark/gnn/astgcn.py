@@ -42,7 +42,7 @@ def get_config():
     if args.log_dir:
         log_dir = args.log_dir.rstrip('/') + '/'
     else:
-        log_dir = './experiments/{}/{}/'.format(args.model_name or 'astgcn', args.dataset)
+        log_dir = './experiments/{}/{}/{}/'.format(args.model_name or 'astgcn', args.dataset, args.years)
     logger = get_logger(log_dir, __name__, 'record_s{}.log'.format(args.seed))
     logger.info(args)
     

@@ -41,7 +41,7 @@ def get_config():
     args = parser.parse_args()
 
     folder_name = '{}-{}-{}'.format(args.dataset, args.adj_type, args.adp_adj)
-    log_dir = './experiments/{}/{}/'.format(args.model_name, folder_name)
+    log_dir = './experiments/{}/{}/{}/'.format(args.model_name, folder_name, args.years)
     logger = get_logger(log_dir, __name__, 'record_s{}.log'.format(args.seed))
     logger.info(args)
     
