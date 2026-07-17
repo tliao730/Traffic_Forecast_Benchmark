@@ -1,13 +1,14 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.utils.checkpoint import checkpoint
 from src.base.model import BaseModel
 
 class STTN(BaseModel):
     '''
     Reference code: https://github.com/xumingxingsjtu/STTN
     '''
-    def __init__(self, device, supports, blocks, mlp_expand, hidden_channels, end_channels, dropout, **args):
+    def __init__(self, device, supports, blocks, mlp_expand, hidden_channels, end_channels, dropout, spatial_attn_chunk_size=0, **args):
         super(STTN, self).__init__(**args)
         self.t_modules = nn.ModuleList()
         self.s_modules = nn.ModuleList()
@@ -37,6 +38,7 @@ class STTN(BaseModel):
                                    node_num=self.node_num,
                                    dropout=dropout,
                                    stage=b,
+                                   attn_chunk_size=spatial_attn_chunk_size,
                                    ))
 
             self.bn.append(nn.BatchNorm2d(hidden_channels))
@@ -146,7 +148,7 @@ class TemporalAttention(nn.Module):
 
 
 class SpatialTransformer(nn.Module):
-    def __init__(self, dim, depth, heads, mlp_dim, node_num, dropout, stage=0):
+    def __init__(self, dim, depth, heads, mlp_dim, node_num, dropout, stage=0, attn_chunk_size=0):
         super().__init__()
         self.pos_embedding = nn.Parameter(torch.randn(1, node_num, dim))
         self.layers = nn.ModuleList([])
@@ -154,7 +156,8 @@ class SpatialTransformer(nn.Module):
             self.layers.append(nn.ModuleList([
                 SpatialAttention(dim, heads=heads,
                                  dropout=dropout,
-                                 stage=stage),
+                                 stage=stage,
+                                 chunk_size=attn_chunk_size),
                 PreNorm(dim, FeedForward(dim, mlp_dim, dropout=dropout)),
                 GCN(dim, dim, dropout, support_len=2),
             ]))
@@ -176,7 +179,7 @@ class SpatialTransformer(nn.Module):
 
 
 class SpatialAttention(nn.Module):
-    def __init__(self, dim, heads=8, dropout=0., stage=0, qkv_bias=False, qk_scale=None):
+    def __init__(self, dim, heads=8, dropout=0., stage=0, qkv_bias=False, qk_scale=None, chunk_size=0):
         super().__init__()
         assert dim % heads == 0, f"dim {dim} should be divided by num_heads {heads}."
 
@@ -184,7 +187,12 @@ class SpatialAttention(nn.Module):
         self.num_heads = heads
         head_dim = dim // heads
         self.scale = qk_scale or head_dim ** -0.5
-        self.stage = stage 
+        self.stage = stage
+        # Rows of the (b*t) batch dim are independent (attention is over nodes only),
+        # so processing them in chunks trades a bit of speed for peak memory: the
+        # (N, N) score matrix is the O(N^2) term that OOMs on large-N datasets
+        # (GBA/GLA/CA) if the full b*t batch is run at once.
+        self.chunk_size = chunk_size
 
         self.qkv = nn.Linear(dim, dim * 3, bias=qkv_bias)
 
@@ -193,7 +201,7 @@ class SpatialAttention(nn.Module):
         self.proj_drop = nn.Dropout(dropout)
 
 
-    def forward(self, x, adj=None):
+    def _attend(self, x):
         B, N, C = x.shape
 
         qkv = self.qkv(x).reshape(B, -1, 3, self.num_heads, C //
@@ -208,6 +216,21 @@ class SpatialAttention(nn.Module):
         x = self.proj_drop(x)
 
         return x
+
+
+    def forward(self, x, adj=None):
+        if not self.chunk_size or self.chunk_size >= x.shape[0]:
+            return self._attend(x)
+
+        # Recompute each chunk's activations during backward instead of keeping
+        # all chunks' (N, N) attention scores resident simultaneously -- without
+        # this, autograd holds every chunk alive until loss.backward(), so total
+        # retained memory is the same as not chunking at all (only the peak
+        # single-allocation size drops, not the sum).
+        return torch.cat([
+            checkpoint(self._attend, chunk, use_reentrant=False)
+            for chunk in x.split(self.chunk_size, dim=0)
+        ], dim=0)
 
 
 class PreNorm(nn.Module):

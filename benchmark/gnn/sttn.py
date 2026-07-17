@@ -38,9 +38,16 @@ def get_config():
     parser.add_argument('--wdecay', type=float, default=1e-4)
     parser.add_argument('--dropout', type=float, default=0.1)
     parser.add_argument('--clip_grad_value', type=float, default=5)
+    parser.add_argument('--spatial_attn_chunk_size', type=int, default=0,
+                        help='chunk size (over b*t) for spatial attention; 0=no chunking. '
+                             'Lower this to trade speed for peak GPU memory on large-N datasets (GBA/GLA/CA).')
+    parser.add_argument('--lr_milestones', type=int, nargs='+', default=[],
+                        help='epochs at which LR is multiplied by gamma=0.1; empty=no decay '
+                             '(original behavior). Valid loss plateauing/oscillating with a '
+                             'fixed LR is a sign these should be set, e.g. --lr_milestones 20 40 60.')
     args = parser.parse_args()
 
-    log_dir = './experiments/{}/{}/'.format(args.model_name, args.dataset)
+    log_dir = './experiments/{}/{}/{}/'.format(args.model_name, args.dataset, args.years)
     logger = get_logger(log_dir, __name__, 'record_s{}.log'.format(args.seed))
     logger.info(args)
     
@@ -106,11 +113,15 @@ def main():
                  hidden_channels=args.hid_dim,
                  end_channels=args.end_dim,
                  dropout=args.dropout,
+                 spatial_attn_chunk_size=args.spatial_attn_chunk_size,
                  )
     
     loss_fn = masked_mae
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lrate, weight_decay=args.wdecay)
-    scheduler = None
+    scheduler = (
+        torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=args.lr_milestones, gamma=0.1)
+        if args.lr_milestones else None
+    )
 
     engine = BaseEngine(device=device,
                         model=model,
