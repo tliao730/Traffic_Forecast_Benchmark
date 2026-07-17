@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.utils.checkpoint import checkpoint
 from gnn.src.base.model import BaseModel
 
 
@@ -9,13 +10,14 @@ class AGCRN(BaseModel):
     Reference code: https://github.com/LeiBAI/AGCRN
     """
 
-    def __init__(self, embed_dim, rnn_unit, num_layer, cheb_k, **args):
+    def __init__(self, embed_dim, rnn_unit, num_layer, cheb_k, checkpoint_steps=False, **args):
         super(AGCRN, self).__init__(**args)
         self.node_embed = nn.Parameter(
             torch.randn(self.node_num, embed_dim), requires_grad=True
         )
 
-        self.encoder = AVWDCRNN(self.input_dim, rnn_unit, cheb_k, embed_dim, num_layer)
+        self.encoder = AVWDCRNN(self.input_dim, rnn_unit, cheb_k, embed_dim, num_layer,
+                                 checkpoint_steps=checkpoint_steps)
 
         self.end_conv = nn.Conv2d(
             1, self.horizon * self.output_dim, kernel_size=(1, rnn_unit), bias=True
@@ -31,7 +33,7 @@ class AGCRN(BaseModel):
 
 
 class AVWDCRNN(nn.Module):
-    def __init__(self, dim_in, dim_out, cheb_k, embed_dim, num_layer):
+    def __init__(self, dim_in, dim_out, cheb_k, embed_dim, num_layer, checkpoint_steps=False):
         super(AVWDCRNN, self).__init__()
         assert num_layer >= 1, "At least one DCRNN layer in the Encoder."
         self.input_dim = dim_in
@@ -40,6 +42,12 @@ class AVWDCRNN(nn.Module):
         self.dcrnn_cells.append(AGCRNCell(dim_in, dim_out, cheb_k, embed_dim))
         for _ in range(1, num_layer):
             self.dcrnn_cells.append(AGCRNCell(dim_out, dim_out, cheb_k, embed_dim))
+        # AVWGCN.forward() rebuilds a dense (N, N) softmax adjacency on every
+        # call; BPTT over num_layer * seq_length calls keeps every one of
+        # those resident, which OOMs on large-N datasets (GBA/GLA/CA).
+        # Checkpointing recomputes a timestep's activations during backward
+        # instead of holding them all at once.
+        self.checkpoint_steps = checkpoint_steps
 
     def forward(self, x, init_state, node_embed):
         seq_length = x.shape[1]
@@ -49,9 +57,14 @@ class AVWDCRNN(nn.Module):
             state = init_state[i]
             inner_states = []
             for t in range(seq_length):
-                state = self.dcrnn_cells[i](
-                    current_inputs[:, t, :, :], state, node_embed
-                )
+                if self.checkpoint_steps and self.training:
+                    state = checkpoint(
+                        self.dcrnn_cells[i], current_inputs[:, t, :, :], state, node_embed,
+                        use_reentrant=False)
+                else:
+                    state = self.dcrnn_cells[i](
+                        current_inputs[:, t, :, :], state, node_embed
+                    )
                 inner_states.append(state)
             output_hidden.append(state)
             current_inputs = torch.stack(inner_states, dim=1)

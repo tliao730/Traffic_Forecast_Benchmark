@@ -39,9 +39,13 @@ def get_config():
     parser.add_argument("--lrate", type=float, default=1e-3)
     parser.add_argument("--wdecay", type=float, default=0)
     parser.add_argument("--clip_grad_value", type=float, default=0)
+    parser.add_argument("--checkpoint_steps", action="store_true",
+                        help="gradient-checkpoint each AGCRNCell timestep instead of "
+                             "keeping all timesteps resident for BPTT; trades speed for "
+                             "peak GPU memory on large-N datasets (GBA/GLA/CA).")
     args = parser.parse_args()
 
-    log_dir = "./experiments/{}/{}/".format(args.model_name, args.dataset)
+    log_dir = "./experiments/{}/{}/{}/".format(args.model_name, args.dataset, args.years)
     logger = get_logger(log_dir, __name__, "record_s{}.log".format(args.seed))
     logger.info(args)
 
@@ -126,6 +130,7 @@ def main():
         rnn_unit=args.rnn_unit,
         num_layer=args.num_layer,
         cheb_k=args.cheb_k,
+        checkpoint_steps=args.checkpoint_steps,
     )
 
     loss_fn = masked_mae
