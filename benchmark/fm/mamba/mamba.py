@@ -24,6 +24,7 @@ from tqdm.auto import tqdm
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 from fm.fm_utils import get_entry_target, run_benchmark, to_sample_forecasts
 from fm.mamba.mamba_model_v2 import MambaForecastModelV2
+from fm.mamba.resume_utils import peek_resume, restore_resume, save_resume
 
 TERM_TO_PRED_LEN = {"short": 3, "medium": 6, "long": 12}
 
@@ -74,7 +75,12 @@ def train_one_term(args, term, device, train_entries, val_entries, model_tag):
     pred_len = TERM_TO_PRED_LEN[term]
     ckpt_path = os.path.join(args.log_dir, f"best_model_{term}_s{args.seed}.pt")
 
-    if os.path.exists(ckpt_path) and not args.force_retrain:
+    resume_state = None if args.force_retrain else peek_resume(args, term)
+    if resume_state is not None and resume_state["finished"]:
+        print(f"\n[{term}] Training already finished, skipping: {ckpt_path}")
+        return ckpt_path
+    if resume_state is None and os.path.exists(ckpt_path) and not args.force_retrain:
+        # run completed before resume support existed (no resume checkpoint)
         print(f"\n[{term}] Checkpoint found, skipping training: {ckpt_path}")
         return ckpt_path
 
@@ -98,13 +104,27 @@ def train_one_term(args, term, device, train_entries, val_entries, model_tag):
         num_layers=args.num_layers,
     ).to(device)
 
+    if resume_state is not None:
+        # compression may have shrunk d_state per block; rebuild to match
+        from fm.mamba.mamba_model_v2 import SelectiveSSMParallel
+        sd = resume_state["model"]
+        for i, block in enumerate(model.blocks):
+            key = f"blocks.{i}.ssm.A_log"
+            if key in sd and sd[key].shape[1] != block.ssm.d_state:
+                block.ssm = SelectiveSSMParallel(
+                    block.ssm.d_inner, sd[key].shape[1]
+                ).to(device)
+
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lrate)
     best_val, wait = np.inf, 0
+    start_epoch = 1
+    if resume_state is not None:
+        start_epoch, best_val, wait = restore_resume(resume_state, model, optimizer)
 
     # calibration batch for compression (fixed subset of train data)
     x_calib = torch.from_numpy(X_tr[:min(256, len(X_tr))]).to(device)
 
-    for epoch in range(1, args.max_epochs + 1):
+    for epoch in range(start_epoch, args.max_epochs + 1):
         if epoch in args.compress_epochs:
             pre_ckpt = ckpt_path + f".pre_compress_epoch{epoch}"
             torch.save(model.state_dict(), pre_ckpt)
@@ -155,9 +175,12 @@ def train_one_term(args, term, device, train_entries, val_entries, model_tag):
             torch.save(model.state_dict(), ckpt_path)
         else:
             wait += 1
-            if wait >= args.patience:
-                print(f"  Early stop at epoch {epoch}")
-                break
+
+        finished = wait >= args.patience or epoch == args.max_epochs
+        save_resume(args, term, model, optimizer, epoch, best_val, wait, finished)
+        if wait >= args.patience:
+            print(f"  Early stop at epoch {epoch}")
+            break
 
     print(f"  Best val_loss={best_val:.4f}, saved to {ckpt_path}")
     return ckpt_path

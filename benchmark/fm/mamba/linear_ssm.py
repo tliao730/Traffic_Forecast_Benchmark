@@ -24,6 +24,7 @@ from tqdm.auto import tqdm
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 from fm.fm_utils import get_entry_target, run_benchmark, to_sample_forecasts
 from fm.mamba.linear_ssm_model import LinearSSMForecastModel
+from fm.mamba.resume_utils import peek_resume, restore_resume, save_resume
 
 TERM_TO_PRED_LEN = {"short": 3, "medium": 6, "long": 12}
 
@@ -67,7 +68,12 @@ def train_one_term(args, term, device, train_entries, val_entries):
     pred_len  = TERM_TO_PRED_LEN[term]
     ckpt_path = os.path.join(args.log_dir, f"best_model_{term}_s{args.seed}.pt")
 
-    if os.path.exists(ckpt_path) and not args.force_retrain:
+    resume_state = None if args.force_retrain else peek_resume(args, term)
+    if resume_state is not None and resume_state["finished"]:
+        print(f"\n[{term}] Training already finished, skipping: {ckpt_path}")
+        return ckpt_path
+    if resume_state is None and os.path.exists(ckpt_path) and not args.force_retrain:
+        # run completed before resume support existed (no resume checkpoint)
         print(f"\n[{term}] Checkpoint found, skipping: {ckpt_path}")
         return ckpt_path
 
@@ -93,8 +99,11 @@ def train_one_term(args, term, device, train_entries, val_entries):
 
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lrate)
     best_val, wait = np.inf, 0
+    start_epoch = 1
+    if resume_state is not None:
+        start_epoch, best_val, wait = restore_resume(resume_state, model, optimizer)
 
-    for epoch in range(1, args.max_epochs + 1):
+    for epoch in range(start_epoch, args.max_epochs + 1):
         model.train()
         train_losses = []
         for x_b, y_b in train_loader:
@@ -125,9 +134,12 @@ def train_one_term(args, term, device, train_entries, val_entries):
             torch.save(model.state_dict(), ckpt_path)
         else:
             wait += 1
-            if wait >= args.patience:
-                print(f"  Early stop at epoch {epoch}")
-                break
+
+        finished = wait >= args.patience or epoch == args.max_epochs
+        save_resume(args, term, model, optimizer, epoch, best_val, wait, finished)
+        if wait >= args.patience:
+            print(f"  Early stop at epoch {epoch}")
+            break
 
     print(f"  Best val={best_val:.4f}, saved to {ckpt_path}")
     return ckpt_path
