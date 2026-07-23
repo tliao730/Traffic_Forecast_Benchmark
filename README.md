@@ -29,7 +29,7 @@ in accuracy, scalability, and inference cost become directly comparable.
 | **Classical / Recurrent** | Statistical & RNN | None / implicit | Historical Last (HL), LSTM |
 | **Graph Neural Networks** | Spatio-temporal GNN | Explicit graph | DCRNN, AGCRN, STGCN, GWNET, ASTGCN, STTN, STGODE, DSTAGNN, DGCRN, D2STGNN |
 | **Foundation Models** | Pretrained, zero/few-shot | Channel-independent | TimesFM, Moirai, Chronos, Timer (via GIFT-Eval) |
-| **State Space Models** | Linear-time sequence | Optional graph mixing | Mamba-family sequence models |
+| **State Space Models** | Linear-time sequence | Optional graph mixing | SSM-family sequence models |
 
 ---
 
@@ -43,7 +43,7 @@ flowchart TD
 
     D -->|"GNN / RNN / classical"| E["Training framework<br/>experiments/&lt;model&gt;/main.py"]
     D -->|"Foundation models"| F["generate_data_for_gift_eval.py<br/>&#8594; Arrow / GIFT-Eval format"]
-    D -->|"SSM / Mamba"| E
+    D -->|"SSM"| E
 
     E --> G["BaseModel + BaseEngine<br/>(src/base)"]
     F --> H["Zero / few-shot eval<br/>(GIFT-Eval harness)"]
