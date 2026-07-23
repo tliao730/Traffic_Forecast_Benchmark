@@ -4,7 +4,7 @@ Trains on sd_train/{year}/15T, validates on sd_val/{year}/15T,
 evaluates via gift_eval standard run_benchmark() — same pipeline as mamba.py.
 
 Run from benchmark/:
-  uv run --project fm/moirai python fm/mamba/lru.py --year 2018
+  uv run --project fm/moirai python ssm/lru.py --year 2018
 """
 
 import argparse
@@ -21,10 +21,10 @@ from gluonts.model import Forecast
 from torch.utils.data import DataLoader, TensorDataset
 from tqdm.auto import tqdm
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from fm.fm_utils import get_entry_target, run_benchmark, to_sample_forecasts
-from fm.mamba.lru_model import LRUForecastModel
-from fm.mamba.resume_utils import peek_resume, restore_resume, save_resume
+from ssm.lru_model import LRUForecastModel
+from ssm.resume_utils import peek_resume, restore_resume, save_resume
 
 TERM_TO_PRED_LEN = {"short": 3, "medium": 6, "long": 12}
 
@@ -101,7 +101,7 @@ def train_one_term(args, term, device, train_entries, val_entries):
 
     if resume_state is not None:
         # compression may have shrunk d_state per block; rebuild to match
-        from fm.mamba.lru_model import LRULayer
+        from ssm.lru_model import LRULayer
         sd = resume_state["model"]
         for i, block in enumerate(model.blocks):
             key = f"blocks.{i}.lru.nu_log"
@@ -192,7 +192,7 @@ class LRUPredictor:
             ).to(self.device)
             for term, plen in TERM_TO_PRED_LEN.items():
                 if plen == prediction_length and term in self.checkpoints:
-                    from fm.mamba.lru_model import LRULayer
+                    from ssm.lru_model import LRULayer
                     sd = torch.load(self.checkpoints[term], map_location=self.device)
                     for i, block in enumerate(model.blocks):
                         key = f"blocks.{i}.lru.nu_log"

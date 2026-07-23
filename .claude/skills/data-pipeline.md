@@ -124,7 +124,7 @@ fut = target[s + context_length : s + context_length + pred_len]    # label
 **Test (eval)**: after training, uses `common.eval()` with `{region}/{year}/15T` (test split) —
 **same pipeline as FM models**, so results are directly comparable.
 
-Entry point: `BENCHMARK_CONFIG=configs/mamba_train.yaml uv run --project fm/moirai python fm/mamba/lru.py --year 2018`
+Entry point: `BENCHMARK_CONFIG=configs/mamba_train.yaml uv run --project fm/moirai python ssm/lru.py --year 2018`
 
 ### FM (Moirai2, Chronos, Sundial, Kairos, TimesFM, FlowState)
 

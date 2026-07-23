@@ -4,7 +4,7 @@ Trains on sd_train/{year}/15T, validates on sd_val/{year}/15T,
 evaluates via gift_eval standard run_benchmark() — same pipeline as mamba.py.
 
 Run from benchmark/:
-  uv run --project fm/moirai python fm/mamba/linear_ssm.py --year 2018
+  uv run --project fm/moirai python ssm/linear_ssm.py --year 2018
 """
 
 import argparse
@@ -21,10 +21,10 @@ from gluonts.model import Forecast
 from torch.utils.data import DataLoader, TensorDataset
 from tqdm.auto import tqdm
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from fm.fm_utils import get_entry_target, run_benchmark, to_sample_forecasts
-from fm.mamba.linear_ssm_model import LinearSSMForecastModel
-from fm.mamba.resume_utils import peek_resume, restore_resume, save_resume
+from ssm.linear_ssm_model import LinearSSMForecastModel
+from ssm.resume_utils import peek_resume, restore_resume, save_resume
 
 TERM_TO_PRED_LEN = {"short": 3, "medium": 6, "long": 12}
 

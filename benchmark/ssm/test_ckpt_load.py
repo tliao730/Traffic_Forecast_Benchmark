@@ -3,7 +3,7 @@ Test that LRU/S4/Mamba checkpoints saved after compression can be loaded
 back correctly without shape mismatch.
 
 Run from benchmark/:
-  uv run --project fm/moirai python -m fm.mamba.test_ckpt_load
+  uv run --project fm/moirai python -m ssm.test_ckpt_load
 """
 
 import os
@@ -14,7 +14,7 @@ import types
 import torch
 import torch.nn as nn
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 PASS = "[PASS]"
 FAIL = "[FAIL]"
@@ -23,7 +23,7 @@ FAIL = "[FAIL]"
 # ── LRU ──────────────────────────────────────────────────────────────────────
 
 def test_lru_ckpt_roundtrip():
-    from fm.mamba.lru_model import LRUForecastModel, LRULayer
+    from ssm.lru_model import LRUForecastModel, LRULayer
 
     d_model, d_state, num_layers = 16, 8, 2
     model = LRUForecastModel(prediction_length=3, d_model=d_model,
@@ -70,7 +70,7 @@ def test_lru_ckpt_roundtrip():
 # ── S4 ───────────────────────────────────────────────────────────────────────
 
 def test_s4_ckpt_roundtrip():
-    from fm.mamba.s4_model import S4ForecastModel, S4Layer
+    from ssm.s4_model import S4ForecastModel, S4Layer
 
     d_model, d_state, num_layers = 16, 8, 2
     model = S4ForecastModel(prediction_length=3, d_model=d_model,
@@ -114,7 +114,7 @@ def test_s4_ckpt_roundtrip():
 # ── Mamba ─────────────────────────────────────────────────────────────────────
 
 def test_mamba_ckpt_roundtrip():
-    from fm.mamba.mamba_model_v2 import MambaForecastModelV2, SelectiveSSMParallel
+    from ssm.mamba_model_v2 import MambaForecastModelV2, SelectiveSSMParallel
 
     d_model, d_state, num_layers = 16, 8, 2
     model = MambaForecastModelV2(prediction_length=3, d_model=d_model,

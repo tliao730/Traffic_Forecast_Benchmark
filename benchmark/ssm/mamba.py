@@ -4,7 +4,7 @@ Trains on sd_train/{year}/15T, validates on sd_val/{year}/15T,
 evaluates via gift_eval standard evaluate_model() — same pipeline as other FM models.
 
 Run from benchmark/:
-  uv run --project fm/moirai python fm/mamba/mamba.py
+  uv run --project fm/moirai python ssm/mamba.py
 """
 
 import argparse
@@ -21,10 +21,10 @@ from gluonts.model import Forecast
 from torch.utils.data import DataLoader, TensorDataset
 from tqdm.auto import tqdm
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from fm.fm_utils import get_entry_target, run_benchmark, to_sample_forecasts
-from fm.mamba.mamba_model_v2 import MambaForecastModelV2
-from fm.mamba.resume_utils import peek_resume, restore_resume, save_resume
+from ssm.mamba_model_v2 import MambaForecastModelV2
+from ssm.resume_utils import peek_resume, restore_resume, save_resume
 
 TERM_TO_PRED_LEN = {"short": 3, "medium": 6, "long": 12}
 
@@ -106,7 +106,7 @@ def train_one_term(args, term, device, train_entries, val_entries, model_tag):
 
     if resume_state is not None:
         # compression may have shrunk d_state per block; rebuild to match
-        from fm.mamba.mamba_model_v2 import SelectiveSSMParallel
+        from ssm.mamba_model_v2 import SelectiveSSMParallel
         sd = resume_state["model"]
         for i, block in enumerate(model.blocks):
             key = f"blocks.{i}.ssm.A_log"
@@ -220,7 +220,7 @@ class MambaPredictor:
             if ckpt_path is not None:
                 sd = torch.load(ckpt_path, map_location=self.device)
                 # resize each SSM block to match compressed d_state in checkpoint
-                from fm.mamba.mamba_model_v2 import SelectiveSSMParallel
+                from ssm.mamba_model_v2 import SelectiveSSMParallel
                 import torch.nn as _nn
                 for i, block in enumerate(model.blocks):
                     key = f"blocks.{i}.ssm.A_log"
