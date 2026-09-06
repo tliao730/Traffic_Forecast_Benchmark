@@ -2,6 +2,14 @@ import math
 import torch
 import torch.nn as nn
 
+# The discrete Lyapunov solves in LRU.compute_gramians() invert (I4 - A(x)A),
+# whose eigenvalues are {|lam|^2, |lam|^2, |lam|^2 e^{+-2i.theta}} -- the matrix is
+# exactly singular once |lam| reaches 1. Training can drive nu_log low enough
+# that lam_abs = exp(-exp(nu_log)) rounds to exactly 1.0 in float32
+# (eps ~ 1.19e-7); that killed the CA/2018 run at its epoch-9 compression.
+# Cap |lam| in the compression path so 1 - |lam|^2 >= LYAP_MARGIN.
+LYAP_MARGIN = 1e-4
+
 
 def _ssm_fft_conv_complex(x: torch.Tensor, lam: torch.Tensor,
                            B_re: torch.Tensor, B_im: torch.Tensor,
@@ -141,6 +149,14 @@ class LRULayer(nn.Module):
             b_blocks: (D, S, 2)    real
         """
         lam, lam_abs, B_re_w, B_im_w = self._discretised_params()
+
+        # Keep A strictly inside the unit circle so the Lyapunov solves in
+        # compute_gramians() stay non-singular (see LYAP_MARGIN). This touches
+        # the balanced-truncation analysis only -- forward() calls
+        # _discretised_params() directly and is unaffected. b is deliberately
+        # left as the model's real gamma-normalised B.
+        lam_abs = lam_abs.clamp(max=math.sqrt(1.0 - LYAP_MARGIN))
+
         B_re = B_re_w.T  # (D, S)
         B_im = B_im_w.T  # (D, S)
 

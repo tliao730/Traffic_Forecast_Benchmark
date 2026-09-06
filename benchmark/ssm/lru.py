@@ -85,9 +85,9 @@ def train_one_term(args, term, device, train_entries, val_entries):
     wandb.log({f"{term}/train_windows": X_tr.shape[0], f"{term}/val_windows": X_val.shape[0]})
 
     train_loader = DataLoader(TensorDataset(torch.from_numpy(X_tr), torch.from_numpy(Y_tr)),
-                              batch_size=args.bs, shuffle=True, num_workers=2)
+                              batch_size=args.bs, shuffle=True, num_workers=args.num_workers)
     val_loader   = DataLoader(TensorDataset(torch.from_numpy(X_val), torch.from_numpy(Y_val)),
-                              batch_size=args.bs, shuffle=False, num_workers=2)
+                              batch_size=args.bs, shuffle=False, num_workers=args.num_workers)
 
     model = LRUForecastModel(
         prediction_length=pred_len,
@@ -125,7 +125,17 @@ def train_one_term(args, term, device, train_entries, val_entries):
             with torch.no_grad():
                 for i, block in enumerate(model.blocks):
                     old_d = block.lru.d_state
-                    block.compress(energy_threshold=args.compress_energy)
+                    try:
+                        block.compress(energy_threshold=args.compress_energy)
+                    except torch.linalg.LinAlgError as e:
+                        # A state that has drifted onto the unit circle makes
+                        # the Lyapunov solve singular. LYAP_MARGIN in
+                        # lru_model.py guards the common case; if one slips
+                        # through, skip this block's compression instead of
+                        # losing a multi-hour training run.
+                        print(f"  [compress] epoch {epoch} block {i}: "
+                              f"compression skipped (singular Lyapunov solve: {e})")
+                        wandb.log({f"{term}/block{i}_compress_skipped": 1, "epoch": epoch})
                     new_d = block.lru.d_state
                     print(f"  [compress] epoch {epoch} block {i}: d_state {old_d} → {new_d}")
                     wandb.log({f"{term}/block{i}_d_state": new_d, "epoch": epoch})
@@ -249,6 +259,10 @@ def get_args():
     parser.add_argument("--lam_max",             type=float, default=0.999)
     parser.add_argument("--num_layers",          type=int,   default=2)
     parser.add_argument("--bs",                  type=int,   default=256)
+    parser.add_argument("--num_workers",         type=int,   default=2,
+                        help="DataLoader worker processes. Keep <= (--cpus-per-task - 1); "
+                             "SLURM allocates 1 CPU per task by default, and 2 workers on "
+                             "1 core starve the loader.")
     parser.add_argument("--lrate",               type=float, default=1e-3)
     parser.add_argument("--max_epochs",          type=int,   default=50)
     parser.add_argument("--patience",            type=int,   default=15)
@@ -281,11 +295,18 @@ def main():
     val_entries   = list(Dataset(name=f"{args.dataset}_val/{args.year}/15T",
                                  term="short").gluonts_dataset)
 
-    comp_tag   = "_comp" if args.compress_epochs else ""
-    model_name = f"lru_{args.dataset.upper()}{args.year}_ctx{args.context_length}_w{args.windows_per_sensor}{comp_tag}"
+    # Short name for the wandb run; the results directory additionally carries
+    # the compression tag, because model_name selects
+    # result_root/<model_name>/all_results.csv and check_done_datasets treats
+    # rows already there as done. Without the tag a compressed and an
+    # uncompressed run at the same region/year/ctx/windows would share one
+    # directory and the second would silently skip evaluation.
+    run_name   = f"lru_{args.dataset.upper()}{args.year}_ctx{args.context_length}_w{args.windows_per_sensor}"
+    comp_tag   = f"_comp{args.compress_energy}" if args.compress_epochs else ""
+    model_name = f"{run_name}{comp_tag}"
     wandb.init(
         project=args.wandb_project,
-        name=f"{model_name}_s{args.seed}",
+        name=run_name,
         config=vars(args),
     )
 
