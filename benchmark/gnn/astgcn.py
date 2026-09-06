@@ -33,6 +33,10 @@ def get_config():
     parser.add_argument('--nb_chev_filter', type=int, default=64)
     parser.add_argument('--nb_time_filter', type=int, default=64)
     parser.add_argument('--time_stride', type=int, default=1)
+    parser.add_argument('--checkpoint_cheb_conv', action='store_true',
+                        help='recompute each (time_step, k) cheb-conv pair during backward '
+                             'instead of retaining its dense (bs, N, N) tensor; required at '
+                             'CA (~159 GiB retained at bs=8 without it)')
 
     parser.add_argument('--lrate', type=float, default=1e-3)
     parser.add_argument('--wdecay', type=float, default=1e-4)
@@ -73,7 +77,8 @@ def get_model_and_batches_for_eval_time(dataset_key, seq_len, horizon, estimatio
     model = ASTGCN(node_num=node_num, input_dim=args.input_dim, output_dim=args.output_dim,
                    device=args.device, cheb_poly=cheb_poly, order=args.order, nb_block=args.nb_block,
                    nb_chev_filter=args.nb_chev_filter, nb_time_filter=args.nb_time_filter,
-                   time_stride=args.time_stride)
+                   time_stride=args.time_stride,
+                   checkpoint_cheb_conv=args.checkpoint_cheb_conv)
     model.to(device)
     batches = []
     for i, (x, y) in enumerate(dataloader['test_loader'].get_iterator()):
@@ -132,7 +137,8 @@ def main():
                    nb_block=args.nb_block,
                    nb_chev_filter=args.nb_chev_filter,
                    nb_time_filter=args.nb_time_filter,
-                   time_stride=args.time_stride
+                   time_stride=args.time_stride,
+                   checkpoint_cheb_conv=args.checkpoint_cheb_conv
                    )
     
     loss_fn = masked_mae
@@ -156,11 +162,6 @@ def main():
                            seed=args.seed
                            )
 
-    try:
-        import wandb
-        wandb.init(project="TrafficFM", name=f"ASTGCN_SD2018_s{args.seed}", config=vars(args))
-    except Exception:
-        pass
 
     if args.mode == 'train':
         engine.train()
@@ -168,13 +169,6 @@ def main():
         engine.evaluate(args.mode)
         if getattr(args, 'save_predictions', False):
             _run_save_predictions(engine, args, data_path, logger)
-
-    try:
-        import wandb
-        if getattr(wandb, 'run', None) is not None:
-            wandb.finish()
-    except Exception:
-        pass
 
 
 def _run_save_predictions(engine, args, data_path, logger):

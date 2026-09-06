@@ -1,17 +1,19 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.utils.checkpoint import checkpoint
 from src.base.model import BaseModel
 
 class ASTGCN(BaseModel):
     '''
     Reference code: https://github.com/guoshnBJTU/ASTGCN-r-pytorch
     '''
-    def __init__(self, device, cheb_poly, order, nb_block, nb_chev_filter, nb_time_filter, time_stride, **args):
+    def __init__(self, device, cheb_poly, order, nb_block, nb_chev_filter, nb_time_filter, time_stride,
+                 checkpoint_cheb_conv=False, **args):
         super(ASTGCN, self).__init__(**args)
 
-        self.BlockList = nn.ModuleList([ASTGCN_block(device, self.input_dim, order, nb_chev_filter, nb_time_filter, time_stride, cheb_poly, self.node_num, self.seq_len)])
-        self.BlockList.extend([ASTGCN_block(device, nb_time_filter, order, nb_chev_filter, nb_time_filter, 1, cheb_poly, self.node_num, self.seq_len // time_stride) for _ in range(nb_block - 1)])
+        self.BlockList = nn.ModuleList([ASTGCN_block(device, self.input_dim, order, nb_chev_filter, nb_time_filter, time_stride, cheb_poly, self.node_num, self.seq_len, checkpoint_cheb_conv=checkpoint_cheb_conv)])
+        self.BlockList.extend([ASTGCN_block(device, nb_time_filter, order, nb_chev_filter, nb_time_filter, 1, cheb_poly, self.node_num, self.seq_len // time_stride, checkpoint_cheb_conv=checkpoint_cheb_conv) for _ in range(nb_block - 1)])
 
         self.final_conv = nn.Conv2d(int(self.seq_len / time_stride), self.horizon, kernel_size=(1, nb_time_filter))
 
@@ -27,11 +29,13 @@ class ASTGCN(BaseModel):
 
 
 class ASTGCN_block(nn.Module):
-    def __init__(self, device, in_channels, order, nb_chev_filter, nb_time_filter, time_strides, cheb_polynomials, node_num, seq_len):
+    def __init__(self, device, in_channels, order, nb_chev_filter, nb_time_filter, time_strides, cheb_polynomials, node_num, seq_len,
+                 checkpoint_cheb_conv=False):
         super(ASTGCN_block, self).__init__()
         self.TAt = Temporal_Attention_layer(device, in_channels, node_num, seq_len)
         self.SAt = Spatial_Attention_layer(device, in_channels, node_num, seq_len)
-        self.cheb_conv_SAt = cheb_conv_withSAt(order, cheb_polynomials, in_channels, nb_chev_filter)
+        self.cheb_conv_SAt = cheb_conv_withSAt(order, cheb_polynomials, in_channels, nb_chev_filter,
+                                               use_checkpoint=checkpoint_cheb_conv)
         self.time_conv = nn.Conv2d(nb_chev_filter, nb_time_filter, kernel_size=(1, 3), stride=(1, time_strides), padding=(0, 1))
         self.residual_conv = nn.Conv2d(in_channels, nb_time_filter, kernel_size=(1, 1), stride=(1, time_strides))
         self.ln = nn.LayerNorm(nb_time_filter)
@@ -94,7 +98,7 @@ class Spatial_Attention_layer(nn.Module):
 
 
 class cheb_conv_withSAt(nn.Module):
-    def __init__(self, order, cheb_polynomials, in_channels, out_channels):
+    def __init__(self, order, cheb_polynomials, in_channels, out_channels, use_checkpoint=False):
         super(cheb_conv_withSAt, self).__init__()
         self.order = order
         self.cheb_polynomials = cheb_polynomials
@@ -102,6 +106,19 @@ class cheb_conv_withSAt(nn.Module):
         self.out_channels = out_channels
         self.device = cheb_polynomials[0].device
         self.Theta = nn.ParameterList([nn.Parameter(torch.FloatTensor(in_channels, out_channels).to(self.device)) for _ in range(order)])
+        # Each (time_step, k) pair builds a dense (bs, N, N) tensor via
+        # T_k.mul(spatial_attention); BPTT across all seq_len*order pairs
+        # (x nb_block outer blocks) keeps every one resident. At N=8600 that is
+        # ~159 GiB at bs=8, so CA needs checkpointing (GLA already sat at
+        # ~31 GiB of a 40 GB card). Checkpointing recomputes a pair during
+        # backward instead of retaining it.
+        self.use_checkpoint = use_checkpoint
+
+
+    def _conv_step(self, graph_signal, T_k, theta_k, spatial_attention):
+        T_k_with_at = T_k.mul(spatial_attention)
+        rhs = T_k_with_at.permute(0, 2, 1).matmul(graph_signal)
+        return rhs.matmul(theta_k)
 
 
     def forward(self, x, spatial_attention):
@@ -109,14 +126,18 @@ class cheb_conv_withSAt(nn.Module):
         outputs = []
         for time_step in range(seq_len):
             graph_signal = x[:, :, :, time_step]
-            
+
             output = torch.zeros(bs, node_num, self.out_channels).to(self.device)
             for k in range(self.order):
                 T_k = self.cheb_polynomials[k]
-                T_k_with_at = T_k.mul(spatial_attention)
                 theta_k = self.Theta[k]
-                rhs = T_k_with_at.permute(0, 2, 1).matmul(graph_signal)
-                output = output + rhs.matmul(theta_k)
+                if self.use_checkpoint and self.training:
+                    output = output + checkpoint(
+                        self._conv_step, graph_signal, T_k, theta_k, spatial_attention,
+                        use_reentrant=False)
+                else:
+                    output = output + self._conv_step(
+                        graph_signal, T_k, theta_k, spatial_attention)
             outputs.append(output.unsqueeze(-1))
 
         return F.relu(torch.cat(outputs, dim=-1))
