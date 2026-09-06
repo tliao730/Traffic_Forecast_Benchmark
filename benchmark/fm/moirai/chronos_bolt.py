@@ -2,7 +2,6 @@ import argparse
 
 import numpy as np
 import torch
-import wandb
 from chronos import BaseChronosPipeline, ForecastType
 from fm.fm_utils import (
     build_basic_parser,
@@ -23,7 +22,7 @@ DEFAULT_DEVICE = "cuda:0"
 DEFAULT_NUM_SAMPLES = 20
 DEFAULT_BATCH_SIZE = 1024
 
-MODEL_RUNTIME = setup_model_runtime("chronos_1", __file__)
+MODEL_RUNTIME = setup_model_runtime("chronos_bolt", __file__)
 benchmark_config = MODEL_RUNTIME.config
 
 
@@ -120,12 +119,6 @@ def main():
             device_map=args.device,
         )
 
-    wandb.init(
-        project="TrafficFM",
-        name=f"{MODEL_NAME}_SD2018",
-        config={"model": MODEL_NAME, "model_path": MODEL_PATH,
-                "num_samples": args.num_samples, "batch_size": args.batch_size},
-    )
     run_benchmark(
         eval_time_only=args.eval_time,
         model_name=MODEL_NAME,
@@ -133,7 +126,6 @@ def main():
         predictor_factory=predictor_factory,
         batch_size=args.batch_size,
     )
-    wandb.finish()
 
 
 if __name__ == "__main__":

@@ -11,7 +11,7 @@ DEFAULT_PATCH_SIZE = 32
 DEFAULT_NUM_SAMPLES = 20
 DEFAULT_BATCH_SIZE = 64
 
-MODEL_RUNTIME = setup_model_runtime("moirai", __file__)
+MODEL_RUNTIME = setup_model_runtime("moirai_small", __file__)
 benchmark_config = MODEL_RUNTIME.config
 
 

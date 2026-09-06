@@ -92,8 +92,8 @@ test -d fm/envs/toto/toto || \
 # Running the script files directly is not supported.
 uv run --project fm/flowstate python -m fm.flowstate.flowstate
 uv run --project fm/kairos python -m fm.kairos.kairos
-uv run --project fm/moirai python -m fm.moirai.chronos_1
-uv run --project fm/moirai python -m fm.moirai.moirai
+uv run --project fm/moirai python -m fm.moirai.chronos_bolt
+uv run --project fm/moirai python -m fm.moirai.moirai_small
 uv run --project fm/moirai python -m fm.moirai.moirai2
 uv run --project fm/sundial python -m fm.sundial.sundial
 uv run --project fm/tabpfn_ts python -m fm.tabpfn_ts.tabpfn_ts
