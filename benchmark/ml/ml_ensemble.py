@@ -25,6 +25,39 @@ DEFAULT_STRATEGY = "mean"
 DEFAULT_MODELS = ["random_forest", "lightgbm", "xgboost", "ridge"]
 DEFAULT_BATCH_SIZE = 1024
 DEFAULT_N_JOBS = -1
+STRATEGIES = ["mean", "weighted", "median"]
+
+# mean/weighted/median differ only in how they combine the base forecasts --
+# the expensive part, fitting each base model on every series, is identical.
+# Run as three separate jobs that work came out four times over (once per
+# strategy, plus once more in the standalone ml_methods runs); on GLA the three
+# ensembles alone were 81 of the 105 CPU-hours the whole baseline sweep spent.
+# Caching lets one process evaluate every strategy for the price of one.
+#
+# Keyed by (item_id, len(history), dim, prediction_length, model): gift_eval
+# yields one entry per (series, window), and windows of the same series differ
+# in history length, so that tuple identifies a window exactly. Size is modest
+# -- CA/long is 8600 series x 20 windows x 4 models x 12 steps, about 66 MB.
+_BASE_FORECAST_CACHE = {}
+
+
+def _cached_ml_forecast(
+    history, prediction_length, model_name, season_length, n_jobs, cache_key
+):
+    """ml_forecast(), memoised per (window, model) so extra strategies are free."""
+    if cache_key is None:
+        return ml_forecast(
+            history, prediction_length, model_name, season_length, n_jobs=n_jobs
+        )
+    key = (cache_key, model_name)
+    hit = _BASE_FORECAST_CACHE.get(key)
+    if hit is not None:
+        return hit
+    forecast = ml_forecast(
+        history, prediction_length, model_name, season_length, n_jobs=n_jobs
+    )
+    _BASE_FORECAST_CACHE[key] = forecast
+    return forecast
 
 
 class EnsemblePredictor:
@@ -81,6 +114,10 @@ class EnsemblePredictor:
             try:
                 history = item["target"]
                 start = item["start"]
+                item_id = item.get("item_id", str(self.count))
+                # identifies this (series, window) exactly -- see
+                # _BASE_FORECAST_CACHE above
+                window_key = (item_id, len(history), self.prediction_length)
 
                 # Handle multivariate data
                 if len(history.shape) > 1:
@@ -90,7 +127,8 @@ class EnsemblePredictor:
 
                     for dim in range(num_dims):
                         forecast_1d = self._ensemble_forecast(
-                            history[:, dim], self.prediction_length, self.season_length
+                            history[:, dim], self.prediction_length, self.season_length,
+                            cache_key=window_key + (dim,),
                         )
                         all_dim_forecasts.append(forecast_1d)
 
@@ -98,7 +136,8 @@ class EnsemblePredictor:
                 else:
                     # Univariate
                     forecast_mean = self._ensemble_forecast(
-                        history, self.prediction_length, self.season_length
+                        history, self.prediction_length, self.season_length,
+                        cache_key=window_key,
                     )
 
                 # Create samples (repeat mean for all samples)
@@ -114,7 +153,7 @@ class EnsemblePredictor:
                 yield SampleForecast(
                     samples=samples,
                     start_date=forecast_start_date,
-                    item_id=item.get("item_id", str(self.count)),
+                    item_id=item_id,
                 )
 
             except Exception as e:
@@ -141,7 +180,9 @@ class EnsemblePredictor:
                 except Exception:
                     continue
 
-    def _ensemble_forecast(self, history, prediction_length, season_length):
+    def _ensemble_forecast(
+        self, history, prediction_length, season_length, cache_key=None
+    ):
         """
         Generate ensemble forecast for a single univariate series.
 
@@ -152,12 +193,13 @@ class EnsemblePredictor:
         forecasts = []
         for model_name in self.models:
             try:
-                forecast = ml_forecast(
+                forecast = _cached_ml_forecast(
                     history,
                     prediction_length,
                     model_name,
                     season_length,
-                    n_jobs=self.n_jobs,
+                    self.n_jobs,
+                    cache_key,
                 )
                 forecasts.append(forecast)
             except Exception as e:
@@ -199,9 +241,14 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--strategy",
         type=str,
-        default=DEFAULT_STRATEGY,
-        choices=["mean", "weighted", "median"],
-        help=f"Ensemble strategy (default: {DEFAULT_STRATEGY})",
+        nargs="+",
+        default=[DEFAULT_STRATEGY],
+        choices=STRATEGIES + ["all"],
+        help=(
+            "Ensemble strategies to evaluate. Several may be given (or 'all'); "
+            "they share one pass over the base models, so the extra strategies "
+            f"are nearly free. Default: {DEFAULT_STRATEGY}"
+        ),
     )
     parser.add_argument(
         "--models",
@@ -233,45 +280,60 @@ def main():
     """Main entry point for ensemble evaluation."""
     args = _build_parser().parse_args()
 
+    strategies = STRATEGIES if "all" in args.strategy else list(dict.fromkeys(args.strategy))
+
     # Validate weights if provided
     if args.weights:
         if len(args.weights) != len(args.models):
             raise ValueError("Number of weights must match number of models")
         if not np.isclose(sum(args.weights), 1.0):
             raise ValueError("Weights must sum to 1.0")
+    if "weighted" in strategies and not args.weights:
+        raise ValueError("--weights is required when the weighted strategy is requested")
 
-    # Create model name
-    if args.strategy == "weighted" and args.weights:
-        model_name = f"ensemble_{args.strategy}_{'_'.join(args.models)}"
-        weight_str = "_".join([f"{w:.2f}" for w in args.weights])
-        model_name = f"{model_name}_w{weight_str}"
-    else:
-        model_name = f"ensemble_{args.strategy}_{'_'.join(args.models)}"
-
-    print(f"Evaluating ensemble model: {model_name}")
     print(f"Using {args.n_jobs if args.n_jobs > 0 else 'all available'} CPU threads")
     print("Processing all time series (no sample limit)")
-
-    def predictor_factory(dataset):
-        """Factory function to create predictor for each dataset."""
-        from gluonts.time_feature import get_seasonality
-
-        season_length = get_seasonality(dataset.freq)
-
-        return EnsemblePredictor(
-            models=args.models,
-            prediction_length=dataset.prediction_length,
-            season_length=season_length,
-            weights=args.weights,
-            strategy=args.strategy,
-            n_jobs=args.n_jobs,
+    if len(strategies) > 1:
+        print(
+            f"Evaluating {len(strategies)} strategies in one pass "
+            f"({', '.join(strategies)}); base-model forecasts are computed once "
+            "and reused."
         )
 
-    model_path = f"ensemble/{args.strategy}"
-    if args.eval_time:
-        eval_time(model_name, model_path, predictor_factory, estimation_samples=10)
-    else:
-        eval(model_name, model_path, predictor_factory, batch_size=DEFAULT_BATCH_SIZE)
+    for strategy in strategies:
+        model_name = f"ensemble_{strategy}_{'_'.join(args.models)}"
+        if strategy == "weighted":
+            weight_str = "_".join([f"{w:.2f}" for w in args.weights])
+            model_name = f"{model_name}_w{weight_str}"
+
+        print(f"\n=== Evaluating ensemble model: {model_name} ===")
+
+        def predictor_factory(dataset, _strategy=strategy):
+            """Factory function to create predictor for each dataset."""
+            from gluonts.time_feature import get_seasonality
+
+            season_length = get_seasonality(dataset.freq)
+
+            return EnsemblePredictor(
+                models=args.models,
+                prediction_length=dataset.prediction_length,
+                season_length=season_length,
+                weights=args.weights if _strategy == "weighted" else None,
+                strategy=_strategy,
+                n_jobs=args.n_jobs,
+            )
+
+        model_path = f"ensemble/{strategy}"
+        if args.eval_time:
+            eval_time(model_name, model_path, predictor_factory, estimation_samples=10)
+        else:
+            eval(
+                model_name,
+                model_path,
+                predictor_factory,
+                batch_size=DEFAULT_BATCH_SIZE,
+            )
+        print(f"    cache holds {len(_BASE_FORECAST_CACHE)} base forecasts")
 
 
 if __name__ == "__main__":

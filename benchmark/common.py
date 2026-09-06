@@ -221,6 +221,24 @@ def write_per_step_results_to_csv(res, csv_file_path, ds_config, model_name):
             writer.writerow(row)
 
 
+def rotate_results(output_dir):
+    """Move existing result CSVs aside so a forced re-evaluation starts clean.
+
+    Appending to a CSV that already holds a dataset would leave two rows for
+    it, and check_done_datasets would then skip that dataset forever. Renaming
+    to .bak.<n> keeps the old numbers reachable without that ambiguity.
+    """
+    for name in ("all_results.csv", PER_STEP_CSV_NAME):
+        path = os.path.join(output_dir, name)
+        if not os.path.exists(path):
+            continue
+        n = 1
+        while os.path.exists(f"{path}.bak.{n}"):
+            n += 1
+        os.rename(path, f"{path}.bak.{n}")
+        print(f"BENCHMARK_FORCE_REEVAL: moved {name} -> {name}.bak.{n}")
+
+
 def write_result_to_csv(
     res, csv_file_path, ds_config, ds_key, dataset_properties_map, model_name
 ):
@@ -632,8 +650,15 @@ def eval(
 
     # Check if file exists and read completed datasets
     csv_file_path = os.path.join(output_dir, "all_results.csv")
-    done_datasets = check_done_datasets(csv_file_path)
     per_step_csv_path = os.path.join(output_dir, PER_STEP_CSV_NAME)
+    # check_done_datasets skips any dataset already present in all_results.csv,
+    # which is what makes a killed job resumable -- but it also means a cell
+    # evaluated before per_step_results.csv existed can never produce one.
+    # BENCHMARK_FORCE_REEVAL=1 rotates both CSVs aside so the run starts clean
+    # rather than appending duplicate rows to them.
+    if os.environ.get("BENCHMARK_FORCE_REEVAL", "").lower() in ("1", "true", "yes"):
+        rotate_results(output_dir)
+    done_datasets = check_done_datasets(csv_file_path)
     init_per_step_csv(per_step_csv_path)
 
     print(f"Evaluating {model_name} from {model_path}")
