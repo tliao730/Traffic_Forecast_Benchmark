@@ -63,32 +63,44 @@ def parse_log(path):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--log-root", default="log/gnn")
+    # Both trees share the {model}/{region}/{year}/{jobid}.out layout. Reading
+    # them together lets a fresh log/gnn_eval run supersede the stride-mode
+    # result the training run left in log/gnn, since the newest file per cell
+    # wins and window_mode records which kind it was.
+    ap.add_argument("--log-root", nargs="+", default=["log/gnn", "log/gnn_eval"])
     ap.add_argument("--out", default="results/gnn_per_step_results.csv")
     args = ap.parse_args()
 
     # log/gnn/{model}/{region}/{year}/{jobid}.out -> keep the newest job per cell
-    newest = {}
-    for dirpath, _, filenames in os.walk(args.log_root):
-        for fn in filenames:
-            if not fn.endswith(".out"):
-                continue
-            p = os.path.join(dirpath, fn)
-            parts = os.path.relpath(p, args.log_root).split(os.sep)
-            if len(parts) != 4:
-                continue  # _misc/ and other pre-migration layouts
-            model, region, year, _ = parts
-            key = (model, region, year)
-            if key not in newest or os.path.getmtime(p) > os.path.getmtime(newest[key]):
-                newest[key] = p
+    # Collect every candidate per cell rather than only the newest file: a job
+    # that is still running has already created its .out, so "newest" alone
+    # would pick an empty log over a finished older one.
+    candidates = {}
+    for root in args.log_root:
+        for dirpath, _, filenames in os.walk(root):
+            for fn in filenames:
+                if not fn.endswith(".out"):
+                    continue
+                p = os.path.join(dirpath, fn)
+                parts = os.path.relpath(p, root).split(os.sep)
+                if len(parts) != 4:
+                    continue  # _misc/, _probe/ and pre-migration layouts
+                model, region, year, _ = parts
+                candidates.setdefault((model, region, year), []).append(p)
 
     os.makedirs(os.path.dirname(args.out) or ".", exist_ok=True)
     n_cells = n_aligned = 0
     with open(args.out, "w", newline="") as f:
         w = csv.writer(f)
         w.writerow(HEADER)
-        for (model, region, year), path in sorted(newest.items()):
-            parsed = parse_log(path)
+        for (model, region, year), paths in sorted(candidates.items()):
+            # Newest first, but skip logs with no finished test block.
+            parsed = path = None
+            for p in sorted(paths, key=os.path.getmtime, reverse=True):
+                parsed = parse_log(p)
+                if parsed:
+                    path = p
+                    break
             if not parsed:
                 continue
             block, mode = parsed
