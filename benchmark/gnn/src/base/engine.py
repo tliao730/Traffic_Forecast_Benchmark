@@ -151,7 +151,15 @@ class BaseEngine:
         if ckpt["optimizer"] is not None:
             self._optimizer.load_state_dict(ckpt["optimizer"])
         if self._lr_scheduler is not None and ckpt["scheduler"] is not None:
+            # T_max is derived from --max_epochs, and state_dict() carries it,
+            # so a checkpoint written under a different budget would silently
+            # pin the old schedule -- resuming a 100-epoch cosine with
+            # --max_epochs 40 stops at LR 3.4e-4 instead of annealing to
+            # eta_min. The budget this run was launched with wins.
+            configured_t_max = getattr(self._lr_scheduler, "T_max", None)
             self._lr_scheduler.load_state_dict(ckpt["scheduler"])
+            if configured_t_max is not None:
+                self._lr_scheduler.T_max = configured_t_max
         self._iter_cnt = ckpt.get("iter_cnt", 0)
         rng = ckpt.get("rng", {})
         if rng.get("torch") is not None:
