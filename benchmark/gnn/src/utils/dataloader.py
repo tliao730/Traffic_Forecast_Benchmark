@@ -174,15 +174,41 @@ def _gift_eval_anchors(data, args, logger):
     ds_prefix = _DATASET_TO_GIFT_EVAL.get(ds_key)
     years = str(getattr(args, 'years', ''))
 
-    if term is None or ds_prefix is None or not years:
-        return None
+    allow_fallback = bool(getattr(args, 'allow_stride_fallback', False))
+
+    def _fail(reason):
+        """Stride mode is a different test set, not a lesser one -- refuse it."""
+        msg = (
+            f"Cannot align test windows with gift_eval: {reason}. "
+            "Stride mode evaluates ~7000 overlapping windows spanning ~73 days "
+            "instead of the 20 non-overlapping windows the FM/ML/SSM families "
+            "are scored on, so its numbers do not belong in the same table. "
+            "Fix the cause, or pass --allow_stride_fallback to accept "
+            "non-comparable results on purpose."
+        )
+        if allow_fallback:
+            logger.warning(msg + " [--allow_stride_fallback set, continuing]")
+            return None
+        raise RuntimeError(msg)
+
+    if term is None:
+        return _fail(
+            f"horizon={getattr(args, 'horizon', None)} has no gift_eval term "
+            f"(expected one of {sorted(_HORIZON_TO_TERM)})"
+        )
+    if ds_prefix is None:
+        return _fail(
+            f"dataset={ds_key!r} is not a known gift_eval region "
+            f"(expected one of {sorted(_DATASET_TO_GIFT_EVAL)})"
+        )
+    if not years:
+        return _fail("args.years is empty")
 
     gift_eval_name = f"{ds_prefix}/{years}/15T"
     gift_eval_path = _GIFT_EVAL_PATH
 
     if not os.path.isdir(os.path.join(gift_eval_path, gift_eval_name)):
-        logger.warning(f"gift_eval data not found at {gift_eval_path}/{gift_eval_name}, falling back to stride mode")
-        return None
+        return _fail(f"no gift_eval data at {gift_eval_path}/{gift_eval_name}")
 
     try:
         os.environ['GIFT_EVAL'] = gift_eval_path
@@ -199,9 +225,13 @@ def _gift_eval_anchors(data, args, logger):
         # Input length of the last window = min_series_length - pred_len
         # (gift_eval trims each series to min_series_length before generating windows)
         inp_len  = min_len - pred_len
+    except ImportError as e:
+        return _fail(
+            f"gift_eval is not importable in this environment ({e}). "
+            "Run `uv sync --project benchmark/gnn`"
+        )
     except Exception as e:
-        logger.warning(f"Could not load gift_eval dataset ({e}), falling back to stride mode")
-        return None
+        return _fail(f"gift_eval Dataset({gift_eval_name!r}, term={term!r}) failed: {e!r}")
 
     T = data.shape[0]
 

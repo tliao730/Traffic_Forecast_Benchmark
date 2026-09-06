@@ -30,6 +30,12 @@ def get_public_config():
                         help='stride for selecting test windows (set to horizon for non-overlap predictions)')
     parser.add_argument('--test_num_windows', type=int, default=0,
                         help='number of test windows taken from the end (0 = use all after stride)')
+    parser.add_argument('--allow_stride_fallback', action='store_true',
+                        help='evaluate on stride windows when gift_eval alignment is '
+                             'unavailable, instead of failing. Off by default: stride '
+                             'mode is a different test set (~7000 overlapping windows '
+                             'over ~73 days vs 20 non-overlapping over ~2.4 days), so '
+                             'its numbers are not comparable with the other families.')
     parser.add_argument('--test_stride_mode', type=str, default='fixed',
                         choices=['fixed', 'per_horizon'],
                         help='fixed: use test_stride for all horizons; per_horizon: stride = horizon index (1..H)')
