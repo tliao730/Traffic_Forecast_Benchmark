@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 import os
 import sys
-from dataclasses import asdict, dataclass, fields
+from dataclasses import asdict, dataclass, field, fields
 from typing import Union
 
 import yaml
@@ -42,6 +42,14 @@ class BenchmarkConfig:
     # ── Evaluation controls ────────────────────────────────────────────
     # Integer N uses the last N sliding windows; "all" uses all windows.
     test_num_windows: Union[int, str] = "all"
+
+    # Which gift_eval terms to evaluate, in order. Each term uses its own set
+    # of test anchors (short spans the last 57 steps, medium 114, long 228), so
+    # a column built from two different terms is not built on the same windows.
+    # Setting this to ["long"] makes every family share one anchor set, with
+    # H3/H6/H12 read off per_step_results.csv instead -- the only arrangement a
+    # fixed-12-step GNN can also be evaluated under.
+    terms: list[str] = field(default_factory=lambda: ["short", "medium", "long"])
 
     # ── Convenience properties ─────────────────────────────────────────
     @property

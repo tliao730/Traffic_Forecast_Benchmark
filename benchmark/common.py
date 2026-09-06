@@ -442,7 +442,10 @@ def eval_time(model_name, model_path, predictor_factory, estimation_samples=10):
         ds_key = ds_name.split("/")[0]
         print(f"\nDataset {ds_num + 1}/{len(all_datasets)}: {ds_name}")
 
-        terms = ["short", "medium", "long"]
+        # Each term has its own anchor set, so mixing terms in one table mixes
+        # window sets. config.terms lets a run restrict to ["long"], the one
+        # anchor set every family -- including a fixed-12-step GNN -- can share.
+        terms = list(getattr(config, "terms", None) or ["short", "medium", "long"])
         for term in terms:
             if (
                 term == "medium" or term == "long"
@@ -666,7 +669,10 @@ def eval(
     for ds_num, ds_name in enumerate(all_datasets):
         ds_key = ds_name.split("/")[0]
         print(f"Processing dataset: {ds_name} ({ds_num + 1} of {len(all_datasets)})")
-        terms = ["short", "medium", "long"]
+        # Each term has its own anchor set, so mixing terms in one table mixes
+        # window sets. config.terms lets a run restrict to ["long"], the one
+        # anchor set every family -- including a fixed-12-step GNN -- can share.
+        terms = list(getattr(config, "terms", None) or ["short", "medium", "long"])
         for term in terms:
             if (
                 term == "medium" or term == "long"
