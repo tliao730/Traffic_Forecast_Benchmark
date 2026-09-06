@@ -30,6 +30,15 @@ EXP_ROOT = os.path.join(REPO, "benchmark/gnn/experiments")
 # room and keep the rest short so they queue quickly.
 TIME_FOR = {"sd": "00:30:00", "gba": "01:00:00", "gla": "01:30:00", "ca": "03:00:00"}
 
+# --cpu targets the cpu partition instead. Evaluation needs no GPU, and the
+# GPU queues sit ~2600 jobs deep against ~460 on cpu. Measured on CA/2018, the
+# largest region: STGCN 33s/10.9G, DCRNN 85s/10.5G, GWNET 187s/17.4G,
+# AGCRN 222s/12.6G, DSTAGNN 516s/20.6G, STTN 705s/14.0G. Delta charges
+# max(cores, mem_GB/2), so memory sets the price on CA either way.
+CPU_TIME_FOR = {"sd": "00:20:00", "gba": "00:30:00", "gla": "00:45:00", "ca": "01:30:00"}
+CPU_MEM_FOR = {"sd": "4G", "gba": "8G", "gla": "12G", "ca": "32G"}
+CPU_CORES_FOR = {"sd": 4, "gba": 4, "gla": 6, "ca": 8}
+
 
 def has_weights(model, region, year):
     pat = os.path.join(EXP_ROOT, model.upper(), f"{region.upper()}*", year,
@@ -37,7 +46,7 @@ def has_weights(model, region, year):
     return bool(glob.glob(pat))
 
 
-def build(train_path, model, region, year):
+def build(train_path, model, region, year, cpu=False):
     src = open(train_path).read()
 
     # The uv-run command is the last block; everything above it is the
@@ -49,21 +58,42 @@ def build(train_path, model, region, year):
     cmd, n = re.subn(r"--mode\s+train", "--mode test", cmd)
     if n != 1:
         return None
+    if cpu:
+        cmd = re.sub(r"--device\s+\S+", "--device cpu", cmd)
 
     mem = re.search(r"#SBATCH --mem=(\S+)", src)
     part = re.search(r"#SBATCH --partition=(\S+)", src)
     acct = re.search(r"#SBATCH --account=(\S+)", src)
     log = f"{REPO}/log/gnn_eval/{model}/{region}/{year}"
 
-    return f"""#!/bin/bash
-#SBATCH --time={TIME_FOR[region]}
+    if cpu:
+        resources = f"""#SBATCH --time={CPU_TIME_FOR[region]}
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
+#SBATCH --cpus-per-task={CPU_CORES_FOR[region]}
+#SBATCH --mem={CPU_MEM_FOR[region]}
+#SBATCH --account=bcqc-delta-cpu
+#SBATCH --partition=cpu"""
+        threads = f"""
+# Confine BLAS/OpenMP to the allocated cores; the libraries otherwise size
+# their pools from the node's 128.
+export OMP_NUM_THREADS=${{SLURM_CPUS_PER_TASK:-1}}
+export OPENBLAS_NUM_THREADS=$OMP_NUM_THREADS
+export MKL_NUM_THREADS=$OMP_NUM_THREADS
+"""
+    else:
+        resources = f"""#SBATCH --time={TIME_FOR[region]}
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --gpus-per-node=1
 #SBATCH --mem={mem.group(1) if mem else '32G'}
-#SBATCH --job-name={model}_{region}{year}_ev
 #SBATCH --account={acct.group(1) if acct else 'bcqc-delta-gpu'}
-#SBATCH --partition={part.group(1) if part else 'gpuA100x4'}
+#SBATCH --partition={part.group(1) if part else 'gpuA100x4'}"""
+        threads = ""
+
+    return f"""#!/bin/bash
+{resources}
+#SBATCH --job-name={model}_{region}{year}_ev
 #SBATCH --output={log}/%j.out
 #SBATCH --error={log}/%j.err
 
@@ -75,7 +105,7 @@ def build(train_path, model, region, year):
 # Regenerate the script rather than editing it, so the model construction args
 # stay in step with the training script they came from.
 cd {REPO}/benchmark/gnn
-
+{threads}
 {cmd}
 """
 
@@ -83,6 +113,8 @@ cd {REPO}/benchmark/gnn
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--cpu", action="store_true",
+                    help="target the cpu partition (evaluation needs no GPU)")
     args = ap.parse_args()
 
     written = skipped = noweights = 0
@@ -97,7 +129,7 @@ def main():
         if not has_weights(model, region, year):
             noweights += 1
             continue
-        body = build(train_path, model, region, year)
+        body = build(train_path, model, region, year, cpu=args.cpu)
         if body is None:
             print(f"  SKIP (could not parse): {train_path}")
             skipped += 1
