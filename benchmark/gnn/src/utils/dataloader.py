@@ -1,3 +1,4 @@
+import math
 import os
 import pickle
 import torch
@@ -136,6 +137,10 @@ class StandardScaler():
 # Maps GNN horizon to gift_eval term name, matching TERM_TO_PRED_LEN in mamba.py.
 _HORIZON_TO_TERM = {3: 'short', 6: 'medium', 12: 'long'}
 
+# Mirrors common.get_prediction_length(): the eval pipeline overrides whatever
+# prediction_length the raw gift_eval Dataset carries (48/480/720 at 15T).
+_TERM_TO_PRED_LEN = {'short': 3, 'medium': 6, 'long': 12}
+
 # Maps dataset arg name to gift_eval dataset prefix.
 _DATASET_TO_GIFT_EVAL = {
     'SD':  'sd',
@@ -184,11 +189,16 @@ def _gift_eval_anchors(data, args, logger):
         from gift_eval.data import Dataset
         ds = Dataset(name=gift_eval_name, term=term, to_univariate=False)
 
-        pred_len = ds.prediction_length
-        windows  = ds.windows
+        # common.py overrides prediction_length and windows right after building
+        # the Dataset, so the raw attributes here (48/480/720, windows 15/2/1)
+        # are not what FM/ML models are actually evaluated on. Mirror those two
+        # overrides exactly, or the anchors line up with windows nobody uses.
+        pred_len = _TERM_TO_PRED_LEN[term]
+        min_len  = ds._min_series_length
+        windows  = min(max(1, math.ceil(0.1 * min_len / pred_len)), 20)
         # Input length of the last window = min_series_length - pred_len
         # (gift_eval trims each series to min_series_length before generating windows)
-        inp_len  = ds._min_series_length - pred_len
+        inp_len  = min_len - pred_len
     except Exception as e:
         logger.warning(f"Could not load gift_eval dataset ({e}), falling back to stride mode")
         return None

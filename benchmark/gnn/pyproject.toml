@@ -10,9 +10,18 @@ dependencies = [
     "kaggle==1.7.4.5",
     "pandas>=2.3.3",
     "pyyaml>=6.0.3",
+    "salesforce-gift-eval @ git+https://github.com/DensoSVIC/gift-eval.git@traffic",
     "scipy>=1.15.3",
     "tables>=3.10.1",
     "torch>=2.10.0",
     "torchdiffeq>=0.2.5",
     "wandb>=0.26.1",
 ]
+
+[tool.uv]
+# salesforce-gift-eval declares scipy>=1.11.3,<1.12 but does not import scipy
+# anywhere in the package -- the constraint is spurious and would otherwise pin
+# this project to a three-year-old scipy. gift_eval is needed here only for
+# Dataset._min_series_length, which dataloader.py uses to align GNN test windows
+# with the ones the FM/ML pipeline evaluates on.
+override-dependencies = ["scipy>=1.15.3"]
