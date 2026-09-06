@@ -27,7 +27,7 @@ from gluonts.ev.metrics import (
     SMAPE,
     MeanWeightedSumQuantileLoss,
 )
-from gluonts.model import evaluate_model
+from gluonts.model import evaluate_forecasts, evaluate_model
 from gluonts.time_feature import get_seasonality
 
 
@@ -173,6 +173,52 @@ def check_done_datasets(csv_file_path):
                 ]
             )
     return done_datasets
+
+
+# Per-step metrics ---------------------------------------------------------
+# evaluate_forecasts(axis=0) aggregates across the dataset but keeps the time
+# axis, giving one row per forecast step (1..prediction_length). The GNN family
+# already reports errors this way (engine.py logs "Horizon k"), so writing them
+# here is what makes the two evaluation paths directly comparable: H3/H6/H12 are
+# the 3rd/6th/12th step and Avg is the mean over 1..12, on both sides. The
+# aggregate all_results.csv row is unchanged.
+PER_STEP_CSV_NAME = "per_step_results.csv"
+
+_PER_STEP_METRICS = [
+    "MSE[mean]",
+    "MSE[0.5]",
+    "MAE[0.5]",
+    "MASE[0.5]",
+    "MAPE[0.5]",
+    "sMAPE[0.5]",
+    "MSIS",
+    "RMSE[mean]",
+    "NRMSE[mean]",
+    "ND[0.5]",
+    "mean_weighted_sum_quantile_loss",
+]
+
+
+def init_per_step_csv(csv_file_path):
+    if os.path.exists(csv_file_path):
+        return
+    with open(csv_file_path, "w", newline="") as csvfile:
+        writer = csv.writer(csvfile)
+        writer.writerow(
+            ["dataset", "model", "step"]
+            + [f"eval_metrics/{m}" for m in _PER_STEP_METRICS]
+        )
+
+
+def write_per_step_results_to_csv(res, csv_file_path, ds_config, model_name):
+    """Append one row per forecast step. `res` comes from axis=0."""
+    with open(csv_file_path, "a", newline="") as csvfile:
+        writer = csv.writer(csvfile)
+        for step in range(len(res)):
+            row = [ds_config, model_name, step + 1]
+            for m in _PER_STEP_METRICS:
+                row.append(res[m][step] if m in res else "")
+            writer.writerow(row)
 
 
 def write_result_to_csv(
@@ -587,6 +633,8 @@ def eval(
     # Check if file exists and read completed datasets
     csv_file_path = os.path.join(output_dir, "all_results.csv")
     done_datasets = check_done_datasets(csv_file_path)
+    per_step_csv_path = os.path.join(output_dir, PER_STEP_CSV_NAME)
+    init_per_step_csv(per_step_csv_path)
 
     print(f"Evaluating {model_name} from {model_path}")
 
@@ -656,16 +704,27 @@ def eval(
             predictor = predictor_factory(dataset)
 
             # Measure the time taken for evaluation
-            res = evaluate_model(
-                predictor,
+            # Run inference once, then score it twice: axis=None reproduces the
+            # aggregate row all_results.csv has always held, axis=0 keeps the
+            # time axis so per-step errors land in per_step_results.csv.
+            forecasts = list(predictor.predict(test_data_for_eval.input))
+            eval_kwargs = dict(
                 test_data=test_data_for_eval,
                 metrics=metrics,
                 batch_size=batch_size,
-                axis=None,
                 mask_invalid_label=True,
                 allow_nan_forecast=False,
                 seasonality=season_length,
             )
+            res = evaluate_forecasts(forecasts, axis=None, **eval_kwargs)
+            try:
+                res_per_step = evaluate_forecasts(forecasts, axis=0, **eval_kwargs)
+                write_per_step_results_to_csv(
+                    res_per_step, per_step_csv_path, ds_config, model_name
+                )
+            except Exception as e:
+                # Never let the per-step extra cost the aggregate row.
+                print(f"Warning: per-step evaluation failed for {ds_config}: {e}")
 
             # Append the results to the CSV file
             write_result_to_csv(
