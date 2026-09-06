@@ -85,9 +85,9 @@ def train_one_term(args, term, device, train_entries, val_entries):
     wandb.log({f"{term}/train_windows": X_tr.shape[0], f"{term}/val_windows": X_val.shape[0]})
 
     train_loader = DataLoader(TensorDataset(torch.from_numpy(X_tr), torch.from_numpy(Y_tr)),
-                              batch_size=args.bs, shuffle=True, num_workers=2)
+                              batch_size=args.bs, shuffle=True, num_workers=args.num_workers)
     val_loader   = DataLoader(TensorDataset(torch.from_numpy(X_val), torch.from_numpy(Y_val)),
-                              batch_size=args.bs, shuffle=False, num_workers=2)
+                              batch_size=args.bs, shuffle=False, num_workers=args.num_workers)
 
     model = S4ForecastModel(
         prediction_length=pred_len,
@@ -220,6 +220,10 @@ def get_args():
     parser.add_argument("--num_layers",          type=int,   default=2)
     parser.add_argument("--dt",                  type=float, default=0.01)
     parser.add_argument("--bs",                  type=int,   default=256)
+    parser.add_argument("--num_workers",         type=int,   default=2,
+                        help="DataLoader worker processes. Keep <= (--cpus-per-task - 1); "
+                             "SLURM allocates 1 CPU per task by default, and 2 workers on "
+                             "1 core starve the loader.")
     parser.add_argument("--lrate",               type=float, default=1e-3)
     parser.add_argument("--max_epochs",          type=int,   default=50)
     parser.add_argument("--patience",            type=int,   default=15)
@@ -251,7 +255,7 @@ def main():
     model_name = f"s4_{args.dataset.upper()}{args.year}_ctx{args.context_length}_w{args.windows_per_sensor}"
     wandb.init(
         project=args.wandb_project,
-        name=f"{model_name}_s{args.seed}",
+        name=model_name,
         config=vars(args),
     )
 
