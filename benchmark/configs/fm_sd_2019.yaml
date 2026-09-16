@@ -4,3 +4,7 @@ hf_home: "/u/tliao2/.cache/huggingface/hub"
 device: "cuda:0"
 short_datasets: "sd/2019/15T"
 med_long_datasets: "sd/2019/15T"
+
+# Only the long term: its per-step rows give H3/H6/H12/Avg on one anchor set,
+# so short/medium would only re-score the same models on different windows.
+terms: ["long"]
