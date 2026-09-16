@@ -17,8 +17,12 @@ from tqdm.auto import tqdm
 warnings.filterwarnings("ignore")
 
 MODEL_NAME = "timesfm_2_0_500m"
-MODEL_PATH = "google/timesfm-2.0-500m-jax"
+# The torch repo, not the jax one: timesfm.TimesFm resolves to TimesFmTorch here
+# (the jax import in timesfm/__init__.py fails in this env), and TimesFmTorch
+# loads "torch_model.ckpt", which only the -pytorch repo ships.
+MODEL_PATH = "google/timesfm-2.0-500m-pytorch"
 DEFAULT_BATCH_SIZE = 1024
+DEFAULT_PER_CORE_BATCH_SIZE = 32
 
 _MODEL_RUNTIME = setup_model_runtime("timesfm", __file__)
 
@@ -43,26 +47,49 @@ def _build_parser() -> argparse.ArgumentParser:
         default=DEFAULT_BATCH_SIZE,
         help=f"Evaluation batch size (default: {DEFAULT_BATCH_SIZE})",
     )
+    parser.add_argument(
+        "--per-core-batch-size",
+        type=int,
+        default=DEFAULT_PER_CORE_BATCH_SIZE,
+        help=(
+            "Batch size of a single model forward pass; TimesFM splits each "
+            f"--batch-size chunk into these (default: {DEFAULT_PER_CORE_BATCH_SIZE})"
+        ),
+    )
     return parser
 
 
-def _load_timesfm_model():
+def _load_timesfm_model(per_core_batch_size: int = DEFAULT_PER_CORE_BATCH_SIZE):
     print("Loading TimesFM model...")
     model = timesfm.TimesFm(
         hparams=timesfm.TimesFmHparams(
             backend="gpu",
-            per_core_batch_size=32,
+            per_core_batch_size=per_core_batch_size,
             num_layers=50,
             horizon_len=128,
             context_len=2048,
-            # use_positional_embedding=False,
             output_patch_len=128,
         ),
         checkpoint=timesfm.TimesFmCheckpoint(
             huggingface_repo_id=MODEL_PATH
         ),
     )
-    print("Model loaded successfully.")
+
+    # The 2.0 checkpoint is trained without positional embeddings
+    # (config.json: "use_positional_embedding": false), but timesfm 1.2.0 has no
+    # hparam for it and its decoder defaults to True. The embedding is sinusoidal
+    # and carries no weights, so the checkpoint still loads cleanly and the only
+    # symptom is a spurious signal added to every input patch -- wrong forecasts,
+    # no error. Turn it off on the config the decoder actually reads.
+    model._model.config.use_positional_embedding = False
+
+    if model._device.type != "cuda":
+        raise RuntimeError(
+            "TimesFM fell back to CPU: torch.cuda.is_available() is False. "
+            "A 500M-parameter model over the full test set is not viable there, "
+            "so fail here instead of running for days."
+        )
+    print(f"Model loaded successfully on {model._device}.")
     return model
 
 
@@ -96,7 +123,7 @@ class TimesFmPredictor:
         for batch in tqdm(batcher(test_data_input, batch_size=batch_size)):
             context = [np.array(get_entry_target(entry)) for entry in batch]
             freqs = [self.freq] * len(context)
-            _, full_preds = self.tfm.forecast(context, freqs, normalize=True)
+            _, full_preds = self.tfm.forecast(context, freqs)
             full_preds = full_preds[:, 0 : self.prediction_length, 1:]
             forecast_outputs.append(full_preds.transpose((0, 2, 1)))
         forecast_outputs = np.concatenate(forecast_outputs)
@@ -110,7 +137,7 @@ class TimesFmPredictor:
 
 def main():
     args = _build_parser().parse_args()
-    tfm = _load_timesfm_model()
+    tfm = _load_timesfm_model(args.per_core_batch_size)
 
     def predictor_factory(dataset):
         return TimesFmPredictor(
