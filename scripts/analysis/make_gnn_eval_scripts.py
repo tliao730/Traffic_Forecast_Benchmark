@@ -39,6 +39,13 @@ CPU_TIME_FOR = {"sd": "00:20:00", "gba": "00:30:00", "gla": "00:45:00", "ca": "0
 CPU_MEM_FOR = {"sd": "4G", "gba": "8G", "gla": "12G", "ca": "32G"}
 CPU_CORES_FOR = {"sd": 4, "gba": 4, "gla": 6, "ca": 8}
 
+# STTN breaks the "memory tracks sensor count" rule the other models follow:
+# its spatial attention is O(N^2) per batch element, and the smaller regions
+# train at a much larger batch (SD uses the default 64 against CA's 4), so SD
+# and GBA need *more* memory than CA, not less. Measured the hard way -- 4G at
+# SD, 8G at GBA and 12G at GLA were all killed by the cgroup.
+CPU_MEM_OVERRIDE = {"sttn": {"sd": "32G", "gba": "32G", "gla": "32G", "ca": "32G"}}
+
 
 def has_weights(model, region, year):
     pat = os.path.join(EXP_ROOT, model.upper(), f"{region.upper()}*", year,
@@ -71,7 +78,7 @@ def build(train_path, model, region, year, cpu=False):
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task={CPU_CORES_FOR[region]}
-#SBATCH --mem={CPU_MEM_FOR[region]}
+#SBATCH --mem={CPU_MEM_OVERRIDE.get(model, CPU_MEM_FOR)[region]}
 #SBATCH --account=bcqc-delta-cpu
 #SBATCH --partition=cpu"""
         threads = f"""
