@@ -640,6 +640,18 @@ def eval(
 
     setup_logger()
 
+    # A profiling run scores far more windows than gift_eval's 20-window cap
+    # allows, so its numbers are not comparable with the benchmark tables. The
+    # suffix keeps them in their own directory -- all_results.csv,
+    # per_step_results.csv and predictions/ alike.
+    profile_windows = config.profile_windows
+    model_name = config.result_model_name(model_name)
+    if profile_windows > 0:
+        print(
+            f"Profiling run: {profile_windows} windows per series "
+            f"(benchmark uses <=20). Results go to {model_name}."
+        )
+
     output_dir = f"{config.result_root}/{model_name}"
     os.makedirs(output_dir, exist_ok=True)
     print(f"Results will be saved to: {os.path.abspath(output_dir)}")
@@ -709,6 +721,30 @@ def eval(
             # prediction_length to keep test_data split consistent.
             dataset.prediction_length = prediction_length
             dataset.windows = min(max(1, math.ceil(0.1 * dataset._min_series_length / prediction_length)), 20)
+            if profile_windows > 0:
+                # test_data splits at offset -prediction_length*windows and steps
+                # by prediction_length, so the earliest window keeps
+                # min_series_length - prediction_length*windows steps of history.
+                # Once that runs out every model is asked to forecast from a
+                # stub, which says nothing about the model.
+                first_input_len = (
+                    dataset._min_series_length - prediction_length * profile_windows
+                )
+                if first_input_len <= 0:
+                    raise ValueError(
+                        f"profile_windows={profile_windows} leaves no history for the "
+                        f"earliest window of {ds_config} (series length "
+                        f"{dataset._min_series_length}, prediction_length "
+                        f"{prediction_length}). Use at most "
+                        f"{(dataset._min_series_length - 1) // prediction_length}."
+                    )
+                dataset.windows = profile_windows
+                span_days = profile_windows * prediction_length / (24 * 4)
+                print(
+                    f"Profiling windows: {profile_windows} "
+                    f"(~{span_days:.1f} days scored, earliest window keeps "
+                    f"{first_input_len} steps of context)"
+                )
             print(f"Prediction length: {prediction_length}, windows: {dataset.windows}")
             raw_num_windows = (
                 num_test_windows

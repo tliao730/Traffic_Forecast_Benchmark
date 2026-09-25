@@ -39,10 +39,17 @@ def get_public_config():
     parser.add_argument('--test_stride_mode', type=str, default='fixed',
                         choices=['fixed', 'per_horizon'],
                         help='fixed: use test_stride for all horizons; per_horizon: stride = horizon index (1..H)')
+    parser.add_argument('--profile_windows', type=int, default=0,
+                        help='number of non-overlapping test windows for a profiling '
+                             'run (0 = the gift_eval-capped 20). Mirrors '
+                             'config.profile_windows on the FM/SSM/linear side, so '
+                             'both families keep scoring the same windows. Metrics '
+                             'from such a run span more days than the benchmark '
+                             'tables and must not be pasted into them.')
     parser.add_argument('--save_predictions', action='store_true',
                         help='save predictions and ground truth to CSV (GNN experiments)')
     parser.add_argument('--pred_out_dir', type=str, default='',
-                        help='directory for prediction CSV (default: results/ASTGCN/predictions)')
+                        help='directory for prediction CSV (default: results/{MODEL}/predictions)')
     parser.add_argument('--pred_horizon', type=int, default=0,
                         help='prediction horizon for saving (1-12, 0=use model horizon)')
     return parser

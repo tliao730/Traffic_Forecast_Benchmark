@@ -222,9 +222,6 @@ def _gift_eval_anchors(data, args, logger):
         pred_len = _TERM_TO_PRED_LEN[term]
         min_len  = ds._min_series_length
         windows  = min(max(1, math.ceil(0.1 * min_len / pred_len)), 20)
-        # Input length of the last window = min_series_length - pred_len
-        # (gift_eval trims each series to min_series_length before generating windows)
-        inp_len  = min_len - pred_len
     except ImportError as e:
         return _fail(
             f"gift_eval is not importable in this environment ({e}). "
@@ -233,20 +230,43 @@ def _gift_eval_anchors(data, args, logger):
     except Exception as e:
         return _fail(f"gift_eval Dataset({gift_eval_name!r}, term={term!r}) failed: {e!r}")
 
+    # A profiling run scores many more windows than gift_eval's 20-window cap.
+    # Both sides take the same override (config.profile_windows for the
+    # FM/SSM/linear path, --profile_windows here), so the window sets still
+    # match model for model -- which is the whole point of aligning them.
+    profile_windows = int(getattr(args, 'profile_windows', 0) or 0)
+    if profile_windows > 0:
+        if profile_windows * pred_len > min_len:
+            return _fail(
+                f"profile_windows={profile_windows} x pred_len={pred_len} exceeds the "
+                f"{min_len}-step gift_eval test series, so the extra windows would "
+                f"score timesteps the other families never see. Use at most "
+                f"{min_len // pred_len}."
+            )
+        windows = profile_windows
+
     T = data.shape[0]
 
-    # The test sequence starts at T - (last_inp_len + pred_len).
-    # Window i: anchor = seq_start + first_inp_len + i*pred_len - 1
-    seq_start     = T - (inp_len + pred_len)
-    first_inp_len = inp_len - (windows - 1) * pred_len
+    # gift_eval splits at offset -pred_len*windows and steps by pred_len, so the
+    # label of window i ends at T - pred_len*(windows-1-i). The anchor is the
+    # last input step, one before that label starts. (The longhand via
+    # seq_start/first_inp_len reduces to the same thing, with min_len cancelling
+    # out -- which is why raising `windows` above needs no other change.)
     anchors = np.array([
-        seq_start + (first_inp_len + i * pred_len) - 1
+        T - pred_len * (windows - i) - 1
         for i in range(windows)
     ])
 
+    seq_len = int(getattr(args, 'seq_len', 0) or 0)
+    if anchors[0] - seq_len + 1 < 0:
+        return _fail(
+            f"the earliest of {windows} windows starts before the series begins"
+        )
+
+    span_days = windows * pred_len / (24 * 4)
     logger.info(
         f"gift_eval aligned anchors ({term}): [{anchors[0]}, {anchors[-1]}], "
-        f"count={len(anchors)}, pred_len={pred_len}"
+        f"count={len(anchors)}, pred_len={pred_len}, ~{span_days:.1f} days scored"
     )
     return anchors
 

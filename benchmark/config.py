@@ -51,6 +51,17 @@ class BenchmarkConfig:
     # fixed-12-step GNN can also be evaluated under.
     terms: list[str] = field(default_factory=lambda: ["short", "medium", "long"])
 
+    # Number of non-overlapping test windows for a *profiling* run (0 = off,
+    # i.e. the gift_eval-capped 20). gift_eval caps the benchmark at 20 windows
+    # -- 2.5 days at term=long -- which is fine for a headline MAE but far too
+    # short for anything read per hour-of-day or per weekday: at 20 windows an
+    # hour is sampled on 2-3 specific days, so one holiday dominates the curve.
+    # Setting this raises the window count; the windows still end at the end of
+    # the series and still step by prediction_length, so window k of a 20-window
+    # run is also a window of a larger run. Results are written under a
+    # "_prof{N}" model directory, never mixed into the benchmark tables.
+    profile_windows: int = 0
+
     # ── Convenience properties ─────────────────────────────────────────
     @property
     def result_root_abs(self) -> str:
@@ -68,6 +79,17 @@ class BenchmarkConfig:
     def med_long_datasets_list(self) -> list[str]:
         """Split *med_long_datasets* into a list of individual dataset names."""
         return self.med_long_datasets.split()
+
+    def result_model_name(self, model_name: str) -> str:
+        """Name of the result_root/<name>/ directory a run writes to.
+
+        A profiling run gets a "_prof{N}" suffix so its metrics and prediction
+        dumps can never land in -- or overwrite -- the benchmark's directory.
+        Everything that builds such a path goes through here.
+        """
+        if self.profile_windows > 0:
+            return f"{model_name}_prof{self.profile_windows}"
+        return model_name
 
     # ── Serialisation helpers ──────────────────────────────────────────
     def to_dict(self) -> dict:

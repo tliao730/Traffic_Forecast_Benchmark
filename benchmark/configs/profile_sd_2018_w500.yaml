@@ -1,0 +1,33 @@
+# Hour-of-day / weekday profiling on SD 2018, wider span -- NOT a benchmark config.
+#
+# Same idea as profile_sd_2018.yaml (250 windows, ~31 days), but 500 windows =
+# 6000 steps = ~62 days, 2018-10-30..12-31. The point is day coverage: at 31
+# days every hour is sampled only within December, so Christmas and New Year
+# still tilt the curve (hour 05 for ASTGCN: 48.5 mean vs 36.4 median, 12/25
+# alone at 184). Doubling the span dilutes that.
+#
+# The cost is context, not comparability: gift_eval's sd/2018 arrow holds only
+# the 7008-step test slice, and test_data splits at offset
+# -prediction_length*windows, so the earliest window keeps 7008 - 12*500 = 1008
+# steps (10.5 days) instead of 4008. Models with a context longer than that --
+# Moirai2 asks for 4000 -- see a shorter history on the early windows and the
+# full one later. 10.5 days still covers the daily and weekly cycle, which is
+# what an hour-of-day figure rests on, but it does mean these numbers are not
+# the benchmark's numbers (they already were not: different windows, different
+# days).
+#
+# The GNN side is unaffected -- it reads the full-year his.npz and its input is
+# seq_len=12 steps -- so pass --profile_windows 500 there and both families
+# still score exactly the same windows.
+#
+# Results land in result_root/<model>_prof500/.
+result_root: "/scratch/bcqc/tliao2/TrafficFM/results"
+gift_eval_datasets_path: "../dataset/LargeST/gift_eval"
+hf_home: "/u/tliao2/.cache/huggingface/hub"
+device: "cuda:0"
+short_datasets: "sd/2018/15T"
+med_long_datasets: "sd/2018/15T"
+
+terms: ["long"]
+
+profile_windows: 500

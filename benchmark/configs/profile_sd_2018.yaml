@@ -1,0 +1,26 @@
+# Hour-of-day / weekday profiling on SD 2018 -- NOT a benchmark config.
+#
+# gift_eval caps the benchmark at 20 non-overlapping windows, which at
+# term=long is 2.5 days and lands entirely on 2018-12-29..12-31. An hour-of-day
+# curve built from that is a picture of New Year's Eve, not of the model.
+#
+# profile_windows raises the count to 250 windows = 3000 steps = ~31 days
+# (2018-11-30..12-31), the most that still leaves the earliest window
+# 7008 - 12*250 = 4008 steps of history -- enough for Moirai2's 4000-step
+# context, so no model is scored on a truncated input. Push it higher and the
+# large-context FMs start forecasting from a stub.
+#
+# Results land in result_root/<model>_prof250/ and must not be pasted into the
+# benchmark tables: different window count, different days, different numbers.
+result_root: "/scratch/bcqc/tliao2/TrafficFM/results"
+gift_eval_datasets_path: "../dataset/LargeST/gift_eval"
+hf_home: "/u/tliao2/.cache/huggingface/hub"
+device: "cuda:0"
+short_datasets: "sd/2018/15T"
+med_long_datasets: "sd/2018/15T"
+
+# Only the long term: 12 steps is the one anchor set a fixed-12-step GNN can
+# share, and it is the term the hour-of-day figures are drawn from.
+terms: ["long"]
+
+profile_windows: 250
