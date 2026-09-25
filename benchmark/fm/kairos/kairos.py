@@ -7,6 +7,7 @@ from fm.fm_utils import (
     build_basic_parser,
     get_entry_target,
     load_pretrained_with_cache,
+    resolve_prediction_dir,
     run_benchmark,
     to_sample_forecasts,
 )
@@ -163,6 +164,7 @@ def main():
         model_path=MODEL_PATH,
         predictor_factory=predictor_factory,
         batch_size=args.batch_size,
+        save_predictions_dir=resolve_prediction_dir(args, MODEL_NAME),
     )
 
 

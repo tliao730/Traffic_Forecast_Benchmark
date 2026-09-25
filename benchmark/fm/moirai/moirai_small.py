@@ -1,6 +1,11 @@
 import argparse
 
-from fm.fm_utils import build_basic_parser, load_pretrained_with_cache, run_benchmark
+from fm.fm_utils import (
+    build_basic_parser,
+    load_pretrained_with_cache,
+    resolve_prediction_dir,
+    run_benchmark,
+)
 from load_model import setup_model_runtime
 from uni2ts.model.moirai import MoiraiForecast, MoiraiModule
 
@@ -75,6 +80,7 @@ def main():
         model_path=MODEL_PATH,
         predictor_factory=predictor_factory,
         batch_size=args.batch_size,
+        save_predictions_dir=resolve_prediction_dir(args, MODEL_NAME),
     )
 
 

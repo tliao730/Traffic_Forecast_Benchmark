@@ -24,8 +24,8 @@ from statsforecast.models import (
     SeasonalNaive,
 )
 
-import argparse
 from common import eval, eval_time
+from fm.fm_utils import build_basic_parser, resolve_prediction_dir
 from gluonts.time_feature import get_seasonality
 
 
@@ -249,14 +249,18 @@ def main():
             batch_size=512,
         )
 
-    parser = argparse.ArgumentParser(description="Naive/SeasonalNaive evaluation or time estimation")
-    parser.add_argument("--eval-time", action="store_true", help="Run eval_time (time estimation) only")
-    args = parser.parse_args()
+    args = build_basic_parser("Naive/SeasonalNaive evaluation or time estimation").parse_args()
 
     if args.eval_time:
         eval_time(model_name, model_path, predictor_factory)
     else:
-        eval(model_name, model_path, predictor_factory, batch_size=512)
+        eval(
+            model_name,
+            model_path,
+            predictor_factory,
+            batch_size=512,
+            save_predictions_dir=resolve_prediction_dir(args, model_name),
+        )
 
 
 if __name__ == "__main__":

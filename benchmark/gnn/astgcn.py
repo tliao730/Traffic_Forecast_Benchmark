@@ -15,6 +15,7 @@ from src.utils.dataloader import load_dataset, load_adj_from_numpy, get_dataset_
 from src.utils.graph_algo import normalize_adj_mx, calculate_cheb_poly
 from src.utils.metrics import masked_mae
 from src.utils.logging import get_logger
+from src.utils.save_preds import run_save_predictions
 
 def set_seed(seed):
     np.random.seed(seed)
@@ -114,37 +115,7 @@ def main():
     else:
         engine.evaluate(args.mode)
         if getattr(args, 'save_predictions', False):
-            _run_save_predictions(engine, args, data_path, logger)
-
-
-def _run_save_predictions(engine, args, data_path, logger):
-    """Save predictions and ground truth to CSV (192 windows, short horizon)."""
-    import pandas as pd
-
-    num_windows = getattr(args, 'test_num_windows', 192)
-    pred_horizon = getattr(args, 'pred_horizon', 0) or 3  # short term = 3
-
-    # Build time index from data (SD 2019 @ 15T)
-    ptr = np.load(os.path.join(data_path, args.years, 'his.npz'))
-    n_steps = ptr['data'].shape[0]
-    time_index = pd.date_range('2019-01-01', periods=n_steps, freq='15T')
-
-    out_dir = getattr(args, 'pred_out_dir', '') or 'results/ASTGCN/predictions'
-    ds_config = f"{args.dataset.lower()}/2019/short"
-    os.makedirs(out_dir, exist_ok=True)
-    h5_path = os.path.join(out_dir, f"astgcn_sd_pred_h{pred_horizon}.h5")
-    csv_path = os.path.join(out_dir, f"astgcn_sd_{ds_config.replace('/', '_')}_predictions.csv")
-
-    logger.info(f"Saving predictions: {num_windows} windows, horizon={pred_horizon}")
-    engine.predict_and_save(
-        mode='test',
-        save_path=h5_path,
-        time_index=time_index.values,
-        pred_horizon=pred_horizon,
-        num_windows=num_windows,
-        csv_path=csv_path,
-        ds_config=ds_config,
-    )
+            run_save_predictions(engine, args, data_path, logger, 'astgcn')
 
 
 if __name__ == "__main__":

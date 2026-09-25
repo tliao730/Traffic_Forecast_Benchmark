@@ -546,17 +546,26 @@ def eval_time(model_name, model_path, predictor_factory, estimation_samples=10):
 
 
 def save_predictions_csv(
-    predictor, test_data, output_path, ds_config, prediction_length, freq
+    forecasts, test_data, output_path, ds_config, prediction_length, freq
 ):
     """
-    Save predictions and ground truth to CSV (compatible with analyze_predictions.py).
-    test_data yields (input_dict, label) or dict; label has future values.
+    Save predictions and ground truth to CSV, one row per (window, step, stat).
+
+    ``forecasts`` are the ones eval() already scored, not a fresh predict():
+    a second pass would double the inference cost, and for a sampling model
+    (Moirai-Small, Sundial, ...) would dump different samples than the ones
+    behind all_results.csv, so a figure drawn from the dump would not match
+    the table. test_data yields (input_dict, label) or dict; label has the
+    future values.
+
+    The "mean" stat holds the forecast median -- the point the MAE[0.5]
+    column is computed from -- so the name is kept for the GNN writer's sake,
+    whose point forecast is the same thing.
     """
     import pandas as pd
     from pandas.tseries.frequencies import to_offset
 
     test_list = list(test_data)
-    forecasts = predictor.predict(test_list)
 
     rows = []
     freq_offset = to_offset(freq)
@@ -585,9 +594,7 @@ def save_predictions_csv(
             )
         pred_median = fc.quantile("0.5")
         if pred_median.ndim > 1:
-            pred_median = (
-                pred_median[:, 0] if pred_median.shape[1] >= 1 else pred_median[:, 0]
-            )
+            pred_median = pred_median[:, 0]
         pred_median = np.asarray(pred_median).flatten()[:prediction_length]
         hist_len = len(np.asarray(inp["target"]).flatten())
         for h in range(min(prediction_length, len(pred_median), len(truth))):
@@ -816,12 +823,17 @@ def eval(
 
             # Optionally save predictions and ground truth
             if save_predictions_dir is not None:
+                # .csv.gz: a 500-window dump is ~550 MB raw against ~50 MB
+                # gzipped, and the bcqc /scratch allocation runs near its
+                # quota -- a full-quota write killed both FM profiling jobs
+                # after inference had already finished. pandas compresses and
+                # decompresses on the extension, so readers need no change.
                 pred_csv = os.path.join(
                     save_predictions_dir,
-                    f"{ds_config.replace('/', '_')}_predictions.csv",
+                    f"{ds_config.replace('/', '_')}_predictions.csv.gz",
                 )
                 save_predictions_csv(
-                    predictor,
+                    forecasts,
                     test_data_for_eval,
                     pred_csv,
                     ds_config,

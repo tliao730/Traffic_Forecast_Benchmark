@@ -14,6 +14,7 @@ import warnings
 
 import numpy as np
 from common import eval, eval_time
+from fm.fm_utils import build_basic_parser, resolve_prediction_dir
 from gluonts.model.forecast import SampleForecast
 
 # Import the ML forecasting function from ml_methods
@@ -235,9 +236,7 @@ class EnsemblePredictor:
 
 
 def _build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
-        description="Evaluate ensemble methods for time series forecasting"
-    )
+    parser = build_basic_parser("Evaluate ensemble methods for time series forecasting")
     parser.add_argument(
         "--strategy",
         type=str,
@@ -269,9 +268,6 @@ def _build_parser() -> argparse.ArgumentParser:
         type=int,
         default=DEFAULT_N_JOBS,
         help="Number of CPU threads to use (-1 for all cores, 1 for single thread)",
-    )
-    parser.add_argument(
-        "--eval-time", action="store_true", help="Run eval_time (time estimation) only"
     )
     return parser
 
@@ -332,6 +328,7 @@ def main():
                 model_path,
                 predictor_factory,
                 batch_size=DEFAULT_BATCH_SIZE,
+                save_predictions_dir=resolve_prediction_dir(args, model_name),
             )
         print(f"    cache holds {len(_BASE_FORECAST_CACHE)} base forecasts")
 

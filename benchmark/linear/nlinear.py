@@ -21,7 +21,13 @@ from torch.utils.data import DataLoader, TensorDataset
 from tqdm.auto import tqdm
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
-from fm.fm_utils import get_entry_target, run_benchmark, to_sample_forecasts
+from fm.fm_utils import (
+    add_prediction_dump_args,
+    get_entry_target,
+    resolve_prediction_dir,
+    run_benchmark,
+    to_sample_forecasts,
+)
 
 TERM_TO_PRED_LEN = {"short": 3, "medium": 6, "long": 12}
 
@@ -216,6 +222,7 @@ def get_args():
     parser.add_argument("--log_dir",            type=str,
                         default="/u/tliao2/TrafficFM/benchmark/experiments/linear/nlinear/SD/2019/")
     parser.add_argument("--force_retrain",      action="store_true")
+    add_prediction_dump_args(parser, dashed=False)
     return parser.parse_args()
 
 
@@ -259,6 +266,7 @@ def main():
         model_path=args.log_dir,
         predictor_factory=predictor_factory,
         batch_size=args.bs,
+        save_predictions_dir=resolve_prediction_dir(args, model_name),
     )
 
 

@@ -416,10 +416,15 @@ class BaseEngine:
         time_index=None,
         node_ids=None,
         pred_horizon=None,
-        num_windows=None,
         csv_path=None,
         ds_config=None,
     ):
+        """Dump the test-split forecasts to h5 (+ CSV when csv_path is given).
+
+        The windows are exactly the ones load_dataset built -- the gift_eval
+        anchors -- so the dump lines up window for window with the FM/SSM/linear
+        dumps. There is deliberately no way to trim them here.
+        """
         if mode == "test":
             self.load_model(self._save_path)
         self.model.eval()
@@ -437,11 +442,6 @@ class BaseEngine:
         preds = torch.cat(preds, dim=0).numpy()
         labels = torch.cat(labels, dim=0).numpy()
 
-        # Limit to last N sliding windows if specified
-        if num_windows is not None and num_windows < len(preds):
-            preds = preds[-num_windows:]
-            labels = labels[-num_windows:]
-
         # Limit to first N prediction steps if specified
         if pred_horizon is not None and pred_horizon < preds.shape[1]:
             preds = preds[:, :pred_horizon, :]
@@ -451,9 +451,6 @@ class BaseEngine:
         sample_idx = loader.idx
         y_offsets = loader.y_offsets
 
-        # Adjust sample_idx and y_offsets based on num_windows and pred_horizon
-        if num_windows is not None and num_windows < len(sample_idx):
-            sample_idx = sample_idx[-num_windows:]
         if pred_horizon is not None and pred_horizon < len(y_offsets):
             y_offsets = y_offsets[:pred_horizon]
 
@@ -488,41 +485,41 @@ class BaseEngine:
     def _save_predictions_csv(
         self, preds, labels, times, node_ids, ds_config, csv_path
     ):
-        """Save predictions to CSV (analyze_predictions compatible format)."""
+        """Write the shared predictions-CSV schema common.save_predictions_csv uses.
+
+        One truth row and one "mean" row per (window, node, step), in that
+        nesting order. Built with numpy rather than a row loop: CA at the
+        benchmark's 20 windows is already 20 x 8600 x 12 x 2 = 4.1M rows.
+        """
         import pandas as pd
 
         num_samples, pred_len, num_nodes = preds.shape
-        rows = []
-        for i in range(num_samples):
-            for j in range(num_nodes):
-                for h in range(pred_len):
-                    ts = times[i, h]
-                    ts_str = pd.Timestamp(ts).strftime("%Y-%m-%d %H:%M")
-                    sid = i  # sample_idx 0..n-1 for compatibility
-                    nid = int(node_ids[j])
-                    rows.append(
-                        {
-                            "ds_config": ds_config,
-                            "sample_idx": sid,
-                            "item_id": nid,
-                            "timestamp": ts_str,
-                            "dim": 0,
-                            "stat": "truth",
-                            "value": float(labels[i, h, j]),
-                        }
-                    )
-                    rows.append(
-                        {
-                            "ds_config": ds_config,
-                            "sample_idx": sid,
-                            "item_id": nid,
-                            "timestamp": ts_str,
-                            "dim": 0,
-                            "stat": "mean",
-                            "value": float(preds[i, h, j]),
-                        }
-                    )
-        df = pd.DataFrame(rows)
+        shape = (num_samples, num_nodes, pred_len)
+        ts_str = (
+            pd.DatetimeIndex(np.asarray(times).ravel())
+            .strftime("%Y-%m-%d %H:%M")
+            .to_numpy()
+            .reshape(num_samples, pred_len)
+        )
+        sample = np.broadcast_to(np.arange(num_samples)[:, None, None], shape)
+        item = np.broadcast_to(np.asarray(node_ids, dtype=np.int64)[None, :, None], shape)
+        stamp = np.broadcast_to(ts_str[:, None, :], shape)
+        # (window, step, node) -> (window, node, step), then truth/mean pairs
+        value = np.stack(
+            [labels.transpose(0, 2, 1), preds.transpose(0, 2, 1)], axis=-1
+        ).astype(np.float64)
+
+        df = pd.DataFrame(
+            {
+                "ds_config": ds_config,
+                "sample_idx": np.repeat(sample.ravel(), 2),
+                "item_id": np.repeat(item.ravel(), 2),
+                "timestamp": np.repeat(stamp.ravel(), 2),
+                "dim": 0,
+                "stat": np.tile(np.array(["truth", "mean"]), sample.size),
+                "value": value.ravel(),
+            }
+        )
         os.makedirs(os.path.dirname(csv_path) or ".", exist_ok=True)
         df.to_csv(csv_path, index=False)
         self._logger.info(f"Saved predictions to {csv_path} ({len(df)} rows)")

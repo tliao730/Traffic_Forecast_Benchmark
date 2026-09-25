@@ -16,6 +16,7 @@ from gnn.src.models.agcrn import AGCRN
 from gnn.src.utils.args import get_public_config
 from gnn.src.utils.dataloader import get_dataset_info, load_dataset
 from gnn.src.utils.logging import get_logger
+from gnn.src.utils.save_preds import run_save_predictions
 from gnn.src.utils.metrics import masked_mae
 
 
@@ -100,6 +101,8 @@ def main():
         engine.train()
     else:
         engine.evaluate(args.mode)
+        if getattr(args, 'save_predictions', False):
+            run_save_predictions(engine, args, data_path, logger, 'agcrn')
 
 
 if __name__ == "__main__":

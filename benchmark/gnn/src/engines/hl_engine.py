@@ -7,6 +7,10 @@ class HL_Engine(BaseEngine):
     def __init__(self, **args):
         super(HL_Engine, self).__init__(**args)
 
+    def load_model(self, save_path):
+        # HL repeats the last observation; its one parameter is a placeholder
+        # that is never trained, so there is no checkpoint to read.
+        pass
 
     def evaluate(self, mode):
         self.model.eval()

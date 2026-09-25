@@ -1,12 +1,11 @@
 import argparse
-import os
 
 import numpy as np
-import torch
 from fm.fm_utils import (
     build_basic_parser,
     get_entry_target,
     load_pretrained_with_cache,
+    resolve_prediction_dir,
     run_benchmark,
     to_quantile_forecasts,
 )
@@ -45,17 +44,6 @@ def _build_parser() -> argparse.ArgumentParser:
         type=str,
         default=DEFAULT_DEVICE,
         help=f"Device string passed to Moirai2Forecast.to() (default: {DEFAULT_DEVICE})",
-    )
-    parser.add_argument(
-        "--save-predictions",
-        action="store_true",
-        help="Save all predictions and ground truth to CSV (in addition to metrics)",
-    )
-    parser.add_argument(
-        "--pred-out-dir",
-        type=str,
-        default=None,
-        help="Directory for prediction CSVs (default: result_root/Moirai2/predictions)",
     )
     return parser
 
@@ -136,17 +124,13 @@ def main():
             device_str=args.device,
         )
 
-    save_dir = args.pred_out_dir
-    if args.save_predictions and save_dir is None:
-        save_dir = os.path.join(benchmark_config.result_root, MODEL_NAME, "predictions")
-
     run_benchmark(
         eval_time_only=args.eval_time,
         model_name=MODEL_NAME,
         model_path=MODEL_PATH,
         predictor_factory=predictor_factory,
         batch_size=args.batch_size,
-        save_predictions_dir=save_dir if args.save_predictions else None,
+        save_predictions_dir=resolve_prediction_dir(args, MODEL_NAME),
     )
 
 

@@ -15,6 +15,7 @@ from src.utils.dataloader import load_dataset, load_adj_from_numpy, get_dataset_
 from src.utils.graph_algo import normalize_adj_mx, calculate_cheb_poly
 from src.utils.metrics import masked_mae
 from src.utils.logging import get_logger
+from src.utils.save_preds import run_save_predictions
 
 def set_seed(seed):
     np.random.seed(seed)
@@ -117,6 +118,8 @@ def main():
         engine.train()
     else:
         engine.evaluate(args.mode)
+        if getattr(args, 'save_predictions', False):
+            run_save_predictions(engine, args, data_path, logger, 'dstagnn')
 
 
 if __name__ == "__main__":

@@ -14,6 +14,7 @@ from src.utils.args import get_public_config
 from src.utils.dataloader import load_dataset, load_adj_from_numpy, get_dataset_info
 from src.utils.metrics import masked_mae
 from src.utils.logging import get_logger
+from src.utils.save_preds import run_save_predictions
 from fastdtw import fastdtw
 
 def set_seed(seed):
@@ -93,6 +94,8 @@ def main():
         engine.train()
     else:
         engine.evaluate(args.mode)
+        if getattr(args, 'save_predictions', False):
+            run_save_predictions(engine, args, data_path, logger, 'stgode')
 
 
 def construct_se_matrix(data_path, args):

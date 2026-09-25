@@ -22,7 +22,13 @@ from torch.utils.data import DataLoader, TensorDataset
 from tqdm.auto import tqdm
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
-from fm.fm_utils import get_entry_target, run_benchmark, to_sample_forecasts
+from fm.fm_utils import (
+    add_prediction_dump_args,
+    get_entry_target,
+    resolve_prediction_dir,
+    run_benchmark,
+    to_sample_forecasts,
+)
 from ssm.mamba_model_v2 import MambaForecastModelV2
 from ssm.resume_utils import peek_resume, restore_resume, save_resume
 
@@ -252,6 +258,7 @@ def get_args():
                         default="/u/tliao2/TrafficFM/benchmark/experiments/mamba_fm/SD/2019/")
     parser.add_argument("--wandb_project",      type=str,   default="TrafficFM")
     parser.add_argument("--force_retrain",      action="store_true")
+    add_prediction_dump_args(parser, dashed=False)
     return parser.parse_args()
 
 
@@ -307,6 +314,7 @@ def main():
         model_path=args.log_dir,
         predictor_factory=predictor_factory,
         batch_size=args.bs,
+        save_predictions_dir=resolve_prediction_dir(args, model_name),
     )
 
     wandb.finish()

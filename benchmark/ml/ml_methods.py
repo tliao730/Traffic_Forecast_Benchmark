@@ -18,6 +18,7 @@ import numpy as np
 import pandas as pd
 import xgboost as xgb
 from common import eval, eval_time
+from fm.fm_utils import build_basic_parser, resolve_prediction_dir
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.linear_model import LinearRegression, Ridge
 from gluonts.model.forecast import SampleForecast
@@ -263,9 +264,7 @@ class MLPredictor:
 
 
 def _build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
-        description="Evaluate ML methods for time series forecasting"
-    )
+    parser = build_basic_parser("Evaluate ML methods for time series forecasting")
     parser.add_argument(
         "--model",
         type=str,
@@ -278,11 +277,6 @@ def _build_parser() -> argparse.ArgumentParser:
         type=int,
         default=DEFAULT_N_JOBS,
         help="Number of CPU threads to use (-1 for all cores, 1 for single thread)",
-    )
-    parser.add_argument(
-        "--eval-time",
-        action="store_true",
-        help="Run eval_time (time estimation) only",
     )
     return parser
 
@@ -314,7 +308,13 @@ def main():
     if args.eval_time:
         eval_time(model_name, model_path, predictor_factory, estimation_samples=10)
     else:
-        eval(model_name, model_path, predictor_factory, batch_size=DEFAULT_BATCH_SIZE)
+        eval(
+            model_name,
+            model_path,
+            predictor_factory,
+            batch_size=DEFAULT_BATCH_SIZE,
+            save_predictions_dir=resolve_prediction_dir(args, model_name),
+        )
 
 
 

@@ -1,4 +1,5 @@
 import argparse
+import os
 from types import ModuleType
 from typing import Any, Callable, Iterable, Optional
 
@@ -6,14 +7,56 @@ import numpy as np
 
 
 def build_basic_parser(description: str) -> argparse.ArgumentParser:
-    """Create the shared FM CLI parser with the standard eval-time toggle."""
+    """Create the shared FM CLI parser: the eval-time toggle and the dump flags."""
     parser = argparse.ArgumentParser(description=description)
     parser.add_argument(
         "--eval-time",
         action="store_true",
         help="Run eval_time (time estimation) only",
     )
+    add_prediction_dump_args(parser)
     return parser
+
+
+def add_prediction_dump_args(parser: argparse.ArgumentParser, *, dashed: bool = True) -> None:
+    """
+    Register the ``--save-predictions`` / ``--pred-out-dir`` pair.
+
+    The FM, ML and simple entrypoints spell flags with dashes, the ssm/linear
+    trainers with underscores; ``dashed`` picks the spelling while the dest
+    stays the same, so ``resolve_prediction_dir`` works for both. (The GNN
+    entrypoints have their own ``--save_predictions`` in gnn/src/utils/args.py.)
+    """
+    save_flag = "--save-predictions" if dashed else "--save_predictions"
+    dir_flag = "--pred-out-dir" if dashed else "--pred_out_dir"
+    parser.add_argument(
+        save_flag,
+        dest="save_predictions",
+        action="store_true",
+        help="Also write per-timestamp predictions and ground truth to CSV",
+    )
+    parser.add_argument(
+        dir_flag,
+        dest="pred_out_dir",
+        type=str,
+        default=None,
+        help="Directory for prediction CSVs (default: result_root/<model>/predictions)",
+    )
+
+
+def resolve_prediction_dir(args: Any, model_name: str) -> Optional[str]:
+    """Return the prediction-dump directory, or None when the flag is unset."""
+    if not getattr(args, "save_predictions", False):
+        return None
+    out_dir = getattr(args, "pred_out_dir", None)
+    if out_dir:
+        return out_dir
+    config = load_benchmark_config_module().config
+    # Same "<model>_prof{N}" directory eval() writes the metrics to, or a
+    # profiling dump would silently overwrite the benchmark dump of that model.
+    return os.path.join(
+        config.result_root, config.result_model_name(model_name), "predictions"
+    )
 
 
 def load_pretrained_with_cache(

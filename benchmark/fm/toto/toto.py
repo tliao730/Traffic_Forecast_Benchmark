@@ -5,6 +5,7 @@ import torch
 from fm.fm_utils import (
     build_basic_parser,
     load_pretrained_with_cache,
+    resolve_prediction_dir,
     run_benchmark,
 )
 
@@ -85,6 +86,7 @@ def main():
             model_path=MODEL_PATH,
             predictor_factory=predictor_factory,
             batch_size=args.num_samples,
+            save_predictions_dir=resolve_prediction_dir(args, MODEL_NAME),
         )
     finally:
         del model
