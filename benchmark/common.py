@@ -27,7 +27,7 @@ from gluonts.ev.metrics import (
     SMAPE,
     MeanWeightedSumQuantileLoss,
 )
-from gluonts.model import evaluate_forecasts, evaluate_model
+from gluonts.model import evaluate_forecasts
 from gluonts.time_feature import get_seasonality
 
 
