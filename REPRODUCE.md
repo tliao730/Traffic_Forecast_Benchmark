@@ -15,7 +15,7 @@ per-step metric convention and the LRU numerics.
 | paper sources and the results grid | `paper/` | **`paper/results_grid.csv` is the numbers of record** |
 | raw metric CSVs that survived | `results/raw/<model>/` | incomplete, see below |
 | GNN per-horizon metrics | `results/gnn_per_step_results.csv` | extracted from SLURM logs by `scripts/analysis/gnn_logs_to_per_step.py` |
-| trained weights (GNN, SSM, linear) | Hugging Face model repo `<HF_REPO>` | listed in `results/checkpoints_manifest.csv` with sha256 |
+| trained weights (GNN, SSM, linear) | Hugging Face model repo `angus3938/TrafficFM-checkpoints` (private) | listed in `results/checkpoints_manifest.csv` with sha256 |
 | SLURM logs | `logs/trafficfm_log.tar.gz` in the same HF repo | the only source of the GNN "Horizon k" numbers |
 | datasets | rebuilt from Kaggle (section 2) | none of it is original data |
 | FM weights | Hugging Face, public | pin the revisions in section 3 |
@@ -118,7 +118,8 @@ the PyTorch checkpoint.)
 
 ```bash
 cd benchmark
-hf download <HF_REPO> --local-dir . --include "gnn/*" "experiments/*"
+hf auth login                       # the repo is private; log in as angus3938 (or make it public)
+hf download angus3938/TrafficFM-checkpoints --local-dir . --include "gnn/*" "experiments/*"
 # verify
 python - <<'EOF'
 import csv, hashlib
