@@ -1,0 +1,70 @@
+method,region,year,source_log,log_time_2026,final_model_time_2026,status
+HL,sd,2019,,,none,no surviving log; predates gift_eval window alignment (Avg ~ H6 pattern)
+AGCRN,sd,2019,,,none,no surviving log; predates gift_eval window alignment (Avg ~ H6 pattern)
+ASTGCN,sd,2019,,,none,no surviving log; predates gift_eval window alignment (Avg ~ H6 pattern)
+D2STGNN,sd,2019,,,none,no surviving log; predates gift_eval window alignment (Avg ~ H6 pattern)
+DCRNN,sd,2019,,,none,no surviving log; predates gift_eval window alignment (Avg ~ H6 pattern)
+DGCRN,sd,2019,,,none,no surviving log; predates gift_eval window alignment (Avg ~ H6 pattern)
+DSTAGNN,sd,2019,,,none,no surviving log; predates gift_eval window alignment (Avg ~ H6 pattern)
+GWNET,sd,2019,,,none,no surviving log; predates gift_eval window alignment (Avg ~ H6 pattern)
+STGCN,sd,2019,,,none,no surviving log; predates gift_eval window alignment (Avg ~ H6 pattern)
+STTN,sd,2019,,,none,no surviving log; predates gift_eval window alignment (Avg ~ H6 pattern)
+HL,sd,2018,log/simple/hl/sd/2018/21498410.out,08-27 06:53,none,traceable (HL has no weights)
+AGCRN,sd,2018,,,none,no surviving log; predates gift_eval window alignment (Avg ~ H6 pattern)
+ASTGCN,sd,2018,,,06-24 20:25,no surviving log; predates gift_eval window alignment (Avg ~ H6 pattern)
+D2STGNN,sd,2018,,,06-24 20:25,no surviving log; predates gift_eval window alignment (Avg ~ H6 pattern)
+DCRNN,sd,2018,,,06-24 23:46,no surviving log; predates gift_eval window alignment (Avg ~ H6 pattern)
+DGCRN,sd,2018,,,06-24 20:25,no surviving log; predates gift_eval window alignment (Avg ~ H6 pattern)
+DSTAGNN,sd,2018,,,06-24 20:25,no surviving log; predates gift_eval window alignment (Avg ~ H6 pattern)
+GWNET,sd,2018,,,06-24 20:25,no surviving log; predates gift_eval window alignment (Avg ~ H6 pattern)
+STGCN,sd,2018,,,06-24 20:25,no surviving log; predates gift_eval window alignment (Avg ~ H6 pattern)
+STTN,sd,2018,,,06-24 20:25,no surviving log; predates gift_eval window alignment (Avg ~ H6 pattern)
+HL,gba,2019,log/simple/hl/gba/2019/21501662.out,08-27 10:48,none,traceable (HL has no weights)
+AGCRN,gba,2019,,,none,no surviving log
+ASTGCN,gba,2019,log/gnn_eval/astgcn/gba/2019/21840089.out,09-06 10:23,07-23 12:23,traceable: weights unchanged since this evaluation
+DCRNN,gba,2019,,,none,no surviving log
+DSTAGNN,gba,2019,,,none,no surviving log
+GWNET,gba,2019,,,none,no surviving log
+STGCN,gba,2019,,,none,no surviving log
+STTN,gba,2019,log/gnn_eval/sttn/gba/2019/21840118.out,09-06 10:24,07-25 21:38,traceable: weights unchanged since this evaluation
+HL,gba,2018,log/simple/hl/gba/2018/21501652.out,08-27 10:48,none,traceable (HL has no weights)
+AGCRN,gba,2018,log/gnn_eval/agcrn/gba/2018/21840084.out,09-06 10:23,06-28 18:02,traceable: weights unchanged since this evaluation
+ASTGCN,gba,2018,,,08-29 07:41,no surviving log
+DCRNN,gba,2018,log/gnn_eval/dcrnn/gba/2018/21840095.out,09-06 10:24,07-01 04:27,traceable: weights unchanged since this evaluation
+DGCRN,gba,2018,log/gnn/dgcrn/gba/2018/21808939.out,09-08 08:19,09-04 19:16,traceable: weights unchanged since this evaluation
+DSTAGNN,gba,2018,log/gnn_eval/dstagnn/gba/2018/21840103.out,09-06 10:23,06-30 16:18,traceable: weights unchanged since this evaluation
+GWNET,gba,2018,log/gnn_eval/gwnet/gba/2018/21840108.out,09-06 10:23,06-29 11:44,traceable: weights unchanged since this evaluation
+STGCN,gba,2018,log/gnn_eval/stgcn/gba/2018/21840112.out,09-06 10:23,06-28 20:45,traceable: weights unchanged since this evaluation
+STTN,gba,2018,log/gnn_eval/sttn/gba/2018/21840168.out,09-06 10:26,06-29 08:40,traceable: weights unchanged since this evaluation
+HL,gla,2019,log/simple/hl/gla/2019/21706826.out,09-01 13:51,none,traceable (HL has no weights)
+AGCRN,gla,2019,log/gnn_eval/agcrn/gla/2019/21840086.out,09-06 10:24,07-09 23:03,traceable: weights unchanged since this evaluation
+ASTGCN,gla,2019,log/gnn_eval/astgcn/gla/2019/21840091.out,09-06 10:24,07-16 03:51,traceable: weights unchanged since this evaluation
+DCRNN,gla,2019,log/gnn_eval/dcrnn/gla/2019/21840097.out,09-06 10:24,07-16 05:47,traceable: weights unchanged since this evaluation
+DSTAGNN,gla,2019,log/gnn_eval/dstagnn/gla/2019/21840105.out,09-06 10:24,07-22 23:31,traceable: weights unchanged since this evaluation
+GWNET,gla,2019,,,none,no surviving log
+STGCN,gla,2019,log/gnn_eval/stgcn/gla/2019/21840114.out,09-06 14:24,07-12 21:10,traceable: weights unchanged since this evaluation
+STTN,gla,2019,log/gnn_eval/sttn/gla/2019/21840170.out,09-06 10:26,07-10 23:28,traceable: weights unchanged since this evaluation
+HL,gla,2018,log/simple/hl/gla/2018/21706815.out,09-01 13:46,none,traceable (HL has no weights)
+AGCRN,gla,2018,log/gnn_eval/agcrn/gla/2018/21840085.out,09-06 10:24,07-03 02:00,traceable: weights unchanged since this evaluation
+ASTGCN,gla,2018,log/gnn_eval/astgcn/gla/2018/21840090.out,09-06 10:24,07-10 17:03,traceable: weights unchanged since this evaluation
+DCRNN,gla,2018,log/gnn_eval/dcrnn/gla/2018/21840096.out,09-06 10:24,07-10 19:38,traceable: weights unchanged since this evaluation
+DSTAGNN,gla,2018,log/gnn_eval/dstagnn/gla/2018/21840104.out,09-06 10:24,07-11 16:28,traceable: weights unchanged since this evaluation
+GWNET,gla,2018,log/gnn_eval/gwnet/gla/2018/21840109.out,09-06 10:24,07-02 21:24,traceable: weights unchanged since this evaluation
+STGCN,gla,2018,,,06-29 05:45,no surviving log
+STTN,gla,2018,log/gnn_eval/sttn/gla/2018/21840169.out,09-06 14:36,07-11 09:23,traceable: weights unchanged since this evaluation
+HL,ca,2018,,,none,no surviving log
+AGCRN,ca,2018,log/gnn_eval/agcrn/ca/2018/21840083.out,09-06 10:26,09-14 12:45,evaluated mid-training (3 of 4 MAE match; grid H12 32.28 vs log 32.38); final_model overwritten later
+ASTGCN,ca,2018,log/gnn_eval/astgcn/ca/2018/21840087.out,09-06 10:30,09-16 01:39,"evaluated mid-training; final_model overwritten later, so these exact weights are gone"
+DCRNN,ca,2018,log/gnn_eval/dcrnn/ca/2018/21840094.out,09-06 10:24,09-14 08:24,"evaluated mid-training; final_model overwritten later, so these exact weights are gone"
+DSTAGNN,ca,2018,log/gnn_eval/dstagnn/ca/2018/21840102.out,09-06 10:30,09-10 17:34,"evaluated mid-training; final_model overwritten later, so these exact weights are gone"
+GWNET,ca,2018,log/gnn_eval/gwnet/ca/2018/21840107.out,09-06 10:27,07-26 10:52,traceable: weights unchanged since this evaluation
+STGCN,ca,2018,log/gnn_eval/stgcn/ca/2018/21840111.out,09-06 10:23,07-21 10:47,traceable: weights unchanged since this evaluation
+STTN,ca,2018,log/gnn_eval/sttn/ca/2018/21840116.out,09-06 10:29,09-19 09:03,"evaluated mid-training; final_model overwritten later, so these exact weights are gone"
+HL,ca,2019,log/simple/hl/ca/2019/22746230.out,10-08 02:04,none,traceable (HL has no weights)
+AGCRN,ca,2019,log/gnn/agcrn/ca/2019/22527750.out,10-01 16:30,10-01 16:30,traceable: weights unchanged since this evaluation
+DCRNN,ca,2019,log/gnn/dcrnn/ca/2019/22042842.out,09-26 04:29,09-26 04:29,traceable: weights unchanged since this evaluation
+DSTAGNN,ca,2019,log/gnn/dstagnn/ca/2019/22639170.out,10-08 07:28,10-04 08:46,traceable: weights unchanged since this evaluation
+GWNET,ca,2019,log/gnn/gwnet/ca/2019/22527805.out,10-01 19:27,10-01 03:15,traceable: weights unchanged since this evaluation
+STGCN,ca,2019,log/gnn/stgcn/ca/2019/21839976.out,09-10 07:10,09-10 06:30,traceable: weights unchanged since this evaluation
+STTN,ca,2019,log/gnn/sttn/ca/2019/22044274.out,09-26 00:14,09-26 00:14,traceable: weights unchanged since this evaluation
+ASTGCN,ca,2019,log/gnn/astgcn/ca/2019/22696013.out,10-09 20:35,10-09 20:35,traceable: weights unchanged since this evaluation

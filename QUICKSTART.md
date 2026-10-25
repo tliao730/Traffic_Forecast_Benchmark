@@ -1,5 +1,8 @@
 # Traffic Forecasting Benchmarking Platform
 
+> Reproducing the paper's numbers? Start with [REPRODUCE.md](REPRODUCE.md): pinned model
+> revisions, two data steps this page omits, and where the trained weights live.
+
 ## Quick Start
 
 Clone the repo

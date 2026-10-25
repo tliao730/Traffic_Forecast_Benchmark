@@ -1,0 +1,2 @@
+dataset,model,eval_metrics/MSE[mean],eval_metrics/MSE[0.5],eval_metrics/MAE[0.5],eval_metrics/MASE[0.5],eval_metrics/MAPE[0.5],eval_metrics/sMAPE[0.5],eval_metrics/MSIS,eval_metrics/RMSE[mean],eval_metrics/NRMSE[mean],eval_metrics/ND[0.5],eval_metrics/mean_weighted_sum_quantile_loss,domain,num_variates
+sd/2018/long,lru_SD2018_ctx96_w3000_comp0.95_prof500,1452.0242197529315,1452.0242197529315,22.90248966540622,0.5960071039173129,0.14708298438504766,0.15529522393224848,23.84028415675757,38.10543556702812,0.15865065180888085,0.09535371684891186,0.09535371680659778,Transport,1

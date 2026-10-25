@@ -1,4 +1,3 @@
-CLAUDE.md
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -173,6 +172,8 @@ data_analysis/sd/*
 !data_analysis/sd/process_sd_his.py
 data_analysis/gift_eval_datasets/*
 results
+# ...except the archived metric CSVs at the repo root
+!/results/
 gift-eval/*
 gift-eval
 gift-eval/*/*
@@ -202,6 +203,7 @@ log/
 
 # drawio
 **/docs/
+!/docs/
 
 
 

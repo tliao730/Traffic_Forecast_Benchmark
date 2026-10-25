@@ -1,0 +1,295 @@
+<mxfile host="app.diagrams.net">
+  <diagram name="TrafficFM Architecture">
+    <mxGraphModel dx="1600" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2200" pageHeight="1600" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- ══ 標題 ══ -->
+        <mxCell id="title" value="TrafficFM 系統架構" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;fontSize=22;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="750" y="20" width="500" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- ══════════════════════════════════════════════════════
+             列 1：原始資料來源
+        ══════════════════════════════════════════════════════ -->
+        <mxCell id="sec_raw" value="① 原始資料" style="text;html=1;strokeColor=none;fillColor=#dae8fc;align=center;verticalAlign=middle;fontStyle=1;fontSize=14;rounded=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="80" width="160" height="36" as="geometry" />
+        </mxCell>
+
+        <!-- h5 原始檔 -->
+        <mxCell id="raw_h5" value="&lt;b&gt;data/LargeST/&lt;/b&gt;&#xa;sd_his_2018.h5&#xa;gba_his_2018.h5&#xa;ca_his_2019.h5&#xa;..." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=left;" vertex="1" parent="1">
+          <mxGeometry x="40" y="130" width="180" height="90" as="geometry" />
+        </mxCell>
+
+        <!-- 前處理腳本 -->
+        <mxCell id="preprocess" value="&lt;b&gt;generate_data_for_gift_eval.py&lt;/b&gt;&#xa;─────────────────&#xa;讀 .h5 → 切 60/20/20&#xa;→ 存 .arrow (HuggingFace Dataset)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;align=left;" vertex="1" parent="1">
+          <mxGeometry x="40" y="280" width="260" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- GNN 前處理腳本 -->
+        <mxCell id="preprocess_gnn" value="&lt;b&gt;generate_dataset_for_training.py&lt;/b&gt;&#xa;─────────────────&#xa;讀 .h5 → 切 train/val/test&#xa;→ 存 his.npz + idx_*.npy" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;align=left;" vertex="1" parent="1">
+          <mxGeometry x="40" y="400" width="260" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- ══════════════════════════════════════════════════════
+             列 2：處理後資料
+        ══════════════════════════════════════════════════════ -->
+        <mxCell id="sec_data" value="② 處理後資料" style="text;html=1;strokeColor=none;fillColor=#d5e8d4;align=center;verticalAlign=middle;fontStyle=1;fontSize=14;rounded=1;" vertex="1" parent="1">
+          <mxGeometry x="380" y="80" width="200" height="36" as="geometry" />
+        </mxCell>
+
+        <!-- gift_eval 資料夾 -->
+        <mxCell id="grp_gift" value="&lt;b&gt;dataset/LargeST/gift_eval/&lt;/b&gt;&#xa;(.arrow 格式，HuggingFace Dataset)" style="swimlane;startSize=40;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=0;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="360" y="130" width="380" height="180" as="geometry" />
+        </mxCell>
+        <mxCell id="gift_train" value="sd_train/2018/15T/&#xa;訓練集 60%" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="grp_gift">
+          <mxGeometry x="10" y="50" width="110" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="gift_val" value="sd_val/2018/15T/&#xa;驗證集 20%" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="grp_gift">
+          <mxGeometry x="135" y="50" width="110" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="gift_test" value="sd/2018/15T/&#xa;測試集 (全)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="grp_gift">
+          <mxGeometry x="260" y="50" width="110" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="gift_note" value="FM + Mamba 用這個" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontSize=11;fontStyle=3;" vertex="1" parent="grp_gift">
+          <mxGeometry x="60" y="130" width="260" height="24" as="geometry" />
+        </mxCell>
+
+        <!-- GNN 資料夾 -->
+        <mxCell id="grp_gnn_data" value="&lt;b&gt;benchmark/gnn/data/&lt;/b&gt;&#xa;(.npz/.npy 格式)" style="swimlane;startSize=40;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=0;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="360" y="360" width="380" height="160" as="geometry" />
+        </mxCell>
+        <mxCell id="gnn_npz" value="sd/2018/his.npz&#xa;(所有時步資料)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="grp_gnn_data">
+          <mxGeometry x="10" y="45" width="150" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="gnn_idx" value="idx_train.npy&#xa;idx_val.npy&#xa;idx_test.npy" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="grp_gnn_data">
+          <mxGeometry x="200" y="45" width="150" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="gnn_note" value="GNN 用這個" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontSize=11;fontStyle=3;" vertex="1" parent="grp_gnn_data">
+          <mxGeometry x="100" y="120" width="180" height="24" as="geometry" />
+        </mxCell>
+
+        <!-- ══════════════════════════════════════════════════════
+             列 3：設定 / 啟動
+        ══════════════════════════════════════════════════════ -->
+        <mxCell id="sec_cfg" value="③ 設定 &amp; 啟動" style="text;html=1;strokeColor=none;fillColor=#e1d5e7;align=center;verticalAlign=middle;fontStyle=1;fontSize=14;rounded=1;" vertex="1" parent="1">
+          <mxGeometry x="830" y="80" width="200" height="36" as="geometry" />
+        </mxCell>
+
+        <!-- YAML -->
+        <mxCell id="yaml_box" value="&lt;b&gt;configs/*.yaml&lt;/b&gt;&#xa;─────────────&#xa;gift_eval_datasets_path&#xa;short_datasets / med_long_datasets&#xa;result_root, device&#xa;&#xa;→ 控制「評估哪些資料集」" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;align=left;" vertex="1" parent="1">
+          <mxGeometry x="820" y="130" width="230" height="130" as="geometry" />
+        </mxCell>
+
+        <!-- FM .sh -->
+        <mxCell id="sh_fm" value="&lt;b&gt;scripts/run/run_moirai_sd.sh&lt;/b&gt;&#xa;─────────────&#xa;#SBATCH GPU 設定&#xa;python moirai.py \&#xa;  --batch-size 64 \&#xa;  --context-length 4000" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;align=left;" vertex="1" parent="1">
+          <mxGeometry x="820" y="300" width="230" height="110" as="geometry" />
+        </mxCell>
+
+        <!-- Mamba .sh -->
+        <mxCell id="sh_mamba" value="&lt;b&gt;scripts/run/run_mamba_sd.sh&lt;/b&gt;&#xa;─────────────&#xa;#SBATCH GPU 設定&#xa;python mamba.py \&#xa;  --dataset sd --year 2018 \&#xa;  --d_model 64 --bs 256" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;align=left;" vertex="1" parent="1">
+          <mxGeometry x="820" y="440" width="230" height="120" as="geometry" />
+        </mxCell>
+
+        <!-- GNN .sh -->
+        <mxCell id="sh_gnn" value="&lt;b&gt;scripts/run/run_gwnet_sd.sh&lt;/b&gt;&#xa;─────────────&#xa;#SBATCH GPU 設定&#xa;python gwnet.py \&#xa;  --dataset SD --years 2018 \&#xa;  --seq_len 12 --horizon 3" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;align=left;" vertex="1" parent="1">
+          <mxGeometry x="820" y="590" width="230" height="120" as="geometry" />
+        </mxCell>
+
+        <!-- ══════════════════════════════════════════════════════
+             列 4a：FM 模型（無訓練）
+        ══════════════════════════════════════════════════════ -->
+        <mxCell id="sec_fm" value="④a FM 模型（零訓練）" style="text;html=1;strokeColor=none;fillColor=#f8cecc;align=center;verticalAlign=middle;fontStyle=1;fontSize=14;rounded=1;" vertex="1" parent="1">
+          <mxGeometry x="1140" y="80" width="230" height="36" as="geometry" />
+        </mxCell>
+
+        <mxCell id="fm_box" value="&lt;b&gt;fm/{moirai,timesfm,sundial,...}/&lt;/b&gt;&#xa;────────────────────&#xa;1. 從 HuggingFace 下載預訓練權重&#xa;2. 建立 predictor_factory(dataset)&#xa;3. 呼叫 run_benchmark()&#xa;   → common.eval()&#xa;     → gift_eval.Dataset(sd/2018/15T)&#xa;     → 滑動視窗測試&#xa;     → evaluate_model() 算指標&#xa;     → 寫 all_results.csv" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;align=left;" vertex="1" parent="1">
+          <mxGeometry x="1130" y="130" width="280" height="200" as="geometry" />
+        </mxCell>
+
+        <!-- FM 模型清單 -->
+        <mxCell id="fm_list" value="Moirai　Sundial　TimesFM&#xa;Toto　TabPFN-TS　Kairos&#xa;FlowState" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="1130" y="350" width="280" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- ══════════════════════════════════════════════════════
+             列 4b：Mamba（需訓練，用 gift_eval）
+        ══════════════════════════════════════════════════════ -->
+        <mxCell id="sec_mamba" value="④b Mamba（需訓練，gift_eval）" style="text;html=1;strokeColor=none;fillColor=#ffe6cc;align=center;verticalAlign=middle;fontStyle=1;fontSize=14;rounded=1;" vertex="1" parent="1">
+          <mxGeometry x="1140" y="450" width="290" height="36" as="geometry" />
+        </mxCell>
+
+        <mxCell id="mamba_train_box" value="&lt;b&gt;fm/mamba/mamba.py  訓練階段&lt;/b&gt;&#xa;────────────────────&#xa;gift_eval.Dataset(sd_train) → entries&#xa;make_windows(entries) → X, Y&#xa;train_one_term() × 3 terms&#xa;  Adam + MAE loss + early stop&#xa;  → best_model_{term}_s2023.pt" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;align=left;" vertex="1" parent="1">
+          <mxGeometry x="1130" y="500" width="290" height="140" as="geometry" />
+        </mxCell>
+
+        <mxCell id="mamba_eval_box" value="&lt;b&gt;fm/mamba/mamba.py  評估階段&lt;/b&gt;&#xa;────────────────────&#xa;MambaPredictor 載入 .pt&#xa;run_benchmark()&#xa;  → common.eval()&#xa;  → gift_eval.Dataset(sd/2018/15T)&#xa;  → evaluate_model() 算指標&#xa;  → 寫 all_results.csv" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;align=left;" vertex="1" parent="1">
+          <mxGeometry x="1130" y="660" width="290" height="160" as="geometry" />
+        </mxCell>
+
+        <!-- ══════════════════════════════════════════════════════
+             列 4c：GNN（需訓練，DataLoader）
+        ══════════════════════════════════════════════════════ -->
+        <mxCell id="sec_gnn" value="④c GNN（需訓練，DataLoader）" style="text;html=1;strokeColor=none;fillColor=#d0cee2;align=center;verticalAlign=middle;fontStyle=1;fontSize=14;rounded=1;" vertex="1" parent="1">
+          <mxGeometry x="1500" y="80" width="290" height="36" as="geometry" />
+        </mxCell>
+
+        <mxCell id="gnn_train_box" value="&lt;b&gt;gnn/gwnet.py (GWNET/DCRNN/...)  訓練&lt;/b&gt;&#xa;────────────────────&#xa;load_dataset(his.npz + idx_train.npy)&#xa;→ 自訂 DataLoader (滑動視窗)&#xa;BaseEngine.train()&#xa;  MSE loss + scheduler + early stop&#xa;  → experiments/GWNET/.../best_model.pth" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d0cee2;strokeColor=#6e4b7b;align=left;" vertex="1" parent="1">
+          <mxGeometry x="1490" y="130" width="310" height="160" as="geometry" />
+        </mxCell>
+
+        <mxCell id="gnn_models" value="GWNET　DCRNN　AGCRN&#xa;STGCN　STTN　DGCRN&#xa;D2STGNN　DSTAGNN　STGODE" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d0cee2;strokeColor=#6e4b7b;" vertex="1" parent="1">
+          <mxGeometry x="1490" y="310" width="310" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="gnn_eval_box" value="&lt;b&gt;gnn/gwnet.py  評估&lt;/b&gt;&#xa;────────────────────&#xa;load_dataset(his.npz + idx_test.npy)&#xa;→ DataLoader 對齊 gift_eval 視窗&#xa;BaseEngine.test()&#xa;  MAE/RMSE/MAPE&#xa;  → 寫 all_results.csv" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d0cee2;strokeColor=#6e4b7b;align=left;" vertex="1" parent="1">
+          <mxGeometry x="1490" y="400" width="310" height="160" as="geometry" />
+        </mxCell>
+
+        <!-- ══════════════════════════════════════════════════════
+             列 5：輸出
+        ══════════════════════════════════════════════════════ -->
+        <mxCell id="sec_out" value="⑤ 輸出" style="text;html=1;strokeColor=none;fillColor=#f5f5f5;align=center;verticalAlign=middle;fontStyle=1;fontSize=14;rounded=1;strokeColor=#666666;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="830" y="860" width="160" height="36" as="geometry" />
+        </mxCell>
+
+        <!-- Checkpoint -->
+        <mxCell id="ckpt_box" value="&lt;b&gt;Checkpoint&lt;/b&gt;&#xa;benchmark/experiments/&#xa;────────────────────&#xa;mamba_fm/SD/2018/&#xa;  best_model_short_s2023.pt&#xa;  best_model_medium_s2023.pt&#xa;  best_model_long_s2023.pt&#xa;&#xa;gnn/experiments/GWNET/SD/&#xa;  best_model.pth" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;align=left;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="820" y="910" width="240" height="200" as="geometry" />
+        </mxCell>
+
+        <!-- Results -->
+        <mxCell id="results_box" value="&lt;b&gt;評估結果&lt;/b&gt;&#xa;results/&#xa;────────────────────&#xa;mamba_v1_SD2018/all_results.csv&#xa;Moirai2-L1-SD2018/all_results.csv&#xa;GWNET-SD2018/all_results.csv&#xa;&#xa;欄位：MAE, RMSE, MASE,&#xa;MAPE, sMAPE, ND, NRMSE..." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;align=left;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="1100" y="910" width="280" height="200" as="geometry" />
+        </mxCell>
+
+        <!-- ══════════════════════════════════════════════════════
+             箭頭
+        ══════════════════════════════════════════════════════ -->
+
+        <!-- 原始資料 → 前處理腳本 -->
+        <mxCell id="e_raw_pre" value="pd.read_hdf()" style="edgeStyle=orthogonalEdgeStyle;exitX=0.5;exitY=1;entryX=0.3;entryY=0;" edge="1" source="raw_h5" target="preprocess" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_raw_gnn" value="pd.read_hdf()" style="edgeStyle=orthogonalEdgeStyle;exitX=0.5;exitY=1;entryX=0.3;entryY=0;" edge="1" source="raw_h5" target="preprocess_gnn" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- 前處理 → gift_eval -->
+        <mxCell id="e_pre_gift" value="save_to_disk()" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="preprocess" target="grp_gift" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- 前處理 → gnn data -->
+        <mxCell id="e_pre_gnn" value="np.save()" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="preprocess_gnn" target="grp_gnn_data" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- YAML → FM -->
+        <mxCell id="e_yaml_fm" value="config 物件" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="yaml_box" target="fm_box" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- YAML → Mamba eval -->
+        <mxCell id="e_yaml_mamba" value="" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="yaml_box" target="mamba_eval_box" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- .sh → FM -->
+        <mxCell id="e_sh_fm" value="argparse" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="sh_fm" target="fm_box" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- .sh → Mamba -->
+        <mxCell id="e_sh_mamba" value="argparse" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="sh_mamba" target="mamba_train_box" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- .sh → GNN -->
+        <mxCell id="e_sh_gnn" value="argparse" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="sh_gnn" target="gnn_train_box" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- gift_train/val → Mamba 訓練 -->
+        <mxCell id="e_gift_mamba_tr" value="entries (list)" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#82b366;fontColor=#82b366;fontStyle=1;" edge="1" source="gift_train" target="mamba_train_box" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_gift_mamba_val" value="" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#82b366;" edge="1" source="gift_val" target="mamba_train_box" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- gift_test → FM eval -->
+        <mxCell id="e_gift_fm" value="test windows" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#82b366;fontColor=#82b366;fontStyle=1;" edge="1" source="gift_test" target="fm_box" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- gift_test → Mamba eval -->
+        <mxCell id="e_gift_mamba_ev" value="test windows" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#82b366;fontColor=#82b366;fontStyle=1;" edge="1" source="gift_test" target="mamba_eval_box" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- gnn data → GNN 訓練 -->
+        <mxCell id="e_gnn_data_tr" value="DataLoader" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#82b366;fontColor=#82b366;fontStyle=1;" edge="1" source="gnn_npz" target="gnn_train_box" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_gnn_idx_tr" value="" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#82b366;" edge="1" source="gnn_idx" target="gnn_train_box" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- gnn data → GNN eval -->
+        <mxCell id="e_gnn_data_ev" value="DataLoader" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#82b366;fontColor=#82b366;fontStyle=1;" edge="1" source="gnn_npz" target="gnn_eval_box" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Mamba 訓練 → Mamba eval（checkpoint） -->
+        <mxCell id="e_mamba_ckpt" value=".pt" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="mamba_train_box" target="mamba_eval_box" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Mamba 訓練 → checkpoint box -->
+        <mxCell id="e_mamba_ckpt2" value="torch.save()" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="mamba_train_box" target="ckpt_box" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- GNN 訓練 → checkpoint box -->
+        <mxCell id="e_gnn_ckpt" value="torch.save()" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="gnn_train_box" target="ckpt_box" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- FM → results -->
+        <mxCell id="e_fm_res" value="all_results.csv" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="fm_box" target="results_box" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Mamba eval → results -->
+        <mxCell id="e_mamba_res" value="all_results.csv" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="mamba_eval_box" target="results_box" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- GNN eval → results -->
+        <mxCell id="e_gnn_res" value="all_results.csv" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="gnn_eval_box" target="results_box" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ══ 圖例 ══ -->
+        <mxCell id="legend_title" value="圖例" style="text;html=1;strokeColor=none;fillColor=none;align=left;fontStyle=1;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="40" y="880" width="80" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="leg1" value="gift_eval 流程（FM + Mamba）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="40" y="920" width="240" height="36" as="geometry" />
+        </mxCell>
+        <mxCell id="leg2" value="DataLoader 流程（GNN）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d0cee2;strokeColor=#6e4b7b;" vertex="1" parent="1">
+          <mxGeometry x="40" y="970" width="240" height="36" as="geometry" />
+        </mxCell>
+        <mxCell id="leg3" value="需要訓練（Mamba / GNN）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="1">
+          <mxGeometry x="40" y="1020" width="240" height="36" as="geometry" />
+        </mxCell>
+        <mxCell id="leg4" value="零訓練（FM）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="40" y="1070" width="240" height="36" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
