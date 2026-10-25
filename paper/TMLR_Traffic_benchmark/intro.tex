@@ -1,0 +1,40 @@
+\section{Introduction}
+
+% \df{Key point: T1–T4 are not organized as increasingly complex tasks, but as controlled evaluations that selectively expose different dimensions of temporal intelligence.}
+
+Large language model (LLM)--based agents have recently demonstrated strong performance across a wide range of complex tasks, including software engineering, scientific discovery, robotics planning, and data analysis\cite{plaat2025agentic, jimenez2023swe, boiko2023emergent, singh2024malmm}. By combining instruction following, multi-step reasoning, tool use, and external knowledge access, agent frameworks offer a flexible paradigm for solving problems that extend beyond single-turn prediction or classification. Motivated by these successes, a growing body of work has begun to explore whether agentic approaches can also benefit time-series applications\cite{zhao2025timeseriesscientist, zhang2024large, yeh2025empowering}.
+
+At the same time, the time-series community has developed a rich ecosystem of specialized forecasting models and foundation models that achieve state-of-the-art numerical accuracy across many domains\cite{cao2025timedit, ansari2024chronos, yang2025foundation, cao2023tempo}. These advances raise a fundamental question: \textit{if forecasting performance is already strong, what additional capabilities—if any—do agents bring to time-series reasoning and decision-making?} In particular, do agent-based systems merely reproduce numerical predictions through pattern matching, or do they genuinely understand and reason about temporal dynamics in a way that supports robust decision-making\cite{chang2025survey, chow2024towards,liu2025ts}?
+
+Modern forecasting models do exploit temporal information, capturing patterns such as trends, seasonality, and local dependencies that are sufficient for accurate numerical prediction\cite{song2024deep, liu2024deep}.
+However, this use of temporal structure is largely implicit and optimized for minimizing prediction error, rather than for producing representations that can be explicitly interpreted, manipulated, or selectively combined with contextual information.
+As a result, strong numerical performance alone does not reveal which aspects of temporal competence a model possesses, nor whether temporal signals can be decoupled from prediction and reused for interpretation or reasoning.
+This motivates an evaluation framework that isolates different temporal competencies, rather than aggregating them into a single end-to-end task. As we later show, models that achieve strong numerical forecasting accuracy often fail catastrophically when asked to reason about temporal changes under contextual or event-driven conditions.
+
+A key distinction in real-world temporal decision-making lies in the role of \emph{context}.
+Contextual information does not merely increase task complexity; it fundamentally changes what it means to interpret and reason about temporal data.
+In many applications, contextual signals such as events, domain semantics, or external conditions determine how temporal patterns should be understood, rather than simply refining numerical predictions\cite{williams2024context, wang2024news}.
+For example, in retail demand planning, knowledge of an upcoming heatwave may override historical sales trends when reasoning about future demand.
+Evaluating such behavior therefore requires tasks that selectively introduce context and events, allowing us to test whether temporal reasoning mechanisms generalize across different informational regimes.
+
+Despite increasing interest in agent-based time-series analysis, existing benchmarks are not designed to isolate and measure these capabilities. Forecasting benchmarks primarily assess numerical prediction error, without evaluating whether models correctly interpret historical temporal structure, ground contextual descriptions in time, or reason about event-driven changes\cite{qiu2024tfb,aksu2024gifteval}. Conversely, temporal reasoning benchmarks for language models typically operate on purely textual data, omitting real numerical time-series signals\cite{ning2020torque,fatemi2024test,wang2024tram}. As a result, it remains unclear whether agents genuinely enhance temporal understanding and reasoning, or whether their apparent advantages stem from evaluation protocols that conflate numerical accuracy with deeper cognitive capabilities. Consequently, evaluation results that suggest progress in time-series intelligence may in fact mask systematic failures in contextual interpretation and temporal reasoning.
+
+To address this gap, we introduce \textbf{TemporalBench}, a benchmark designed to systematically evaluate agent and LLM performance on time-series tasks that require temporal understanding, contextual grounding, and event-aware reasoning. TemporalBench spans four real-world domains, including retail, healthcare, energy, and physical systems, and is built around a four-tier task taxonomy (T1–T4).
+
+Specifically, the four task families in TemporalBench are designed to disentangle distinct temporal competencies, rather than to incrementally increase task difficulty:
+(T1) intrinsic understanding of historical time-series structure;
+(T2) future prediction based solely on temporal signals;
+(T3) contextual reasoning that grounds temporal patterns in domain semantics;
+and (T4) event-informed prediction that requires conditional reasoning about how future outcomes change under specified events.
+Each task family isolates a different aspect of temporal intelligence by selectively controlling the availability of future targets and contextual information. Importantly, performance on later task families does not subsume earlier ones, as each targets a distinct and non-reducible aspect of temporal intelligence.
+
+
+TemporalBench is constructed through a unified, reproducible pipeline that supports automatic task generation and rule-based ground-truth labeling with explicit uncertainty handling. Across 191 time-series instances, the benchmark comprises 2,775 evaluation tasks, including both multiple-choice reasoning questions and numerical forecasting objectives. Beyond aggregate performance reporting, TemporalBench is explicitly designed as a diagnostic tool, exposing systematic failure modes of current agent systems, such as difficulties in grounding language to temporal structure, enforcing output constraints, and robustly utilizing extended historical context.
+
+Overall, our contributions are as follows:
+\begin{itemize}
+\item We introduce \textbf{TemporalBench}, a multi-domain benchmark for evaluating agent and LLM performance on time-series tasks that require temporal understanding, contextual grounding, and event-aware reasoning.
+\item We propose a four-tier task taxonomy (T1--T4) that disentangles intrinsic time-series understanding, forecasting, contextual reasoning, and event-informed prediction, enabling principled and fine-grained capability analysis.
+\item We develop a unified benchmark construction pipeline with automatic task generation, rule-based ground-truth labeling, and explicit uncertainty modeling, ensuring reproducibility across heterogeneous datasets.
+\item Through extensive baseline evaluation, we show that current agent frameworks exhibit fragmented strengths and systematic failure modes that remain invisible under traditional forecasting-only benchmarks.
+\end{itemize}

@@ -1,0 +1,330 @@
+\section{Experiments}
+
+The experiments in this section are designed to systematically evaluate the temporal competencies isolated by the four task families in TemporalBench. Rather than treating performance as a single aggregate score, we analyze agent behavior across T1–T4 to disentangle distinct aspects of temporal intelligence.
+
+By evaluating different agent paradigms under identical inputs and constraints, our experiments aim to answer three guiding questions: (i) whether strong numerical forecasting performance translates into reliable temporal interpretation, (ii) how the introduction of contextual information alters reasoning behavior over time-series data, and (iii) whether agents can meaningfully adapt their predictions under explicitly specified future events. Each experiment is therefore diagnostic in nature, with observed failure modes mapped back to specific task families and reasoning dimensions rather than treated as isolated errors.
+
+\subsection{Experiment Setup}
+
+Our experimental design aims to evaluate agentic temporal reasoning capabilities in a controlled and diagnostic manner, rather than to optimize predictive accuracy. In particular, the setup is designed to disentangle the effects of agent architecture, backbone language model capacity, and evaluation protocol across different task families in TemporalBench.
+
+\subsubsection{Models and Agents}
+
+We evaluate both time-series--specialized agents and general-purpose LLM-based agents to assess their performance on the proposed benchmark.
+Given the limited availability of agent systems explicitly designed for time-series reasoning, we include \textbf{TimeSeriesScientist}~\cite{zhao2025timeseriesscientist} as a representative time-series--specific agent.
+We emphasize that TimeSeriesScientist is used to represent domain-specialized, structure-aware agentic approaches, rather than as an exhaustive benchmark of time-series modeling techniques.
+
+In addition, we evaluate several general-purpose agent frameworks that have been widely adopted for reasoning and decision-making tasks, including \textbf{MetaGPT}~\cite{hong2024metagpt}, \textbf{AgentScope}~\cite{gao2024agentscope}, and \textbf{CAMEL}~\cite{li2023camel}.
+These frameworks are not specialized for time-series data and primarily rely on language-based reasoning and tool orchestration, making them suitable baselines for assessing temporal reasoning in the absence of domain-specific inductive biases.
+
+To isolate the contribution of agent frameworks themselves, we further include a \emph{direct LLM prompting} baseline, in which a single large language model is queried without agent structure, tool use, or multi-step interaction.
+This setting reflects common practice and provides a reference point for comparing agent-based approaches against raw LLM capabilities.
+
+All agents and baselines are instantiated with a common set of backbone language models to ensure controlled comparison.
+The backbone models include \textbf{GPT-4o}~\cite{hurst2024gpt}, \textbf{Gemini-2.5-Flash}~\cite{gemini25flash}, \textbf{Claude-3-7-Sonnet}~\cite{claude37sonnet}, \textbf{DeepSeek-Chat}~\cite{liu2024deepseek}, and \textbf{Qwen-Plus}~\cite{bai2023qwen}.
+Across all settings, agents receive identical task inputs, output constraints, and access to information, ensuring that performance differences reflect agent design rather than model capacity.
+
+We do not treat standalone forecasting models as primary baselines, as TemporalBench targets agentic temporal reasoning and decision-making rather than pure predictive accuracy.
+Traditional forecasting performance is therefore used as a reference signal rather than a proxy for task competence.
+
+\subsubsection{Evaluation Metrics}
+
+We adopt evaluation metrics that reflect the distinct objectives of reasoning-oriented and prediction-oriented tasks in TemporalBench. For multiple-choice question-answering tasks, including T1, T3, and the qualitative components of T2 and T4, we report \emph{accuracy} as the primary metric. Accuracy is chosen to emphasize unambiguous decision correctness, aligning with the benchmark’s goal of identifying discrete reasoning failures rather than grading partial or stylistic explanations.
+
+Questions labeled as \emph{Uncertain} or \emph{Inconclusive} are excluded from accuracy computation for all models. This ensures that evaluation focuses on instances with sufficient statistical support and avoids penalizing models on inherently ambiguous cases.
+
+For numerical forecasting tasks in T2 and T4, we evaluate prediction quality using error-based metrics computed between predicted and ground-truth future values over the valid forecast horizon. For datasets involving single or low-dimensional target series (e.g., \textbf{FreshRetailNet}, \textbf{PSML}, and \textbf{Causal Chambers}), we report standard forecasting metrics including mean absolute error (MAE) and symmetric mean absolute percentage error (sMAPE).
+
+For the \textbf{MIMIC} dataset, forecasting tasks require simultaneous prediction over multiple correlated clinical time series with heterogeneous scales. To ensure fair aggregation across series and prevent domination by high-variance or high-scale signals, we adopt \emph{overall weighted} metrics, specifically OW\_sMAPE and OW\_RMSSE. These metrics are standard in multi-series forecasting settings and enable comparability across varying scales and prediction horizons.
+
+
+
+
+
+
+\subsection{Main Results}
+
+\begin{table*}[t]
+\centering
+\footnotesize
+
+% =========================
+% (a) Multi-choice results
+% =========================
+\begin{subtable}[t]{\textwidth}
+\centering
+\setlength{\tabcolsep}{2.8pt}
+\renewcommand{\arraystretch}{1.2}
+
+\begin{tabular}{c|c|cccc|cccc|cccc|cccc}
+\toprule
+\multirow{2}{*}{Agent} & Dataset
+& \multicolumn{4}{c|}{FreshRetailNet}
+& \multicolumn{4}{c|}{PSML}
+& \multicolumn{4}{c|}{Causal Chambers}
+& \multicolumn{4}{c}{MIMIC} \\
+\cmidrule(lr){3-6}
+\cmidrule(lr){7-10}
+\cmidrule(lr){11-14}
+\cmidrule(lr){15-18}
+
+& Task
+& T1 & T2 & T3 & \multicolumn{1}{c|}{T4}
+& T1 & T2 & T3 & \multicolumn{1}{c|}{T4}
+& T1 & T2 & T3 & \multicolumn{1}{c|}{T4}
+& T1 & T2 & T3 & T4 \\
+\midrule
+
+\multirow{2}{*}{Single LLM}
+& SR
+& 100\% & 100\% & 84.66\% & \multicolumn{1}{c|}{100\%}
+& 100\% & 100\% & 100\% & \multicolumn{1}{c|}{96\%}
+& 100\% & 100\% & 100\% & \multicolumn{1}{c|}{100\%}
+& 100\% & 100\% & 100\% & 100\% \\
+& ACC
+& 63.64\% & 52.27\% & 2.89\% & \multicolumn{1}{c|}{13.64\%}
+& 67.50\% & 20.67\% & 34.80\% & \multicolumn{1}{c|}{36.00\%}
+& 13.33\% & 27.33\% & 35.20\% & \multicolumn{1}{c|}{26.00\%}
+& 46.81\% & 21.28\% & 36.61\% & 29.79\% \\
+\midrule
+
+\multirow{2}{*}{\makecell[c]{TimeSeries\\Scientist}}
+& SR
+& 85.80\% & 100.00\% & 99.43\% & \multicolumn{1}{c|}{100.00\%}
+& 83.00\% & 100.00\% & 100.00\% & \multicolumn{1}{c|}{100.00\%}
+& 100.00\% & 100.00\% & 100.00\% & \multicolumn{1}{c|}{100.00\%}
+& 86.17\% & 100.00\% & 100.00\% & 100.00\% \\
+& ACC
+& 33.52\% & 56.82\% & 3.41\% & \multicolumn{1}{c|}{56.82\%}
+& 28.00\% & 26.67\% & 21.60\% & \multicolumn{1}{c|}{27.33\%}
+& 28.67\% & 2.67\% & 21.60\% & \multicolumn{1}{c|}{2.67\%}
+& 10.11\% & 23.40\% & 28.87\% & 23.40\% \\
+\midrule
+
+\multirow{2}{*}{AgentScope}
+& SR
+& 100.00\% & 100.00\% & 96.59\% & \multicolumn{1}{c|}{100.00\%}
+& 100.00\% & 98.00\% & 100.00\% & \multicolumn{1}{c|}{98.00\%}
+& 75.00\% & 100.00\% & 99.60\% & \multicolumn{1}{c|}{100.00\%}
+& 100.00\% & 100.00\% & 100.00\% & 100.00\% \\
+& ACC
+& 62.50\% & 12.12\% & 13.64\% & \multicolumn{1}{c|}{18.94\%}
+& 66.00\% & 24.67\% & 27.20\% & \multicolumn{1}{c|}{35.33\%}
+& 12.00\% & 46.00\% & 44.00\% & \multicolumn{1}{c|}{32.00\%}
+& 44.68\% & 21.28\% & 23.95\% & 22.70\% \\
+\midrule
+
+\multirow{2}{*}{MetaGPT}
+& SR
+& 100.00\% & 100.00\% & 94.32\% & \multicolumn{1}{c|}{100.00\%}
+& 100.00\% & 98.00\% & 100.00\% & \multicolumn{1}{c|}{100.00\%}
+& 75.00\% & 100.00\% & 100.00\% & \multicolumn{1}{c|}{100.00\%}
+& 100.00\% & 100.00\% & 100.00\% & 100.00\% \\
+& ACC
+& 62.50\% & 9.09\% & 5.11\% & \multicolumn{1}{c|}{14.39\%}
+& 67.50\% & 21.09\% & 22.00\% & \multicolumn{1}{c|}{31.33\%}
+& 10.67\% & 59.33\% & 45.20\% & \multicolumn{1}{c|}{16.00\%}
+& 45.74\% & 17.02\% & 28.97\% & 25.53\% \\
+\midrule
+
+\multirow{2}{*}{CAMEL}
+& SR
+& 100.00\% & 100.00\% & 92.05\% & \multicolumn{1}{c|}{100.00\%}
+& 100.00\% & 100.00\% & 100.00\% & \multicolumn{1}{c|}{100.00\%}
+& 75.00\% & 100.00\% & 100.00\% & \multicolumn{1}{c|}{100.00\%}
+& 100.00\% & 100.00\% & 100.00\% & 100.00\% \\
+& ACC
+& 64.20\% & 0.76\% & 6.25\% & \multicolumn{1}{c|}{31.06\%}
+& 68.50\% & 14.00\% & 18.40\% & \multicolumn{1}{c|}{30.67\%}
+& 10.00\% & 66.00\% & 42.00\% & \multicolumn{1}{c|}{26.67\%}
+& 46.81\% & 20.57\% & 30.14\% & 23.40\% \\
+\bottomrule
+\end{tabular}
+
+\caption{Multi-choice task performance across datasets.}
+\end{subtable}
+
+\vspace{6pt}
+
+% =========================
+% (b) Forecasting results
+% =========================
+\begin{subtable}[t]{\textwidth}
+\centering
+\setlength{\tabcolsep}{12pt}
+\renewcommand{\arraystretch}{1}
+
+\begin{tabular}{c|c|cc|cc|cc!{\vrule width 1.2pt}cc}
+\toprule
+\multirow{2}{*}{Agent} & \multirow{2}{*}{Metric}
+& \multicolumn{2}{c|}{FreshRetailNet}
+& \multicolumn{2}{c|}{PSML}
+& \multicolumn{2}{c!{\vrule width 1.2pt}}{Causal Chambers}
+& \multicolumn{2}{c}{MIMIC} \\
+\cmidrule(lr){3-4}
+\cmidrule(lr){5-6}
+\cmidrule(lr){7-8}
+\cmidrule(lr){9-10}
+
+&
+& T2 & T4
+& T2 & T4
+& T2 & T4
+& T2 & T4 \\
+\midrule
+
+\multirow{3}{*}{Single LLM}
+& SR
+& 97.73\% & 79.55\%
+& 14.00\% & 38.00\%
+& 44.00\% & 34.00\%
+& 91.49\% & 93.62\% \\
+& MAE / OW\_sMAPE
+& 0.12 & 0.34
+& 0.61 & 0.44
+& 2.48 & 2.58
+& 15.20 & 16.86 \\
+& sMAPE / OW\_RMSSE
+& 1.27 & 1.29
+& 0.60 & 0.37
+& 2.57E{-}05 & 2.69E{-}05
+& 0.55 & 0.63 \\
+\midrule
+
+\multirow{3}{*}{\makecell[c]{TimeSeries\\Scientist}}
+& SR
+& 43.18\% & 79.55\%
+& 26.00\% & 52.00\%
+& 50.00\% & 32.00\%
+& 89.36\% & 89.36\% \\
+& MAE / OW\_sMAPE
+& 0.35 & 0.51
+& 1.53 & 0.84
+& 2.44 & 2.94
+& 15.81 & 17.18 \\
+& sMAPE / OW\_RMSSE
+& 1.27 & 1.40
+& 0.65 & 0.48
+& 2.53E{-}05 & 3.06E{-}05
+& 0.52 & 0.64 \\
+\midrule
+
+\multirow{3}{*}{AgentScope}
+& SR
+& 41.94\% & 23.94\%
+& 5.26\% & 31.58\%
+& 45.10\% & 27.45\%
+& 93.75\% & 89.80\% \\
+& MAE / OW\_sMAPE
+& 0.12 & 0.20
+& 0.28 & 0.35
+& 2.76 & 2.66
+& 11.05 & 12.02 \\
+& sMAPE / OW\_RMSSE
+& 126.27 & 130.86
+& 37.38 & 30.51
+& 2.62E{-}03 & 2.46E{-}03
+& 0.43 & 0.49 \\
+\midrule
+
+\multirow{3}{*}{MetaGPT}
+& SR
+& 90.91\% & 88.64\%
+& 16.00\% & 64.00\%
+& 52.00\% & 40.00\%
+& 93.62\% & 93.62\% \\
+& MAE / OW\_sMAPE
+& 0.13 & 0.24
+& 0.34 & 0.40
+& 2.62 & 2.76
+& 14.11 & 15.40 \\
+& sMAPE / OW\_RMSSE
+& 126.59 & 127.22
+& 24.74 & 43.47
+& 2.72E{-}03 & 2.87E{-}03
+& 0.53 & 0.63 \\
+\midrule
+
+\multirow{3}{*}{CAMEL}
+& SR
+& 93.18\% & 93.18\%
+& 34.00\% & 62.00\%
+& 52.00\% & 30.00\%
+& 95.74\% & 93.62\% \\
+& MAE / OW\_sMAPE
+& 0.13 & 0.28
+& 0.43 & 0.45
+& 2.99 & 2.50
+& 12.02 & 15.74 \\
+& sMAPE / OW\_RMSSE
+& 126.75 & 128.18
+& 34.89 & 35.78
+& 3.11E{-}03 & 2.60E{-}03
+& 0.55 & 0.59 \\
+\bottomrule
+\end{tabular}
+
+\caption{Forecasting performance on T2 and T4 tasks across datasets.}
+\end{subtable}
+
+\caption{Performance of different agent frameworks across multi-choice and forecasting tasks using \texttt{gpt-4o} as the base model.}
+\label{tab:main_results}
+\vspace{-20pt}
+\end{table*}
+
+
+Table~\ref{tab:main_results} summarizes the performance of different agent frameworks and a single-LLM baseline across four task families (T1--T4) and four domains, using \texttt{gpt-4o} as the backbone model. 
+
+\subsubsection{Global Performance Patterns Across Task Families}
+Here we analyze how performance evolves across task families as temporal reasoning requirements shift from structural interpretation (T1), to pure prediction without context (T2), to contextual and event-aware reasoning (T3 and T4). Across all evaluated methods, TemporalBench reveals a consistent stratification aligned with this design.
+
+Historical understanding tasks (T1) achieve moderate accuracy for most agents, indicating that intrinsic temporal properties such as trend direction or volatility are partially accessible when reasoning is confined to historical structure alone. In contrast, reasoning-intensive tasks that require grounding temporal patterns in context (T3) remain uniformly challenging: accuracy frequently drops to single-digit or low double-digit percentages in retail and clinical domains, even when the same models perform reasonably well on T1. This sharp degradation highlights the difficulty of contextual temporal reasoning beyond structural interpretation.
+
+Prediction-related multiple-choice tasks (T2 and T4) exhibit substantially higher variance across agents than historical understanding tasks. Notably, inferring future behavior in a discrete, qualitative label space proves markedly more difficult than producing numerical forecasts. Across datasets, improvements in numerical forecasting accuracy (e.g., lower MAE or sMAPE) do not reliably translate into higher accuracy on qualitative future-oriented judgments. This decoupling between numerical prediction quality and qualitative temporal interpretation directly reflects the distinction that TemporalBench is designed to expose.
+
+\begin{keydiscovery1}
+\textbf{Key Discovery.}
+Temporal reasoning performance degrades sharply as tasks move from structural understanding (T1) to contextual reasoning (T3), and strong numerical forecasting accuracy does not reliably translate into accurate qualitative judgments about future behavior (T2/T4).
+\end{keydiscovery1}
+
+\subsubsection{Agent Frameworks versus Direct LLM Prompting}
+This subsection evaluates whether agent orchestration provides systematic benefits over direct LLM prompting across the temporal competencies isolated by T1--T4. Comparing agent-based methods with direct LLM prompting reveals that agent frameworks do not consistently improve temporal reasoning performance.
+
+On qualitative tasks that require either historical interpretation (T1) or context-free future reasoning (T2), the single-LLM baseline frequently matches or exceeds the accuracy of general-purpose agents, particularly on FreshRetailNet and MIMIC. These results suggest that when temporal structure must be inferred directly from numerical sequences, additional agent steps can introduce reasoning noise rather than providing effective decomposition or abstraction.
+
+Forecasting tasks present a more nuanced pattern. While the single LLM achieves competitive MAE and sMAPE on relatively structured domains such as FreshRetailNet and MIMIC, agent-based methods occasionally reduce numerical error on PSML and Causal Chambers. However, these gains are inconsistent across domains and task families, indicating that current agent frameworks lack a robust and general mechanism for exploiting temporal regularities beyond what is already captured by the backbone model.
+
+\begin{keydiscovery1}
+\textbf{Key Discovery.}
+Agent orchestration alone does not guarantee improved temporal reasoning, and can introduce additional noise when temporal structure must be inferred directly from numerical time-series data.
+\end{keydiscovery1}
+
+\subsubsection{Time-Series-Specific Agent versus General-Purpose Agents}
+This subsection contrasts domain-specific temporal modeling with general-purpose agent reasoning across the disentangled competencies evaluated by TemporalBench. The time-series--specific agent does not consistently outperform general-purpose agents across task families, but it exhibits a distinct and systematic performance profile.
+
+On prediction-oriented tasks (T2 and T4), its error metrics are comparatively stable across domains, remaining within a narrower range than those of general-purpose agents. This stability aligns with its design emphasis on explicit time-series modeling and numerical consistency. However, this advantage does not extend to qualitative reasoning tasks.
+
+On multiple-choice tasks, particularly those requiring contextual grounding and higher-level reasoning (T3), the time-series-specific agent offers limited improvement and often underperforms general-purpose agents. These results indicate that while specialized temporal architectures can stabilize numerical prediction, they do not directly address challenges such as abstraction, comparison across temporal segments, or conditional reasoning under context, which are central to T3 and T4.
+
+\begin{keydiscovery1}
+\textbf{Key Discovery.}
+Domain-specific temporal modeling stabilizes numerical prediction (T2/T4) but does not address higher-level reasoning challenges such as abstraction, comparison, or conditional reasoning under context (T3).
+\end{keydiscovery1}
+
+\subsubsection{Domain-Specific Effects and Event-Aware Reasoning}
+This subsection examines how domain characteristics interact with the event-aware reasoning requirements introduced in T4. Performance varies substantially across domains. Physical and semi-synthetic datasets such as PSML and Causal Chambers generally yield higher accuracy and more stable forecasting errors, reflecting clearer temporal structure and stronger signal-to-noise ratios. In contrast, FreshRetailNet and MIMIC exhibit consistently lower accuracy, particularly on reasoning-intensive (T3) and event-aware (T4) tasks, highlighting the challenges posed by noisy dynamics, confounding factors, and heterogeneous event effects.
+
+Event-informed prediction tasks further expose limitations in how agents utilize contextual and event information. While incorporating event descriptions occasionally improves numerical forecasting relative to context-free prediction (T2) in specific domains, qualitative accuracy does not consistently benefit from the presence of event narratives. This pattern suggests that current agents struggle to translate event descriptions into actionable temporal constraints, underscoring the importance of explicitly evaluating event-conditioned temporal reasoning rather than assuming that contextual integration emerges implicitly.
+
+\begin{keydiscovery1}
+\textbf{Key Discovery.}
+Event descriptions are not consistently translated into actionable temporal constraints by current agents, revealing a gap between contextual awareness and event-conditioned temporal reasoning (T4).
+\end{keydiscovery1}
+
+Overall, these results demonstrate that existing agent frameworks exhibit fragmented strengths across the temporal competencies isolated by T1--T4. By separating historical understanding, pure prediction, contextual reasoning, and event-conditioned prediction, TemporalBench exposes persistent gaps between numerical forecasting accuracy, temporal interpretation, and event-aware reasoning—gaps that remain largely invisible under conventional forecasting-only benchmarks.
+
+\begin{keydiscovery1}
+\textbf{Key Discovery.}
+Across domains and agent designs, TemporalBench reveals structured and persistent gaps between numerical forecasting, temporal interpretation, and event-aware reasoning that are obscured when evaluation is reduced to forecasting accuracy alone.
+\end{keydiscovery1}
+

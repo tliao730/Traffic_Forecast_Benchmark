@@ -1,0 +1,38 @@
+\section{Related Work}
+% \df{we need more related work}
+\subsection{Time-Series Forecasting Benchmarks}
+
+A number of large-scale benchmarks evaluate forecasting and time-series models across diverse domains, primarily through numerical prediction or analysis objectives.
+TFB~\cite{qiu2024tfb} provides a unified framework for fair comparison of statistical, machine learning, and deep learning forecasters.
+GIFT-Eval~\cite{aksu2024gifteval} focuses on standardized evaluation protocols for time-series foundation models under pretraining and finetuning splits, and Chronos~\cite{ansari2024chronos} evaluates forecasting models on a large collection of real-world time series datasets, including both in-domain and zero-shot benchmark settings.
+Beyond forecasting, several benchmarks target specific time-series analysis capabilities, such as TSI-Bench~\cite{du2024tsi}, TSB-AD~\cite{liu2024elephant}, and Time-MMD~\cite{liu2024time}, which assess performance on analysis- or distribution-oriented tasks over numerical sequences.
+More recent efforts begin to incorporate contextual cues into time-series settings, including CiK~\cite{williams2024context} and TGTSF~\cite{xu2024intervention}, but they still frame evaluation largely as single-task numerical analysis without explicit reasoning-oriented objectives.
+
+Meanwhile, a few benchmarks explore the intersection of language models and numerical time-series by combining question answering with time-series inputs, such as LLM TS Struggle~\cite{merrill2024language}, MTBench~\cite{chen2025mtbench}, and ChatTime~\cite{wang2025chattime}.
+While these benchmarks move beyond pure forecasting, they typically do not explicitly incorporate external contextual information or provide a unified multi-task taxonomy to disentangle complementary aspects of temporal competence.
+Overall, existing time-series benchmarks are largely optimized for numerical performance, motivating our effort to move beyond prediction error toward understanding- and context-aware temporal reasoning.
+
+\subsection{Temporal Reasoning Benchmarks for LLMs}
+
+A separate line of work evaluates temporal reasoning in large language models using purely textual problems, focusing on symbolic, event-based, and commonsense temporal understanding.
+Benchmarks such as TimeBench~\cite{chu2024timebench} and other temporal reasoning evaluations probe abilities such as ordering events, reasoning about duration, and inferring causal-temporal relations from text.
+These datasets highlight important deficiencies of LLMs in temporal reasoning, but they omit real numerical time-series signals and do not capture the numerical temporal dynamics central to forecasting and many real-world decision-making settings.
+
+Recent multi-modal benchmarks begin to bridge this gap by coupling numerical time-series with language supervision and downstream reasoning tasks.
+For example, TelecomTS~\cite{feng2025telecomts} introduces a large-scale observability benchmark derived from real-world telecommunications networks, supporting tasks such as anomaly detection, root-cause analysis, and question answering over time-series with associated textual context.
+Such efforts further motivate the need for benchmarks that jointly evaluate numerical time-series understanding and contextual reasoning, which our work addresses.
+
+
+\subsection{Agentic and LLM-Based Methods for Time-Series}
+
+Recent work has begun to explore agentic or large language model (LLM)–driven approaches for time-series analysis and forecasting.
+TimeSeriesScientist~\cite{zhao2025timeseriesscientist} proposes an agent-based framework that decomposes univariate forecasting into stages such as data inspection, model selection, and result interpretation, demonstrating the potential of agentic workflows for automating parts of the forecasting pipeline.
+Other studies investigate the capabilities and limitations of directly applying LLMs to time-series tasks, including numerical forecasting, trend interpretation, and zero-shot reasoning over serialized temporal inputs~\cite{jin2024whatcanllm} .
+These works primarily focus on model behavior or system design for specific tasks, rather than providing systematic evaluation across diverse temporal reasoning scenarios.
+
+In parallel, several general-purpose agent frameworks have been proposed to support structured reasoning and coordination among multiple LLM agents.
+MetaGPT~\cite{hong2024metagpt} organizes agents according to software engineering roles (e.g., product manager, architect, developer), enabling role-specialized collaboration through explicit communication protocols.
+AgentScope~\cite{gao2024agentscope} provides a flexible platform for constructing, orchestrating, and evaluating multi-agent systems, with explicit support for tool use, memory, and interaction logging.
+CAMEL~\cite{li2023camel} emphasizes autonomous role-playing and conversational coordination between agents to elicit complex reasoning behaviors without heavy task-specific supervision.
+While these frameworks offer powerful abstractions for agent coordination and reasoning, they are largely task-agnostic and do not provide dedicated evaluation settings tailored to time-series understanding.
+

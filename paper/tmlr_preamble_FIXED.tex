@@ -1,0 +1,128 @@
+% ===========================================================================
+% TMLR preamble —— 取代 main.tex 從最開頭到 \maketitle 的全部內容
+%
+% 用法：把你 main.tex 裡「第一行 \documentclass」到「\maketitle」為止
+%       整段刪掉，換成這個檔案的內容。\maketitle 之後的 \section{Introduction}
+%       以下全部保留不動。
+% ===========================================================================
+
+\documentclass[10pt]{article}
+\usepackage{tmlr}
+% 被接受後改成： \usepackage[accepted]{tmlr}
+% 貼 arXiv 時改成： \usepackage[preprint]{tmlr}
+
+% --- 表格 ---
+\usepackage{booktabs}          % \toprule \midrule \bottomrule
+\usepackage{multirow}
+\usepackage{array}
+\usepackage{makecell}
+
+% --- 圖 ---
+\usepackage{graphicx}
+\usepackage{caption}
+\usepackage{subcaption}
+% 圖表說明的字體設定：
+%   labelfont=bf  -> 只有「Figure 1:」「Table 2:」粗體，說明文字維持正常
+%   font=bf       -> 整段說明文字都粗體（長 caption 不建議）
+\captionsetup{labelfont=bf}
+\captionsetup[sub]{labelfont=bf}
+\usepackage{pifont}            % \ding{51} \ding{55}
+
+% --- 顏色 / 方框 ---
+\usepackage{xcolor}
+\usepackage[most]{tcolorbox}   % 只能載入這一次，且要帶 [most]
+
+% --- 排版雜項 ---
+\usepackage{enumitem}
+\usepackage{footmisc}
+\usepackage{tikz}
+\usetikzlibrary{positioning,arrows.meta}
+
+% --- 演算法 ---
+\usepackage{algorithm}
+\usepackage{algpseudocode}     % 提供 \State \Comment
+% 注意：不要再載入 algorithmic，它跟 algpseudocode 會打架
+
+% --- 連結 ---
+\usepackage{hyperref}
+\usepackage{url}
+
+% --- 自訂指令 ---
+\newcommand{\best}[1]{\textbf{#1}}
+\newcommand{\second}[1]{\emph{#1}}
+\newcommand{\modelname}{TemporalBench}
+\newcommand{\df}[1]{{\color{red}DF: #1}}
+
+\AtBeginDocument{%
+  \providecommand\BibTeX{{Bib\TeX}}}
+
+% --- 自訂方框 ---
+\newtcolorbox{keydiscovery1}{
+  colback=gray!5,
+  colframe=gray!50,
+  boxrule=0.6pt,
+  arc=2pt,
+  left=6pt, right=6pt, top=6pt, bottom=6pt,
+  before skip=6pt, after skip=8pt
+}
+
+\newtcolorbox{insightbox}{
+  colback=gray!3,
+  colframe=gray!35,
+  boxrule=0.5pt,
+  arc=2pt,
+  left=6pt, right=6pt, top=6pt, bottom=6pt,
+  before skip=6pt, after skip=8pt
+}
+
+
+% ===========================================================================
+% 標題與作者
+% ===========================================================================
+
+\title{Traffic Forecasting in Practice: \\ Comparing Graph Models and
+Foundation Models for Deployment-Aware Traffic Forecasting}
+
+% 投稿階段 tmlr.sty 會自動把下面整段換成
+% 「Anonymous authors / Paper under double-blind review」，
+% 所以真實姓名寫在這裡是安全的，不會出現在 PDF 上。
+% 被接受後加上 [accepted] 選項，這段才會顯示出來。
+\author{%
+  \name Defu Cao \email defucao@usc.edu \\
+  \addr University of Southern California, Los Angeles, CA, USA
+  \AND
+  \name Yunfei Xu \email yunfei.xu@na.denso.com \\
+  \addr DENSO International America, Inc., Southfield, MI, USA
+  \AND
+  \name Nima Ghasem \email nima.ghasem@infinitekey.com \\
+  \addr DENSO International America, Inc., Southfield, MI, USA
+  \AND
+  \name Qizan Guo \email qizanguo@usc.edu \\
+  \addr University of Southern California, Los Angeles, CA, USA
+  \AND
+  \name Jinbo Liu \email jinboliu@usc.edu \\
+  \addr University of Southern California, Los Angeles, CA, USA
+  \AND
+  \name Muyan Weng \email muyanwen@usc.edu \\
+  \addr University of Southern California, Los Angeles, CA, USA
+  \AND
+  \name Toru Hirano \email toru.hirano@na.denso.com \\
+  \addr DENSO International America, Inc., Southfield, MI, USA
+  \AND
+  \name Yan Liu \email yanliu.cs@usc.edu \\
+  \addr University of Southern California, Los Angeles, CA, USA
+}
+
+\begin{document}
+
+\maketitle
+
+% ⚠️ abstract 必須放在 \maketitle 「後面」——acmart 是放前面，順序反了
+%    abstract 不會出現，而且不會報錯，很容易沒發現。
+\begin{abstract}
+Traffic flow forecasting is essential for intelligent transportation systems, yet progress is currently obscured by fragmented evaluation protocols. The field faces a critical tension between specialized Spatiotemporal Graph Neural Networks (STGNNs), which encode road topology, and emerging Time-Series Foundation Models (TSFMs), which leverage massive-scale pretraining. To resolve this, we introduce a unified benchmark evaluation across four large-scale real-world datasets. We standardize sampling, splits, and horizons to compare a broad set of methods spanning classical ML (including low-cost ensembles), task-trained spatiotemporal GNNs (STGNN), and pretrained time-series foundation models (TSFM). Beyond aggregate error, we report deployment-relevant diagnostics: per-inference latency and grouped-lag SHAP attribution. Across regions, we find that TSFMs set the accuracy and stability frontier on average, while STGNNs remain highly competitive at short horizons and can benefit from spatial coupling during regime transitions. Attribution analyses show a consistent behavioral split: foundation models are typically more recent-driven (enabling fast, edge-friendly updates), whereas graph models shift more strongly toward longer lags when a full diurnal context is available---consistent with anchoring on daily periodicity. Finally, in incident-conditioned forecasting on collision windows, TSFMs substantially outperform graph-based methods, suggesting greater robustness under abrupt, localized distribution shifts where global smoothing priors can be brittle.
+\end{abstract}
+
+% ===========================================================================
+% 以下接你原本的 \section{Introduction} ...
+% ===========================================================================

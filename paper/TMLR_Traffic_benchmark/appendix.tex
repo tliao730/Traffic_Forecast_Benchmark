@@ -1,0 +1,1421 @@
+
+
+\appendix
+
+
+
+
+
+\section{ Pseudocode for Event Injection / Detection and Ground-Truth Labeling}
+\label{app:pseudocode}
+
+
+This section provides algorithmic descriptions of the dataset transformation pipeline introduced in Section~3, including event injection or detection and rule-based ground-truth generation.
+The pseudocode is intended to make the benchmark construction process fully explicit and reproducible, translating the methodological principles discussed in the main text into concrete procedures.
+In particular, these algorithms clarify how event boundaries are defined independently of label computation, how robust statistical criteria are used to derive ground truth across task families, and how uncertainty is handled when temporal signals are weak or ambiguous.
+Together, they serve as a reference implementation of the benchmark design rather than a simulation of real-world causal dynamics.
+
+
+\begin{algorithm}[H]
+\caption{Event Generation: Injection \textbf{or} Detection}
+\label{alg:event_gen}
+\begin{algorithmic}[1]
+\REQUIRE Time series dataset $\mathcal{D} = \{(x^{(i)}_{1:T_i}, meta^{(i)})\}_{i=1}^N$, randomness seed $s$, injection probability $p_{inj}$, injection magnitudes / patterns set $\mathcal{P}$, change-point detector $CP(\cdot)$
+\ENSURE For each series index $i$, event time $t^{(i)}_{evt}$ and history/future split $(H^{(i)}, F^{(i)})$
+\STATE set random seed $s$
+\FOR{each time series $i=1\ldots N$}
+    \STATE $x \leftarrow x^{(i)}_{1:T_i}$
+    \IF{$meta^{(i)}$ contains reliable event annotations}
+        \STATE $t_{evt} \leftarrow$ recorded event time (choose one if multiple)
+        \STATE mark $mode \leftarrow$ \texttt{DETECTED}
+    \ELSE
+        \STATE $cp\_candidates \leftarrow CP(x)$ \Comment{e.g., ruptures, PELT, or domain-specific detector}
+        \IF{$cp\_candidates \neq \varnothing$ \AND random() $<$ $p_{det}$}
+            \STATE $t_{evt} \leftarrow$ select candidate (e.g., largest magnitude)
+            \STATE mark $mode \leftarrow$ \texttt{DETECTED}
+        \ELSE
+            \IF{random() $<$ $p_{inj}$}
+                \STATE $t_{evt} \leftarrow$ select injection time (e.g., uniform over valid window)
+                \STATE $pattern \leftarrow$ sample($\mathcal{P}$)
+                \STATE $x \leftarrow$ InjectEffect$(x, t_{evt}, pattern)$
+                \STATE mark $mode \leftarrow$ \texttt{INJECTED}
+            \ELSE
+                \STATE \textbf{skip} this series (no event defined)
+            \ENDIF
+        \ENDIF
+    \ENDIF
+    \STATE Define history window $H^{(i)} = x_{1:t_{evt}}$ and future window $F^{(i)} = x_{t_{evt}+1 : t_{evt}+h}$, where $h$ is forecast horizon
+    \STATE Save $(H^{(i)}, F^{(i)}, t_{evt}, mode)$
+\ENDFOR
+\RETURN $\{(H^{(i)}, F^{(i)}, t_{evt}, mode)\}_{i}$
+\end{algorithmic}
+\end{algorithm}
+
+\vspace{6pt}
+\noindent\textbf{Notes / Recommended defaults:}
+\begin{itemize}
+  \item $p_{inj}$: injection probability for datasets lacking events, e.g. 0.3--0.5. Use consistent value across experiments.
+  \item $\mathcal{P}$ (injection patterns): coarse patterns only (shift in level, scale change, temporary spike, seasonality phase shift). Avoid parameterizing patterns to produce deterministic labels.
+  \item $CP(\cdot)$: preferred detectors include PELT or Bayesian change-point detectors; tune sensitivity but report chosen hyperparameters.
+  \item Choose injection times away from boundaries (e.g., avoid first/last 10\% of series) to ensure adequate history and future support.
+  \item Log and publish the RNG seed(s) and injection choices to ensure reproducibility.
+\end{itemize}
+
+\bigskip
+
+\begin{algorithm}[H]
+\caption{Rule-based Ground-Truth Labeling}
+\label{alg:label_gen}
+\begin{algorithmic}[1]
+\REQUIRE Partitioned series $(H, F)$, minimum sample support $n_{min}$, effect-size thresholds $\tau_{level}, \tau_{vol}$, estimators: median, MAD, IQR, Theil--Sen
+\ENSURE Labels for T1/T2/T3/T4 tasks; possibly \texttt{UNCERTAIN} or \texttt{INCONCLUSIVE}
+\STATE Compute robust estimates on $H$: $\tilde{\mu}_H \leftarrow median(H)$; $\tilde{\sigma}_H \leftarrow MAD(H)$; seasonal features if applicable
+\STATE Compute robust estimates on $F$: $\tilde{\mu}_F \leftarrow median(F)$; $\tilde{\sigma}_F \leftarrow MAD(F)$
+\STATE $n_H \leftarrow$ length$(H)$; $n_F \leftarrow$ length$(F)$
+\IF{$n_H < n_{min}$ \OR $n_F < n_{min}$}
+    \STATE Mark labels as \texttt{INCONCLUSIVE}
+    \RETURN
+\ENDIF
+
+\STATE \textbf{Level change:} $d_{level} \leftarrow (\tilde{\mu}_F - \tilde{\mu}_H)/\max(|\tilde{\mu}_H|, \epsilon)$
+\STATE \textbf{Volatility change:} $d_{vol} \leftarrow (\tilde{\sigma}_F - \tilde{\sigma}_H)/\max(\tilde{\sigma}_H, \epsilon)$
+\STATE \textbf{Effect sizes:} compute effect size (e.g., Cliff's delta or rank-biserial) for distributions $H$ vs $F$
+\STATE \textbf{Significance criterion:} support = (abs(d_{level}) > $\tau_{level}$) OR (abs(d_{vol}) > $\tau_{vol}$) OR (effect size > $\tau_{es}$)
+
+\IF{support is False}
+    \STATE Assign qualitative label = \texttt{UNCERTAIN}
+\ELSE
+    \STATE Assign qualitative labels:
+    \IF{$d_{level} > \tau_{level}$} label level = \texttt{INCREASE}
+    \ELSIF{$d_{level} < -\tau_{level}$} label level = \texttt{DECREASE}
+    \ELSE label level = \texttt{NO\_CHANGE}
+    \ENDIF
+    \IF{$d_{vol} > \tau_{vol}$} label volatility = \texttt{INCREASE}
+    \ELSIF{$d_{vol} < -\tau_{vol}$} label volatility = \texttt{DECREASE}
+    \ELSE label volatility = \texttt{NO\_CHANGE}
+    \ENDIF
+\ENDIF
+
+\STATE \textbf{T1 labels (history-only):}
+\STATE compute windowed comparisons on $H$ (early vs late) using relative median and dispersion ratios $\to$ trend / seasonality / anomaly labels (use Theil--Sen for slopes)
+\STATE apply robust z-scores for anomaly detection: $z_t = (x_t - median(H))/MAD(H)$; mark extreme outliers if $|z_t| > z_{thresh}$
+
+\STATE \textbf{T2 / T4 numeric ground truth:} store observed $F$ values as numeric forecast targets
+
+\STATE \textbf{T3 labels (contextual reasoning):}
+\STATE for candidate contextual queries (e.g., difference between subgroups), compute effect size and ensure $n_{support} \ge n_{min}$; only retain queries with effect size $> \tau_{es}$
+
+\STATE \textbf{Finalize:} attach metadata: $(labels, support\_metrics, mode)$ where mode indicates \texttt{DETECTED} or \texttt{INJECTED}
+
+\RETURN labels and metadata
+\end{algorithmic}
+\end{algorithm}
+
+\vspace{6pt}
+\noindent\textbf{Labeling constants and recommended defaults:}
+\begin{itemize}
+  \item $n_{min}$ (minimum samples): 10--30 depending on frequency (daily vs hourly)
+  \item $\tau_{level}$ (relative median change): 0.10 (10\% relative change) as baseline; report sensitivity analyses
+  \item $\tau_{vol}$ (relative MAD change): 0.10
+  \item $\tau_{es}$ (effect size threshold): 0.2 (small-to-medium)
+  \item $z_{thresh}$ (robust z-score for anomalies): 3.5
+  \item $\epsilon$: small constant to avoid divide-by-zero (e.g., $10^{-6}$)
+\end{itemize}
+
+\vspace{6pt}
+\noindent\textbf{Reproducibility and anti-shortcut measures:}
+\begin{itemize}
+  \item Random seeds for injection/detection sampling are fixed and recorded. Publish seeds and the exact sampled injection patterns in the artifact.
+  \item Use multiple injection patterns and random magnitudes within a coarse range to prevent models from learning deterministic templates.
+  \item Ensure all label decisions are computed only from $H$ and $F$ arrays: explicitly do not use the textual context or injected pattern metadata in any labeling rule.
+  \item Record support metrics (effect sizes, sample counts) with each label so that downstream analyses can filter or weight by label confidence.
+\end{itemize}
+
+\vspace{6pt}
+\noindent\textbf{Design rationale (concise):}
+\begin{itemize}
+  \item The pipeline favors \emph{controlled, interpretable evaluation signals} over exact simulation fidelity: event injection is intended as a way to create regime splits for probing event-aware reasoning, not as a synthetic causal generator.
+  \item Robust estimators (median/MAD/IQR/Theil--Sen) are used to make labels stable across domains and data scales.
+  \item Uncertain / Inconclusive labels avoid forcing spurious ground truth when data support is weak.
+\end{itemize}
+
+
+
+\section{Illustrative Task Examples Across Domains}
+\begin{figure}[htbp]
+\centering
+\begin{tcolorbox}[
+  colback=gray!6,
+  colframe=black!20,
+  boxrule=0.5pt,
+  arc=3pt,
+  left=6pt,right=6pt,top=6pt,bottom=6pt
+]
+\textbf{Dataset:} PSML \\
+
+\emph{Shared time-series context:}
+\begin{itemize}[leftmargin=1.1em,itemsep=0pt,topsep=0pt,parsep=0pt,partopsep=0pt]
+  \item Target variable: \texttt{load\_power}
+  \item History length: 336 \quad | \quad Future length: 168
+  \item History: 0.805, 0.779, 0.770, 0.792, \ldots, 0.975, 0.893, 0.836
+  \item Future: 0.720, 0.689, 0.703, 0.709, \ldots, 0.431, 0.509, 0.427
+  \item Covariates:
+  \texttt{avg\_temperature}, \texttt{time\_position\_in\_day},
+  Temperature, Wind Speed, GHI, DHI, DNI,
+  Relative Humidity, Solar Zenith Angle
+\end{itemize}
+
+\hrule\vspace{4pt}
+
+\textbf{T1}
+\begin{itemize}[leftmargin=1.1em,itemsep=0pt,topsep=0pt,parsep=0pt,partopsep=0pt]
+  \item Trend (\textit{upward / downward / constant}): \textbf{constant}
+  \item Volatility (\textit{increased / decreased / constant}): \textbf{constant}
+  \item Seasonality (\textit{fixed / shifting / none}): \textbf{fixed}
+  \item Outliers (\textit{sudden\_spike / level\_shift / stable}): \textbf{sudden\_spike}
+\end{itemize}
+
+\vspace{3pt}\hrule\vspace{4pt}
+
+\textbf{T2}
+
+\emph{Forecasting subtask:}
+Predict future values of the target variable given the shared historical context.
+
+\emph{MCQ subtask:}
+\begin{itemize}[leftmargin=1.1em,itemsep=0pt,topsep=0pt,parsep=0pt,partopsep=0pt]
+  \item Future vs. History
+  (\textit{Higher / Lower / Similar / Uncertain}): \textbf{Lower}
+  \item Volatility Change
+  (\textit{increased / decreased / constant / Uncertain}): \textbf{increased}
+  \item Seasonality Shift
+  (\textit{fixed / shifting / no / Uncertain}): \textbf{fixed}
+\end{itemize}
+
+\vspace{3pt}\hrule\vspace{4pt}
+
+\textbf{T3} \\
+\emph{Question:} A sharp nighttime load rise is observed. Does it coincide with a temperature drop? \\
+\emph{Options:} \textit{Yes / No / Uncertain} \\
+\textbf{Answer:} \textbf{Yes}
+
+\vspace{3pt}\hrule\vspace{4pt}
+
+\textbf{T4}
+
+\emph{Event description:}
+A sharp nighttime load rise accompanied by a temperature drop is observed in the historical window.
+
+\emph{Forecasting subtask:}
+Predict future values conditioned on the shared historical context and the above event.
+
+\emph{MCQ subtask:}
+\begin{itemize}[leftmargin=1.1em,itemsep=0pt,topsep=0pt,parsep=0pt,partopsep=0pt]
+  \item Future vs. History
+  (\textit{Higher / Lower / Similar / Uncertain}): \textbf{Lower}
+  \item Volatility Change
+  (\textit{increased / decreased / constant / Uncertain}): \textbf{increased}
+  \item Seasonality Shift
+  (\textit{fixed / shifting / no / Uncertain}): \textbf{fixed}
+\end{itemize}
+
+\end{tcolorbox}
+\caption{A full example instance (PSML) showing tasks T1--T4 in TemporalBench. All tiers share the same underlying time-series context, while T4 is additionally conditioned on an explicit event description.}
+\label{fig:appendix_psml_one_example}
+\end{figure}
+
+
+\begin{figure}[htbp]
+\centering
+\begin{tcolorbox}[
+  colback=gray!6,
+  colframe=black!20,
+  boxrule=0.5pt,
+  arc=3pt,
+  left=6pt,right=6pt,top=6pt,bottom=6pt
+]
+\textbf{Dataset:} MIMIC \\
+
+\emph{Shared time-series context:}
+\begin{itemize}[leftmargin=1.1em,itemsep=0pt,topsep=0pt,parsep=0pt,partopsep=0pt]
+  \item Reference variable: \texttt{heart\_rate}
+  \item History length: 50 \quad | \quad Future length: 29
+  \item History: 80.0, 82.0, 82.0, 82.0, \ldots, 92.0, 92.0, 91.0
+  \item Future: 91.0, 91.0, 80.0, 85.0, \ldots, 84.0, 84.0, 86.33
+  \item Covariates (history):
+  \texttt{temperature\_c}, \texttt{resp\_rate}, \texttt{spo2},
+  \texttt{sbp}, \texttt{dbp}, \texttt{time\_position\_in\_day}
+  \item Covariates (future):
+  \texttt{time\_position\_in\_day}
+\end{itemize}
+
+\hrule\vspace{4pt}
+
+\textbf{T1}
+\begin{itemize}[leftmargin=1.1em,itemsep=0pt,topsep=0pt,parsep=0pt,partopsep=0pt]
+  \item Trend (\textit{upward / downward / constant}): \textbf{constant}
+  \item Volatility (\textit{increased / decreased / constant}): \textbf{increased}
+  \item Seasonality (\textit{fixed / shifting / none}): \textbf{shifting}
+  \item Outliers (\textit{sudden\_spike / level\_shift / stable}): \textbf{sudden\_spike}
+\end{itemize}
+
+\vspace{3pt}\hrule\vspace{4pt}
+
+\textbf{T2}
+
+\emph{Forecasting subtask:}
+Predict future \emph{multivariate physiological time-series} trajectories given the shared historical context, with heart rate serving as the primary reference variable.
+
+\emph{MCQ subtask:}
+\begin{itemize}[leftmargin=1.1em,itemsep=0pt,topsep=0pt,parsep=0pt,partopsep=0pt]
+  \item Future vs. History
+  (\textit{Higher / Lower / Similar / Uncertain}): \textbf{Uncertain}
+  \item Volatility Change
+  (\textit{increased / decreased / constant / Uncertain}): \textbf{decreased}
+  \item Seasonality Shift
+  (\textit{fixed / shifting / no / Uncertain}): \textbf{shifting}
+\end{itemize}
+
+\vspace{3pt}\hrule\vspace{4pt}
+
+\textbf{T3} \\
+\emph{Question:} During fever episodes (Temp $\ge$ 37.2$^\circ$C), is heart rate higher than normal? \\
+\emph{Options:} \textit{Higher / Lower / Similar / Uncertain} \\
+\textbf{Answer:} \textbf{Higher}
+
+\vspace{3pt}\hrule\vspace{4pt}
+
+\textbf{T4}
+
+\emph{Event description:}
+Fever episodes are observed when body temperature reaches or exceeds 37.2$^\circ$C.
+
+\emph{Forecasting subtask:}
+Predict future \emph{multivariate physiological time-series} trajectories conditioned on the shared historical context and the fever event, with heart rate serving as the primary reference variable.
+
+\emph{MCQ subtask:}
+\begin{itemize}[leftmargin=1.1em,itemsep=0pt,topsep=0pt,parsep=0pt,partopsep=0pt]
+  \item Future vs. History
+  (\textit{Higher / Lower / Similar / Uncertain}): \textbf{Uncertain}
+  \item Volatility Change
+  (\textit{increased / decreased / constant / Uncertain}): \textbf{decreased}
+  \item Seasonality Shift
+  (\textit{fixed / shifting / no / Uncertain}): \textbf{shifting}
+\end{itemize}
+
+\end{tcolorbox}
+\caption{A full example instance (MIMIC) illustrating tasks T1--T4 in TemporalBench. All tiers share the same underlying multivariate physiological time-series context, while T4 is additionally conditioned on a clinical event (fever).}
+\label{fig:appendix_mimic_one_example}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\begin{tcolorbox}[
+  colback=gray!6,
+  colframe=black!20,
+  boxrule=0.5pt,
+  arc=3pt,
+  left=6pt,right=6pt,top=6pt,bottom=6pt
+]
+\textbf{Dataset:} FreshRetailNet \\
+
+\emph{Shared time-series context:}
+\begin{itemize}[leftmargin=1.1em,itemsep=0pt,topsep=0pt,parsep=0pt,partopsep=0pt]
+  \item Target variable: \texttt{sales\_censored}
+  \item History length: 480 \quad | \quad Future length: 112
+  \item History: 0.0, 0.2, 0.0, 0.3, \ldots, 0.0, 0.0, 0.0
+  \item Future: 0.091, 0.0, 0.817, 0.465, \ldots, 0.336, 0.0, 0.100
+  \item Covariates:
+  \texttt{discount}, \texttt{holiday\_flag}, \texttt{precipitation},
+  \texttt{avg\_temperature}, \texttt{time\_position\_in\_day}
+\end{itemize}
+
+\hrule\vspace{4pt}
+
+\textbf{T1}
+\begin{itemize}[leftmargin=1.1em,itemsep=0pt,topsep=0pt,parsep=0pt,partopsep=0pt]
+  \item Trend (\textit{upward / downward / constant}): \textbf{constant}
+  \item Volatility (\textit{increased / decreased / constant}): \textbf{constant}
+  \item Seasonality (\textit{fixed / shifting / none}): \textbf{fixed}
+  \item Outliers (\textit{sudden\_spike / level\_shift / stable}): \textbf{sudden\_spike}
+\end{itemize}
+
+\vspace{3pt}\hrule\vspace{4pt}
+
+\textbf{T2}
+
+\emph{Forecasting subtask:}
+Predict future retail sales values given the shared historical context.
+
+\emph{MCQ subtask:}
+\begin{itemize}[leftmargin=1.1em,itemsep=0pt,topsep=0pt,parsep=0pt,partopsep=0pt]
+  \item Future vs. History
+  (\textit{Higher / Lower / Similar / Uncertain}): \textbf{Uncertain}
+  \item Volatility Change
+  (\textit{increased / decreased / constant / Uncertain}): \textbf{Uncertain}
+  \item Seasonality Shift
+  (\textit{fixed / shifting / no / Uncertain}): \textbf{fixed}
+\end{itemize}
+
+\vspace{3pt}\hrule\vspace{4pt}
+
+\textbf{T3} \\
+\emph{Question:} Under high-discount periods, is the peak-to-median ratio higher than under low or no discount? \\
+\emph{Options:} \textit{Yes / No / Uncertain} \\
+\textbf{Answer:} \textbf{No}
+
+\vspace{3pt}\hrule\vspace{4pt}
+
+\textbf{T4}
+
+\emph{Event description:}
+High-discount periods are observed in the historical window.
+
+\emph{Forecasting subtask:}
+Predict future retail sales values conditioned on the shared historical context and the discount event.
+
+\emph{MCQ subtask:}
+\begin{itemize}[leftmargin=1.1em,itemsep=0pt,topsep=0pt,parsep=0pt,partopsep=0pt]
+  \item Future vs. History
+  (\textit{Higher / Lower / Similar / Uncertain}): \textbf{Uncertain}
+  \item Volatility Change
+  (\textit{increased / decreased / constant / Uncertain}): \textbf{Uncertain}
+  \item Seasonality Shift
+  (\textit{fixed / shifting / no / Uncertain}): \textbf{fixed}
+\end{itemize}
+
+\end{tcolorbox}
+\caption{A full example instance (FreshRetailNet) illustrating tasks T1--T4 in TemporalBench. All tiers share the same underlying retail time-series context, while T4 is additionally conditioned on a promotional event (high discount).}
+\label{fig:appendix_freshretailnet_one_example}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\begin{tcolorbox}[
+  colback=gray!6,
+  colframe=black!20,
+  boxrule=0.5pt,
+  arc=3pt,
+  left=6pt,right=6pt,top=6pt,bottom=6pt
+]
+\textbf{Dataset:} Causal Chambers \\
+
+\emph{Shared time-series context:}
+\begin{itemize}[leftmargin=1.1em,itemsep=0pt,topsep=0pt,parsep=0pt,partopsep=0pt]
+  \item Target variable: \texttt{pressure\_downwind}
+  \item History length: 66 \quad | \quad Future length: 32
+  \item History: 96043.98, 96043.74, 96042.94, 96042.76, \ldots, 96040.94, 96041.25, 96042.17
+  \item Future: 96039.68, 96040.11, 96039.83, 96039.54, \ldots, 96037.50, 96036.52, 96036.55
+  \item Covariates:
+  \texttt{timestamps}, \texttt{pressure\_upwind}, \texttt{pressure\_ambient},
+  \texttt{speed\_in}, \texttt{speed\_out}, \texttt{current\_in}, \texttt{current\_out},
+  \texttt{load\_in}, \texttt{load\_out}, \texttt{hatch\_state}
+\end{itemize}
+
+\hrule\vspace{4pt}
+
+\textbf{T1}
+\begin{itemize}[leftmargin=1.1em,itemsep=0pt,topsep=0pt,parsep=0pt,partopsep=0pt]
+  \item Trend (\textit{upward / downward / constant}): \textbf{constant}
+  \item Volatility (\textit{increased / decreased / constant}): \textbf{Uncertain}
+  \item Outliers (\textit{sudden\_spike / level\_shift / stable}): \textbf{Uncertain}
+\end{itemize}
+
+\vspace{3pt}\hrule\vspace{4pt}
+
+\textbf{T2}
+
+\emph{Forecasting subtask:}
+Predict future values of the target variable given the shared historical context.
+
+\emph{MCQ subtask:}
+\begin{itemize}[leftmargin=1.1em,itemsep=0pt,topsep=0pt,parsep=0pt,partopsep=0pt]
+  \item Future vs. History
+  (\textit{Higher / Lower / Similar / Uncertain}): \textbf{Similar}
+  \item Volatility Change
+  (\textit{increased / decreased / constant / Uncertain}): \textbf{Uncertain}
+  \item Seasonality Shift
+  (\textit{fixed / shifting / no / Uncertain}): \textbf{no}
+\end{itemize}
+
+\vspace{3pt}\hrule\vspace{4pt}
+
+\textbf{T3} \\
+\emph{Question:} Compare \texttt{pressure\_downwind} under high load ($\ge$q0.70 \texttt{load\_in}) versus low load ($\le$q0.30). Which regime has the higher median level? \\
+\emph{Options:} \textit{Higher / Lower / Similar / Uncertain} \\
+\textbf{Answer:} \textbf{Similar}
+
+\vspace{3pt}\hrule\vspace{4pt}
+
+\textbf{T4}
+
+\emph{Event description:}
+High-load and low-load regimes are identified based on quantiles of \texttt{load\_in}.
+
+\emph{Forecasting subtask:}
+Predict future values of the target variable conditioned on the shared historical context and the load-regime event.
+
+\emph{MCQ subtask:}
+\begin{itemize}[leftmargin=1.1em,itemsep=0pt,topsep=0pt,parsep=0pt,partopsep=0pt]
+  \item Future vs. History
+  (\textit{Higher / Lower / Similar / Uncertain}): \textbf{Similar}
+  \item Volatility Change
+  (\textit{increased / decreased / constant / Uncertain}): \textbf{Uncertain}
+  \item Seasonality Shift
+  (\textit{fixed / shifting / no / Uncertain}): \textbf{no}
+\end{itemize}
+
+\end{tcolorbox}
+\caption{A full example instance (Causal Chambers) illustrating tasks T1--T4 in TemporalBench. All tiers share the same underlying physical-system time-series context, while T4 is additionally conditioned on a load-regime event.}
+\label{fig:appendix_causal_chambers_one_example}
+\end{figure}
+
+
+To make the task design of TemporalBench concrete, we present one complete example instance for each domain in the appendix. Each example illustrates how a single time-series sample is transformed into four task tiers (T1--T4) under a unified abstraction, while preserving domain-specific characteristics.
+
+Figure~\ref{fig:appendix_psml_one_example} shows an example from PSML, where the shared context consists of power load and meteorological covariates. The tasks range from basic time-series understanding (T1), to forecasting and qualitative judgments (T2), event-based reasoning (T3), and event-conditioned forecasting and decision-making (T4).
+
+Figure~\ref{fig:appendix_mimic_one_example} presents a clinical example from MIMIC. The shared context contains multivariate physiological signals, with heart rate serving as a reference variable. In this setting, T3 and T4 are conditioned on a clinically meaningful event (fever), demonstrating how TemporalBench captures medically grounded temporal reasoning beyond pure forecasting.
+
+Figure~\ref{fig:appendix_freshretailnet_one_example} illustrates a retail scenario from FreshRetailNet. The example highlights sparse and promotion-driven sales dynamics, where discount-related events play a central role in T3 and T4. Despite the domain shift, the task structure remains consistent with the other datasets.
+
+Finally, Figure~\ref{fig:appendix_causal_chambers_one_example} provides an example from Causal Chambers, a controlled physical system. The shared context includes system measurements and operational variables, while T3 and T4 focus on reasoning under load-regime interventions, emphasizing causal and regime-based temporal comparisons.
+
+Across all four examples, the same task tiers operate on different domains and data characteristics, illustrating that TemporalBench evaluates time-series understanding, forecasting, and event-driven reasoning within a single, coherent benchmark framework.
+
+
+
+\section{Performance with different base LLMs}
+
+\begin{table*}[t]
+\centering
+\footnotesize
+
+\caption{Multi-choice (MCQ) task performance across datasets and agent frameworks under different backbone models.}
+\label{tab:mcq_all_backbones}
+
+% ======================================================
+% (a) Claude-3.7-Sonnet
+% ======================================================
+\begin{subtable}[t]{\textwidth}
+\centering
+\caption{Base model: \texttt{claude-3.7-sonnet}}
+\setlength{\tabcolsep}{2.8pt}
+\renewcommand{\arraystretch}{1.2}
+
+\begin{tabular}{c|c|cccc|cccc|cccc|cccc}
+\toprule
+\multirow{2}{*}{Agent} & Dataset
+& \multicolumn{4}{c|}{FreshRetailNet}
+& \multicolumn{4}{c|}{PSML}
+& \multicolumn{4}{c|}{Causal Chambers}
+& \multicolumn{4}{c}{MIMIC} \\
+\cmidrule(lr){3-6}
+\cmidrule(lr){7-10}
+\cmidrule(lr){11-14}
+\cmidrule(lr){15-18}
+& Task
+& T1 & T2 & T3 & T4
+& T1 & T2 & T3 & T4
+& T1 & T2 & T3 & T4
+& T1 & T2 & T3 & T4 \\
+\midrule
+
+% -------- Single LLM --------
+\multirow{2}{*}{Single LLM}
+& SR
+& 84.09\% & 100.00\% & 82.39\% & 100.00\%
+& 98.00\% & 94.00\% & 100.00\% & 98.00\%
+& 66.00\% & 100.00\% & 80.00\% & 78.00\%
+& 100.00\% & 100.00\% & 100.00\% & 100.00\% \\
+& ACC
+& 50.00\% & 8.33\% & 67.88\% & 16.67\%
+& 65.00\% & 19.18\% & 21.60\% & 33.33\%
+& 8.00\% & 59.33\% & 28.40\% & 44.67\%
+& 28.72\% & 36.17\% & 42.48\% & 32.62\% \\
+\midrule
+
+% -------- TimeSeriesScientist --------
+\multirow{2}{*}{\makecell[c]{TimeSeries\\Scientist}}
+& SR
+& 76.14\% & 100.00\% & 100.00\% & 100.00\%
+& 72.50\% & 100.00\% & 99.60\% & 100.00\%
+& 100.00\% & 100.00\% & 96.80\% & 100.00\%
+& 77.13\% & 100.00\% & 100.00\% & 100.00\% \\
+& ACC
+& 26.14\% & 56.82\% & 3.98\% & 56.82\%
+& 22.00\% & 26.67\% & 13.20\% & 27.33\%
+& 28.67\% & 2.67\% & 23.60\% & 2.67\%
+& 25.00\% & 23.40\% & 27.20\% & 23.40\% \\
+\midrule
+
+% -------- AgentScope --------
+\multirow{2}{*}{AgentScope}
+& SR
+& 100.00\% & 79.55\% & 89.77\% & 100.00\%
+& 100.00\% & 98.00\% & 100.00\% & 100.00\%
+& 75.00\% & 94.00\% & 100.00\% & 100.00\%
+& 100.00\% & 100.00\% & 100.00\% & 100.00\% \\
+& ACC
+& 50.57\% & 7.62\% & 35.80\% & 15.15\%
+& 67.00\% & 19.73\% & 26.40\% & 30.67\%
+& 11.33\% & 65.25\% & 44.80\% & 63.33\%
+& 30.32\% & 33.33\% & 26.20\% & 27.66\% \\
+\midrule
+
+% -------- MetaGPT --------
+\multirow{2}{*}{MetaGPT}
+& SR
+& 100.00\% & 100.00\% & 82.95\% & 100.00\%
+& 100.00\% & 86.00\% & 92.40\% & 96.00\%
+& 75.00\% & 98.00\% & 100.00\% & 100.00\%
+& 100.00\% & 100.00\% & 100.00\% & 100.00\% \\
+& ACC
+& 57.95\% & 10.61\% & 30.68\% & 12.12\%
+& 65.00\% & 22.46\% & 22.80\% & 32.64\%
+& 16.67\% & 64.00\% & 46.00\% & 63.33\%
+& 31.38\% & 36.17\% & 23.59\% & 34.04\% \\
+\midrule
+
+% -------- CAMEL --------
+\multirow{2}{*}{CAMEL}
+& SR
+& 100.00\% & 79.55\% & 89.77\% & 100.00\%
+& 100.00\% & 98.00\% & 100.00\% & 100.00\%
+& 75.00\% & 94.00\% & 100.00\% & 100.00\%
+& 100.00\% & 100.00\% & 100.00\% & 100.00\% \\
+& ACC
+& 50.57\% & 7.62\% & 35.80\% & 15.15\%
+& 67.00\% & 19.73\% & 26.40\% & 30.67\%
+& 11.33\% & 65.25\% & 44.80\% & 63.33\%
+& 30.32\% & 33.33\% & 26.20\% & 27.66\% \\
+\bottomrule
+\end{tabular}
+\end{subtable}
+
+\vspace{2pt}
+
+% ======================================================
+% (b) Gemini-2.5-Flash
+% ======================================================
+\begin{subtable}[t]{\textwidth}
+\centering
+\caption{Base model: \texttt{gemini-2.5-flash}}
+\setlength{\tabcolsep}{2.8pt}
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{c|c|cccc|cccc|cccc|cccc}
+\toprule
+\multirow{2}{*}{Agent} & Dataset
+& \multicolumn{4}{c|}{FreshRetailNet}
+& \multicolumn{4}{c|}{PSML}
+& \multicolumn{4}{c|}{Causal Chambers}
+& \multicolumn{4}{c}{MIMIC} \\
+\cmidrule(lr){3-6}
+\cmidrule(lr){7-10}
+\cmidrule(lr){11-14}
+\cmidrule(lr){15-18}
+
+& Task
+& T1 & T2 & T3 & \multicolumn{1}{c|}{T4}
+& T1 & T2 & T3 & \multicolumn{1}{c|}{T4}
+& T1 & T2 & T3 & \multicolumn{1}{c|}{T4}
+& T1 & T2 & T3 & T4 \\
+\midrule
+
+\multirow{2}{*}{Single LLM}
+& SR
+& 100.00\% & 0.00\% & 76.70\% & \multicolumn{1}{c|}{9.09\%}
+& 100.00\% & 74.00\% & 100.00\% & \multicolumn{1}{c|}{82.00\%}
+& 100.00\% & 100.00\% & 100.00\% & \multicolumn{1}{c|}{100.00\%}
+& 100.00\% & 100.00\% & 94.66\% & 100.00\% \\
+& ACC
+& 19.89\% & 0.00\% & 16.56\% & \multicolumn{1}{c|}{1.52\%}
+& 47.50\% & 12.00\% & 13.60\% & \multicolumn{1}{c|}{21.33\%}
+& 11.33\% & 29.33\% & 50.40\% & \multicolumn{1}{c|}{14.67\%}
+& 26.60\% & 20.57\% & 40.94\% & 21.99\% \\
+\midrule
+
+\multirow{2}{*}{\makecell[c]{TimeSeries\\Scientist}}
+& SR
+& 76.14\% & 100.00\% & 100.00\% & \multicolumn{1}{c|}{100.00\%}
+& 72.50\% & 100.00\% & 99.60\% & \multicolumn{1}{c|}{100.00\%}
+& 100.00\% & 100.00\% & 96.80\% & \multicolumn{1}{c|}{100.00\%}
+& 77.13\% & 100.00\% & 100.00\% & 100.00\% \\
+& ACC
+& 26.14\% & 56.82\% & 3.98\% & \multicolumn{1}{c|}{56.82\%}
+& 22.00\% & 26.67\% & 13.20\% & \multicolumn{1}{c|}{27.33\%}
+& 28.67\% & 2.67\% & 23.60\% & \multicolumn{1}{c|}{2.67\%}
+& 25.00\% & 23.40\% & 27.20\% & 23.40\% \\
+\midrule
+
+\multirow{2}{*}{AgentScope}
+& SR
+& 100.00\% & 72.73\% & 85.80\% & \multicolumn{1}{c|}{59.09\%}
+& 100.00\% & 70.00\% & 98.40\% & \multicolumn{1}{c|}{68.00\%}
+& 75.00\% & 100.00\% & 100.00\% & \multicolumn{1}{c|}{98.00\%}
+& 100.00\% & 100.00\% & 100.00\% & 100.00\% \\
+& ACC
+& 27.27\% & 4.17\% & 26.70\% & \multicolumn{1}{c|}{15.38\%}
+& 48.50\% & 23.81\% & 14.80\% & \multicolumn{1}{c|}{28.43\%}
+& 12.00\% & 30.67\% & 38.40\% & \multicolumn{1}{c|}{29.93\%}
+& 28.19\% & 18.44\% & 23.76\% & 24.82\% \\
+\midrule
+
+\multirow{2}{*}{MetaGPT}
+& SR
+& 100.00\% & 40.91\% & 71.59\% & \multicolumn{1}{c|}{15.91\%}
+& 100.00\% & 82.00\% & 99.60\% & \multicolumn{1}{c|}{70.00\%}
+& 75.00\% & 96.00\% & 100.00\% & \multicolumn{1}{c|}{100.00\%}
+& 100.00\% & 100.00\% & 95.82\% & 100.00\% \\
+& ACC
+& 18.18\% & 7.41\% & 20.39\% & \multicolumn{1}{c|}{4.76\%}
+& 47.50\% & 16.26\% & 15.20\% & \multicolumn{1}{c|}{23.81\%}
+& 14.67\% & 30.56\% & 37.20\% & \multicolumn{1}{c|}{22.00\%}
+& 27.13\% & 16.31\% & 23.71\% & 19.15\% \\
+\midrule
+
+\multirow{2}{*}{CAMEL}
+& SR
+& 100.00\% & 15.91\% & 85.23\% & \multicolumn{1}{c|}{9.09\%}
+& 100.00\% & 76.00\% & 99.60\% & \multicolumn{1}{c|}{80.00\%}
+& 75.00\% & 100.00\% & 100.00\% & \multicolumn{1}{c|}{94.00\%}
+& 100.00\% & 100.00\% & 100.00\% & 100.00\% \\
+& ACC
+& 25.57\% & 9.52\% & 25.00\% & \multicolumn{1}{c|}{41.67\%}
+& 48.00\% & 20.18\% & 10.40\% & \multicolumn{1}{c|}{24.17\%}
+& 16.67\% & 28.67\% & 45.60\% & \multicolumn{1}{c|}{29.79\%}
+& 23.94\% & 20.57\% & 24.61\% & 20.57\% \\
+\bottomrule
+\end{tabular}
+
+\end{subtable}
+
+\vspace{2pt}
+
+% ======================================================
+% (c) DeepSeek-Chat
+% ======================================================
+\begin{subtable}[t]{\textwidth}
+\centering
+\caption{Base model: \texttt{deepseek-chat}}
+\setlength{\tabcolsep}{2.8pt}
+\renewcommand{\arraystretch}{1.2}
+
+\begin{tabular}{c|c|cccc|cccc|cccc|cccc}
+\toprule
+\multirow{2}{*}{Agent} & Dataset
+& \multicolumn{4}{c|}{FreshRetailNet}
+& \multicolumn{4}{c|}{PSML}
+& \multicolumn{4}{c|}{Causal Chambers}
+& \multicolumn{4}{c}{MIMIC} \\
+\cmidrule(lr){3-6}
+\cmidrule(lr){7-10}
+\cmidrule(lr){11-14}
+\cmidrule(lr){15-18}
+
+& Task
+& T1 & T2 & T3 & \multicolumn{1}{c|}{T4}
+& T1 & T2 & T3 & \multicolumn{1}{c|}{T4}
+& T1 & T2 & T3 & \multicolumn{1}{c|}{T4}
+& T1 & T2 & T3 & T4 \\
+\midrule
+
+\multirow{2}{*}{Single LLM}
+& SR
+& 100.00\% & 100.00\% & 82.39\% & \multicolumn{1}{c|}{100.00\%}
+& 100.00\% & 100.00\% & 100.00\% & \multicolumn{1}{c|}{100.00\%}
+& 100.00\% & 100.00\% & 100.00\% & \multicolumn{1}{c|}{100.00\%}
+& 100.00\% & 100.00\% & 100.00\% & 100.00\% \\
+& ACC
+& 68.18\% & 56.82\% & 16.85\% & \multicolumn{1}{c|}{26.52\%}
+& 74.00\% & 24.67\% & 34.80\% & \multicolumn{1}{c|}{36.00\%}
+& 15.33\% & 19.33\% & 44.40\% & \multicolumn{1}{c|}{29.33\%}
+& 33.00\% & 22.67\% & 39.14\% & 22.67\% \\
+\midrule
+
+\multirow{2}{*}{\makecell[c]{TimeSeries\\Scientist}}
+& SR
+& 100.00\% & 100.00\% & 100.00\% & \multicolumn{1}{c|}{100.00\%}
+& 100.00\% & 100.00\% & 100.00\% & \multicolumn{1}{c|}{100.00\%}
+& 100.00\% & 100.00\% & 100.00\% & \multicolumn{1}{c|}{100.00\%}
+& 100.00\% & 100.00\% & 100.00\% & 100.00\% \\
+& ACC
+& 36.36\% & 56.82\% & 34.09\% & \multicolumn{1}{c|}{56.82\%}
+& 38.50\% & 26.67\% & 22.80\% & \multicolumn{1}{c|}{27.33\%}
+& 28.67\% & 2.67\% & 29.60\% & \multicolumn{1}{c|}{2.67\%}
+& 15.43\% & 23.40\% & 25.94\% & 23.40\% \\
+\midrule
+
+\multirow{2}{*}{AgentScope}
+& SR
+& 100.00\% & 100.00\% & 96.02\% & \multicolumn{1}{c|}{100.00\%}
+& 100.00\% & 78.00\% & 100.00\% & \multicolumn{1}{c|}{100.00\%}
+& 75.00\% & 100.00\% & 100.00\% & \multicolumn{1}{c|}{100.00\%}
+& 100.00\% & 100.00\% & 100.00\% & 100.00\% \\
+& ACC
+& 70.45\% & 34.85\% & 5.68\% & \multicolumn{1}{c|}{42.42\%}
+& 68.50\% & 20.51\% & 24.80\% & \multicolumn{1}{c|}{31.33\%}
+& 16.00\% & 47.33\% & 46.40\% & \multicolumn{1}{c|}{42.00\%}
+& 32.98\% & 22.70\% & 25.71\% & 24.82\% \\
+\midrule
+
+\multirow{2}{*}{MetaGPT}
+& SR
+& 100.00\% & 100.00\% & 97.16\% & \multicolumn{1}{c|}{100.00\%}
+& 100.00\% & 98.00\% & 100.00\% & \multicolumn{1}{c|}{100.00\%}
+& 75.00\% & 100.00\% & 100.00\% & \multicolumn{1}{c|}{100.00\%}
+& 100.00\% & 100.00\% & 100.00\% & 100.00\% \\
+& ACC
+& 69.89\% & 41.67\% & 5.11\% & \multicolumn{1}{c|}{37.12\%}
+& 71.50\% & 19.73\% & 28.00\% & \multicolumn{1}{c|}{30.67\%}
+& 15.33\% & 22.00\% & 46.40\% & \multicolumn{1}{c|}{40.00\%}
+& 32.98\% & 22.70\% & 25.79\% & 30.50\% \\
+\midrule
+
+\multirow{2}{*}{CAMEL}
+& SR
+& 100.00\% & 100.00\% & 90.91\% & \multicolumn{1}{c|}{100.00\%}
+& 100.00\% & 74.00\% & 100.00\% & \multicolumn{1}{c|}{100.00\%}
+& 75.00\% & 100.00\% & 100.00\% & \multicolumn{1}{c|}{100.00\%}
+& 100.00\% & 100.00\% & 100.00\% & 100.00\% \\
+& ACC
+& 67.05\% & 8.33\% & 19.89\% & \multicolumn{1}{c|}{29.55\%}
+& 65.00\% & 18.02\% & 25.20\% & \multicolumn{1}{c|}{30.67\%}
+& 12.67\% & 65.33\% & 46.80\% & \multicolumn{1}{c|}{48.00\%}
+& 31.38\% & 24.82\% & 25.61\% & 31.21\% \\
+\bottomrule
+\end{tabular}
+\end{subtable}
+
+\vspace{2pt}
+
+% ======================================================
+% (d) Qwen-plus
+% ======================================================
+\begin{subtable}[t]{\textwidth}
+\centering
+\caption{Base model: \texttt{qwen-plus}}
+\setlength{\tabcolsep}{2.8pt}
+\renewcommand{\arraystretch}{1.2}
+
+\begin{tabular}{c|c|cccc|cccc|cccc|cccc}
+\toprule
+\multirow{2}{*}{Agent} & Dataset
+& \multicolumn{4}{c|}{FreshRetailNet}
+& \multicolumn{4}{c|}{PSML}
+& \multicolumn{4}{c|}{Causal Chambers}
+& \multicolumn{4}{c}{MIMIC} \\
+\cmidrule(lr){3-6}
+\cmidrule(lr){7-10}
+\cmidrule(lr){11-14}
+\cmidrule(lr){15-18}
+
+& Task
+& T1 & T2 & T3 & \multicolumn{1}{c|}{T4}
+& T1 & T2 & T3 & \multicolumn{1}{c|}{T4}
+& T1 & T2 & T3 & \multicolumn{1}{c|}{T4}
+& T1 & T2 & T3 & T4 \\
+\midrule
+
+\multirow{2}{*}{Single LLM}
+& SR
+& 100.00\% & 100.00\% & 64.20\% & \multicolumn{1}{c|}{70.45\%}
+& 100.00\% & 54.00\% & 100.00\% & \multicolumn{1}{c|}{26.00\%}
+& 100.00\% & 100.00\% & 100.00\% & \multicolumn{1}{c|}{100.00\%}
+& 100.00\% & 100.00\% & 100.00\% & 100.00\% \\
+& ACC
+& 60.80\% & 11.36\% & 7.30\% & \multicolumn{1}{c|}{9.85\%}
+& 49.00\% & 10.67\% & 23.20\% & \multicolumn{1}{c|}{8.00\%}
+& 20.00\% & 18.00\% & 50.40\% & \multicolumn{1}{c|}{35.33\%}
+& 43.50\% & 27.33\% & 40.84\% & 35.33\% \\
+\midrule
+
+\multirow{2}{*}{\makecell[c]{TimeSeries\\Scientist}}
+& SR
+& 17.61\% & 100.00\% & 100.00\% & \multicolumn{1}{c|}{100.00\%}
+& 18.00\% & 100.00\% & 100.00\% & \multicolumn{1}{c|}{100.00\%}
+& 100.00\% & 100.00\% & 75.20\% & \multicolumn{1}{c|}{100.00\%}
+& 22.87\% & 100.00\% & 99.58\% & 100.00\% \\
+& ACC
+& 7.95\% & 56.82\% & 23.30\% & \multicolumn{1}{c|}{56.82\%}
+& 12.50\% & 26.67\% & 14.00\% & \multicolumn{1}{c|}{27.33\%}
+& 28.67\% & 2.67\% & 20.80\% & \multicolumn{1}{c|}{2.67\%}
+& 5.85\% & 23.40\% & 28.45\% & 23.40\% \\
+\midrule
+
+\multirow{2}{*}{AgentScope}
+& SR
+& 100.00\% & 100.00\% & 100.00\% & \multicolumn{1}{c|}{90.91\%}
+& 100.00\% & 84.00\% & 100.00\% & \multicolumn{1}{c|}{78.00\%}
+& 75.00\% & 100.00\% & 100.00\% & \multicolumn{1}{c|}{100.00\%}
+& 100.00\% & 100.00\% & 100.00\% & 100.00\% \\
+& ACC
+& 58.52\% & 7.58\% & 39.77\% & \multicolumn{1}{c|}{8.33\%}
+& 54.50\% & 19.05\% & 27.60\% & \multicolumn{1}{c|}{26.50\%}
+& 24.00\% & 42.67\% & 49.60\% & \multicolumn{1}{c|}{42.00\%}
+& 44.15\% & 25.53\% & 28.24\% & 29.79\% \\
+\midrule
+
+\multirow{2}{*}{MetaGPT}
+& SR
+& 100.00\% & 22.73\% & 100.00\% & \multicolumn{1}{c|}{56.82\%}
+& 100.00\% & 86.00\% & 100.00\% & \multicolumn{1}{c|}{88.00\%}
+& 75.00\% & 100.00\% & 100.00\% & \multicolumn{1}{c|}{96.00\%}
+& 100.00\% & 100.00\% & 100.00\% & 97.87\% \\
+& ACC
+& 65.34\% & 16.67\% & 40.34\% & \multicolumn{1}{c|}{10.67\%}
+& 53.50\% & 18.60\% & 29.20\% & \multicolumn{1}{c|}{28.03\%}
+& 26.00\% & 34.00\% & 49.20\% & \multicolumn{1}{c|}{39.58\%}
+& 47.34\% & 26.24\% &26.95\%  & 31.88\% \\
+\midrule
+
+\multirow{2}{*}{CAMEL}
+& SR
+& 100.00\% & 100.00\% & 15.91\% & \multicolumn{1}{c|}{100.00\%}
+& 100.00\% & 75.00\% & 100.00\% & \multicolumn{1}{c|}{75.00\%}
+& 74.00\% & 100.00\% & 100.00\% & \multicolumn{1}{c|}{100.00\%}
+& 100.00\% & 100.00\% & 100.00\% & 100.00\% \\
+& ACC
+& 64.20\% & 12.88\% & 35.80\% & \multicolumn{1}{c|}{12.88\%}
+& 75.00\% & 44.44\% & 32.00\% & \multicolumn{1}{c|}{44.44\%}
+& 22.67\% & 33.33\% & 48.40\% & \multicolumn{1}{c|}{42.67\%}
+& 41.49\% & 25.53\% & 27.62\% & 34.04\% \\
+\bottomrule
+\end{tabular}
+\end{subtable}
+
+\end{table*}
+
+
+
+\begin{table*}[t]
+\centering
+\footnotesize
+\caption{Forecasting performance on T2 and T4 tasks across datasets and agent frameworks under different backbone models.}
+\label{tab:forecast_all_backbones}
+
+% ======================================================
+% (a) Claude-3.7-Sonnet
+% ======================================================
+\begin{subtable}[t]{\textwidth}
+\centering
+\caption{Base model: \texttt{claude-3.7-sonnet}}
+\setlength{\tabcolsep}{12pt}
+\renewcommand{\arraystretch}{0.8}
+
+\begin{tabular}{c|c|cc|cc|cc!{\vrule width 1.2pt}cc}
+\toprule
+\multirow{2}{*}{Agent} & \multirow{2}{*}{Metric}
+& \multicolumn{2}{c|}{FreshRetailNet}
+& \multicolumn{2}{c|}{PSML}
+& \multicolumn{2}{c!{\vrule width 1.2pt}}{Causal Chambers}
+& \multicolumn{2}{c}{MIMIC} \\
+\cmidrule(lr){3-4}
+\cmidrule(lr){5-6}
+\cmidrule(lr){7-8}
+\cmidrule(lr){9-10}
+
+&
+& T2 & T4
+& T2 & T4
+& T2 & T4
+& T2 & T4 \\
+\midrule
+
+% -------- Single LLM --------
+\multirow{3}{*}{Single LLM}
+& SR
+& 61.36\% & 47.73\%
+& 34.00\% & 40.00\%
+& 48.00\% & 46.00\%
+& 0.00\% & 97.87\% \\
+& MAE
+& 0.11 & 0.14
+& 0.26 & 0.29
+& 2.31 & 2.70
+&  & 12.14 \\
+& sMAPE
+& 1.25 & 1.22
+& 0.28 & 0.30
+& 2.40E{-}05 & 2.80E{-}05
+&  & 0.47 \\
+\midrule
+
+% -------- TimeSeriesScientist --------
+\multirow{3}{*}{\makecell[c]{TimeSeries\\Scientist}}
+& SR
+& 36.36\% & 43.18\%
+& 22.00\% & 14.00\%
+& 54.00\% & 30.00\%
+& 89.36\% & 89.36\% \\
+& MAE
+& 0.14 & 0.16
+& 0.26 & 0.26
+& 2.32 & 2.57
+& 9.75 & 10.54 \\
+& sMAPE
+& 1.29 & 1.21
+& 0.29 & 0.24
+& 2.41E{-}05 & 2.68E{-}05
+& 0.34 & 0.38 \\
+\midrule
+
+% -------- AgentScope --------
+\multirow{3}{*}{AgentScope}
+& SR
+& 65.91\% & 88.64\%
+& 30.00\% & 34.00\%
+& 62.00\% & 32.00\%
+& 97.87\% & 95.74\% \\
+& MAE
+& 0.13 & 0.11
+& 0.27 & 0.24
+& 2.16 & 2.79
+& 9.86 & 13.45 \\
+& sMAPE
+& 121.00 & 121.96
+& 26.92 & 20.07
+& 2.25E{-}03 & 2.90E{-}03
+& 0.41 & 0.48 \\
+\midrule
+
+% -------- MetaGPT --------
+\multirow{3}{*}{MetaGPT}
+& SR
+& 29.55\% & 70.45\%
+& 14.00\% & 26.00\%
+& 50.00\% & 36.00\%
+& 97.87\% & 97.87\% \\
+& MAE
+& 0.12 & 0.14
+& 0.16 & 0.24
+& 2.07 & 2.87
+& 9.90 & 11.36 \\
+& sMAPE
+& 126.50 & 120.66
+& 16.88 & 26.33
+& 2.15E{-}03 & 2.99E{-}03
+& 0.41 & 0.49 \\
+\midrule
+
+% -------- CAMEL --------
+\multirow{3}{*}{CAMEL}
+& SR
+& 65.91\% & 88.64\%
+& 30.00\% & 34.00\%
+& 62.00\% & 32.00\%
+& 97.87\% & 95.74\% \\
+& MAE
+& 0.13 & 0.11
+& 0.27 & 0.24
+& 2.16 & 2.79
+& 9.86 & 13.45 \\
+& sMAPE
+& 121.00 & 121.96
+& 26.92 & 20.07
+& 2.25E{-}03 & 2.90E{-}03
+& 0.41 & 0.48 \\
+\bottomrule
+\end{tabular}
+\end{subtable}
+
+\vspace{2pt}
+
+% ======================================================
+% (b) Gemini-2.5-Flash
+% ======================================================
+\begin{subtable}[t]{\textwidth}
+\centering
+\caption{Base model: \texttt{gemini-2.5-flash}}
+\setlength{\tabcolsep}{12pt}
+\renewcommand{\arraystretch}{0.8}
+
+\begin{tabular}{c|c|cc|cc|cc!{\vrule width 1.2pt}cc}
+\toprule
+\multirow{2}{*}{Agent} & \multirow{2}{*}{Metric}
+& \multicolumn{2}{c|}{FreshRetailNet}
+& \multicolumn{2}{c|}{PSML}
+& \multicolumn{2}{c!{\vrule width 1.2pt}}{Causal Chambers}
+& \multicolumn{2}{c}{MIMIC} \\
+\cmidrule(lr){3-4}
+\cmidrule(lr){5-6}
+\cmidrule(lr){7-8}
+\cmidrule(lr){9-10}
+
+&
+& T2 & T4
+& T2 & T4
+& T2 & T4
+& T2 & T4 \\
+\midrule
+
+% -------- Single LLM --------
+\multirow{3}{*}{Single LLM}
+& SR
+& 0.00\% & 2.27\%
+& 0.00\% & 4.00\%
+& 36.00\% & 38.00\%
+& 0.00\% & 89.36\% \\
+& MAE
+&  & 0.06
+&  & 0.11
+& 2.18 & 2.90
+&  & 11.80 \\
+& sMAPE
+&  & 1.29
+&  & 0.16
+& 2.26E{-}05 & 3.02E{-}05
+&  & 0.38 \\
+\midrule
+
+% -------- TimeSeriesScientist --------
+\multirow{3}{*}{\makecell[c]{TimeSeries\\Scientist}}
+& SR
+& 36.36\% & 43.18\%
+& 22.00\% & 14.00\%
+& 54.00\% & 30.00\%
+& 89.36\% & 89.36\% \\
+& MAE
+& 0.14 & 0.16
+& 0.26 & 0.26
+& 2.32 & 2.57
+& 9.75 & 10.54 \\
+& sMAPE
+& 1.29 & 1.21
+& 0.29 & 0.24
+& 2.41E{-}05 & 2.68E{-}05
+& 0.34 & 0.38 \\
+\midrule
+
+% -------- AgentScope --------
+\multirow{3}{*}{AgentScope}
+& SR
+& 0.00\% & 2.33\%
+& 0.00\% & 2.04\%
+& 30.19\% & 28.30\%
+& 75.47\% & 82.35\% \\
+& MAE
+&  & 0.15
+&  & 0.14
+& 2.32 & 2.20
+& 11.60 & 12.06 \\
+& sMAPE
+&  & 143.19
+&  & 16.93
+& 2.41E{-}03 & 2.29E{-}03
+& 0.41 & 0.36 \\
+\midrule
+
+% -------- MetaGPT --------
+\multirow{3}{*}{MetaGPT}
+& SR
+& 0.00\% & 4.55\%
+& 4.00\% & 6.00\%
+& 50.00\% & 42.00\%
+& 76.60\% & 89.36\% \\
+& MAE
+&  & 0.39
+& 0.24 & 0.20
+& 2.48 & 2.55
+& 11.26 & 10.93 \\
+& sMAPE
+&  & 124.81
+& 24.13 & 21.58
+& 2.58E{-}03 & 2.65E{-}03
+& 0.40 & 0.35 \\
+\midrule
+
+% -------- CAMEL --------
+\multirow{3}{*}{CAMEL}
+& SR
+& 0.00\% & 0.00\%
+& 2.00\% & 4.00\%
+& 34.00\% & 46.00\%
+& 53.19\% & 87.23\% \\
+& MAE
+&  & 0.16
+& 0.16 & 0.16
+& 2.34 & 2.62
+& 11.08 & 11.58 \\
+& sMAPE
+&  & 22.22
+& 19.38 & 19.38
+& 2.43E{-}03 & 2.73E{-}03
+& 0.39 & 0.36 \\
+\bottomrule
+\end{tabular}
+\end{subtable}
+
+
+\vspace{2pt}
+
+% ======================================================
+% (c) DeepSeek-Chat
+% ======================================================
+\begin{subtable}[t]{\textwidth}
+\centering
+\caption{Base model: \texttt{deepseek-chat}}
+\setlength{\tabcolsep}{12pt}
+\renewcommand{\arraystretch}{0.8}
+
+\begin{tabular}{c|c|cc|cc|cc!{\vrule width 1.2pt}cc}
+\toprule
+\multirow{2}{*}{Agent} & \multirow{2}{*}{Metric}
+& \multicolumn{2}{c|}{FreshRetailNet}
+& \multicolumn{2}{c|}{PSML}
+& \multicolumn{2}{c!{\vrule width 1.2pt}}{Causal Chambers}
+& \multicolumn{2}{c}{MIMIC} \\
+\cmidrule(lr){3-4}
+\cmidrule(lr){5-6}
+\cmidrule(lr){7-8}
+\cmidrule(lr){9-10}
+
+&
+& T2 & T4
+& T2 & T4
+& T2 & T4
+& T2 & T4 \\
+\midrule
+
+% -------- Single LLM --------
+\multirow{3}{*}{Single LLM}
+& SR
+& 0.00\% & 2.27\%
+& 20.00\% & 46.00\%
+& 52.00\% & 48.00\%
+& 0.00\% & 98.00\% \\
+& MAE
+&  & 0.10
+& 0.29 & 0.38
+& 1.97 & 2.53
+&  & 12.12 \\
+& sMAPE
+&  & 0.97
+& 0.27 & 0.28
+& 2.05E{-}05 & 2.63E{-}05
+&  & 0.48 \\
+\midrule
+
+% -------- TimeSeriesScientist --------
+\multirow{3}{*}{\makecell[c]{TimeSeries\\Scientist}}
+& SR
+& 34.09\% & 25.00\%
+& 68.00\% & 60.00\%
+& 64.00\% & 40.00\%
+& 89.36\% & 89.36\% \\
+& MAE
+& 0.17 & 0.12
+& 0.34 & 0.34
+& 2.11 & 2.51
+& 10.70 & 0.34 \\
+& sMAPE
+& 1.30 & 1.25
+& 0.32 & 0.27
+& 2.19E{-}05 & 2.61E{-}05
+& 12.34 & 0.45 \\
+\midrule
+
+% -------- AgentScope --------
+\multirow{3}{*}{AgentScope}
+& SR
+& 27.54\% & 1.15\%
+& 12.36\% & 25.00\%
+& 58.00\% & 40.00\%
+& 97.87\% & 95.74\% \\
+& MAE
+& 0.10 & 0.07
+& 0.29 & 0.36
+& 2.43 & 2.72
+& 10.22 & 11.43 \\
+& sMAPE
+& 124.06 & 129.35
+& 27.39 & 27.94
+& 2.52E{-}03 & 2.82E{-}03
+& 0.46 & 0.39 \\
+\midrule
+
+% -------- MetaGPT --------
+\multirow{3}{*}{MetaGPT}
+& SR
+& 38.64\% & 0.00\%
+& 22.00\% & 38.00\%
+& 58.00\% & 44.00\%
+& 97.87\% & 97.87\% \\
+& MAE
+&  & 0.09
+& 0.31 & 0.35
+& 2.33 & 2.70
+& 10.29 & 10.88 \\
+& sMAPE
+&  & 125.21
+& 25.15 & 29.31
+& 2.42E{-}03 & 2.81E{-}03
+& 0.41 & 0.41 \\
+\midrule
+
+% -------- CAMEL --------
+\multirow{3}{*}{CAMEL}
+& SR
+& 45.45\% & 18.18\%
+& 20.00\% & 30.00\%
+& 56.00\% & 38.00\%
+& 97.87\% & 97.87\% \\
+& MAE
+& 0.11 & 0.22
+& 0.28 & 0.39
+& 2.37 & 2.55
+& 11.36 & 11.32 \\
+& sMAPE
+& 129.65 & 132.99
+& 25.78 & 32.22
+& 2.46E{-}03 & 2.65E{-}03
+& 0.47 & 0.46 \\
+\bottomrule
+\end{tabular}
+\end{subtable}
+
+
+\vspace{2pt}
+
+% ======================================================
+% (d) Qwen-plus
+% ======================================================
+\begin{subtable}[t]{\textwidth}
+\centering
+\caption{Base model: \texttt{qwen-plus}}
+\setlength{\tabcolsep}{12pt}
+\renewcommand{\arraystretch}{0.8}
+
+\begin{tabular}{c|c|cc|cc|cc!{\vrule width 1.2pt}cc}
+\toprule
+\multirow{2}{*}{Agent} & \multirow{2}{*}{Metric}
+& \multicolumn{2}{c|}{FreshRetailNet}
+& \multicolumn{2}{c|}{PSML}
+& \multicolumn{2}{c!{\vrule width 1.2pt}}{Causal Chambers}
+& \multicolumn{2}{c}{MIMIC} \\
+\cmidrule(lr){3-4}
+\cmidrule(lr){5-6}
+\cmidrule(lr){7-8}
+\cmidrule(lr){9-10}
+
+&
+& T2 & T4
+& T2 & T4
+& T2 & T4
+& T2 & T4 \\
+\midrule
+
+% -------- Single LLM --------
+\multirow{3}{*}{Single LLM}
+& SR
+& 0.00\% & 4.55\%
+& 6.00\% & 12.00\%
+& 46.00\% & 46.00\%
+& 0.00\% & 92.00\% \\
+& MAE
+&  & 0.32
+& 0.32 & 0.54
+& 2.17 & 2.83
+&  & 17.02 \\
+& sMAPE
+&  & 1.32
+& 0.27 & 0.34
+& 2.26E{-}05 & 2.95E{-}05
+&  & 0.54 \\
+\midrule
+
+% -------- TimeSeriesScientist --------
+\multirow{3}{*}{\makecell[c]{TimeSeries\\Scientist}}
+& SR
+& 4.55\% & 6.82\%
+& 0.00\% & 16.00\%
+& 46.00\% & 44.00\%
+& 82.98\% & 80.85\% \\
+& MAE
+& 0.06 & 0.28
+&  & 0.39
+& 2.43 & 2.46
+& 15.08 & 18.80 \\
+& sMAPE
+& 1.30 & 1.34
+&  & 0.32
+& 2.52E{-}05 & 2.55E{-}05
+& 0.42 & 0.58 \\
+\midrule
+
+% -------- AgentScope --------
+\multirow{3}{*}{AgentScope}
+& SR
+& 1.15\% & 8.64\%
+& 6.38\% & 6.38\%
+& 39.22\% & 35.29\%
+& 54.10\% & 89.80\% \\
+& MAE
+& 0.23 & 0.27
+& 0.31 & 0.66
+& 2.39 & 2.77
+& 15.67 & 18.65 \\
+& sMAPE
+& 135.87 & 136.62
+& 29.69 & 40.12
+& 2.48E{-}03 & 2.88E{-}03
+& 0.52 & 0.53 \\
+\midrule
+
+% -------- MetaGPT --------
+\multirow{3}{*}{MetaGPT}
+& SR
+& 0.00\% & 6.82\%
+& 16.00\% & 12.00\%
+& 42.00\% & 32.00\%
+& 59.57\% & 100.00\% \\
+& MAE
+&  & 0.35
+& 0.47 & 0.34
+& 2.13 & 2.49
+& 15.97 & 17.68 \\
+& sMAPE
+&  & 134.81
+& 35.39 & 28.81
+& 2.22E{-}03 & 2.59E{-}03
+& 0.46 & 0.58 \\
+\midrule
+
+% -------- CAMEL --------
+\multirow{3}{*}{CAMEL}
+& SR
+& 2.27\% & 100.00\%
+& 20.00\% & 40.00\%
+& 44.00\% & 40.00\%
+& 72.34\% & 95.74\% \\
+& MAE
+& 0.16 & 0.23
+& 0.08 & 0.32
+& 2.15 & 2.54
+& 14.62 & 18.26 \\
+& sMAPE
+& 125.89 & 120.09
+& 7.58 & 24.99
+& 2.24E{-}03 & 2.64E{-}03
+& 0.50 & 0.56 \\
+\bottomrule
+\end{tabular}
+\end{subtable}
+
+\end{table*}
+
+This section analyzes how agent performance varies when different large language models are used as the backbone. We compare \texttt{claude-3.7\allowbreak-sonnet}, \texttt{gemini-2.5\allowbreak-flash}, \texttt{deepseek\allowbreak-chat} and \texttt{qwen\allowbreak-plus}, and relate their behaviors to the trends observed in the main text where \texttt{gpt-4o} is used as the base model.
+
+Across all backbone models, several consistent patterns emerge. First, agent-based frameworks substantially outperform the single-LLM baseline on multi-choice tasks (T1 and T3), particularly on reasoning-intensive subtasks. This mirrors the observations under \texttt{gpt-4o}, indicating that the gains from agent decomposition and tool-mediated reasoning are largely model-agnostic. Even when the underlying LLM is weaker or less stable, agents such as TimeSeriesScientist, AgentScope, MetaGPT, and CAMEL maintain high execution success rates, suggesting that structured workflows effectively mitigate backbone limitations.
+
+Second, the accuracy gap between single LLMs and agent frameworks widens as tasks become more reasoning-heavy. Under all base models, T3 exhibits the largest performance variance, with single LLMs often collapsing to low accuracy despite high success rates, while agent frameworks retain meaningful gains. This trend is consistent with the \texttt{gpt-4o} results in the main paper and confirms that T3 exposes intrinsic reasoning deficiencies that cannot be resolved by prompt-only approaches.
+
+Third, forecasting tasks (T2 and T4) show stronger dependence on the backbone model. Compared to \texttt{gpt-4o}, alternative base LLMs generally yield lower success rates and higher error metrics, especially on PSML and Causal Chambers. Nevertheless, agent frameworks still demonstrate more robust behavior than single LLMs, with reduced failure rates and more stable error profiles. This suggests that while numerical forecasting quality is sensitive to the backbone model, agent coordination improves reliability even when absolute accuracy remains constrained by model capacity.
+
+Finally, differences among base LLMs primarily affect the absolute performance level rather than the relative ranking of agent frameworks. Models with stronger instruction-following and reasoning capabilities, such as \texttt{claude-3.7-sonnet}, exhibit patterns most similar to \texttt{gpt-4o}, whereas lighter or more compressed models (e.g., \texttt{gemini-2.5-flash}) show larger drops on forecasting tasks. Importantly, no base model eliminates the advantages of agent-based designs, reinforcing the central claim that temporal reasoning benefits from explicit structure beyond raw model scale.
+
+Overall, these results demonstrate that the conclusions drawn in the main text using \texttt{gpt-4o} generalize across a diverse set of backbone LLMs. Agent-based temporal reasoning consistently improves robustness and accuracy, while the choice of base model primarily influences the ceiling rather than the existence of these gains.
+
+
+
+

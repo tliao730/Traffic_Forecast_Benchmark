@@ -1,0 +1,907 @@
+\begin{table*}[t]
+\centering
+\footnotesize
+
+% =========================
+% (a) Multi-choice results
+% =========================
+\begin{subtable}[t]{\textwidth}
+\centering
+\setlength{\tabcolsep}{2.8pt}
+\renewcommand{\arraystretch}{1.2}
+
+\begin{tabular}{c|c|cccc|cccc|cccc|cccc}
+\toprule
+\multirow{2}{*}{Agent} & Dataset
+& \multicolumn{4}{c|}{FreshRetailNet}
+& \multicolumn{4}{c|}{PSML}
+& \multicolumn{4}{c|}{Causal Chambers}
+& \multicolumn{4}{c}{MIMIC} \\
+\cmidrule(lr){3-6}
+\cmidrule(lr){7-10}
+\cmidrule(lr){11-14}
+\cmidrule(lr){15-18}
+
+& Task
+& T1 & T2 & T3 & \multicolumn{1}{c|}{T4}
+& T1 & T2 & T3 & \multicolumn{1}{c|}{T4}
+& T1 & T2 & T3 & \multicolumn{1}{c|}{T4}
+& T1 & T2 & T3 & T4 \\
+\midrule
+
+\multirow{2}{*}{Single LLM}
+& SR
+& 84.09\% & 100.00\% & 82.39\% & \multicolumn{1}{c|}{100.00\%}
+& 98.00\% & 94.00\% & 100.00\% & \multicolumn{1}{c|}{98.00\%}
+& 66.00\% & 100.00\% & 80.00\% & \multicolumn{1}{c|}{78.00\%}
+& 100.00\% & 100.00\% & 100.00\% & 100.00\% \\
+& ACC
+& 50.00\% & 8.33\% & 67.88\% & \multicolumn{1}{c|}{16.67\%}
+& 65.00\% & 19.18\% & 21.60\% & \multicolumn{1}{c|}{33.33\%}
+& 8.00\% & 59.33\% & 28.40\% & \multicolumn{1}{c|}{44.67\%}
+& 28.72\% & 36.17\% & 42.48\% & 32.62\% \\
+\midrule
+
+\multirow{2}{*}{\makecell[c]{TimeSeries\\Scientist}}
+& SR
+& 76.14\% & 100.00\% & 100.00\% & \multicolumn{1}{c|}{100.00\%}
+& 72.50\% & 100.00\% & 99.60\% & \multicolumn{1}{c|}{100.00\%}
+& 100.00\% & 100.00\% & 96.80\% & \multicolumn{1}{c|}{100.00\%}
+& 77.13\% & 100.00\% & 100.00\% & 100.00\% \\
+& ACC
+& 26.14\% & 56.82\% & 3.98\% & \multicolumn{1}{c|}{56.82\%}
+& 22.00\% & 26.67\% & 13.20\% & \multicolumn{1}{c|}{27.33\%}
+& 28.67\% & 2.67\% & 23.60\% & \multicolumn{1}{c|}{2.67\%}
+& 25.00\% & 23.40\% & 27.20\% & 23.40\% \\
+\midrule
+
+\multirow{2}{*}{AgentScope}
+& SR
+& 100.00\% & 79.55\% & 89.77\% & \multicolumn{1}{c|}{100.00\%}
+& 100.00\% & 98.00\% & 100.00\% & \multicolumn{1}{c|}{100.00\%}
+& 75.00\% & 94.00\% & 100.00\% & \multicolumn{1}{c|}{100.00\%}
+& 100.00\% & 100.00\% & 100.00\% & 100.00\% \\
+& ACC
+& 50.57\% & 7.62\% & 35.80\% & \multicolumn{1}{c|}{15.15\%}
+& 67.00\% & 19.73\% & 26.40\% & \multicolumn{1}{c|}{30.67\%}
+& 11.33\% & 65.25\% & 44.80\% & \multicolumn{1}{c|}{63.33\%}
+& 30.32\% & 33.33\% & 26.20\% & 27.66\% \\
+\midrule
+
+\multirow{2}{*}{MetaGPT}
+& SR
+& 100.00\% & 100.00\% & 82.95\% & \multicolumn{1}{c|}{100.00\%}
+& 100.00\% & 86.00\% & 92.40\% & \multicolumn{1}{c|}{96.00\%}
+& 75.00\% & 98.00\% & 100.00\% & \multicolumn{1}{c|}{100.00\%}
+& 100.00\% & 100.00\% & 100.00\% & 100.00\% \\
+& ACC
+& 57.95\% & 10.61\% & 30.68\% & \multicolumn{1}{c|}{12.12\%}
+& 65.00\% & 22.46\% & 22.80\% & \multicolumn{1}{c|}{32.64\%}
+& 16.67\% & 64.00\% & 46.00\% & \multicolumn{1}{c|}{63.33\%}
+& 31.38\% & 36.17\% & 23.59\% & 34.04\% \\
+\midrule
+
+\multirow{2}{*}{CAMEL}
+& SR
+& 100.00\% & 79.55\% & 89.77\% & \multicolumn{1}{c|}{100.00\%}
+& 100.00\% & 98.00\% & 100.00\% & \multicolumn{1}{c|}{100.00\%}
+& 75.00\% & 94.00\% & 100.00\% & \multicolumn{1}{c|}{100.00\%}
+& 100.00\% & 100.00\% & 100.00\% & 100.00\% \\
+& ACC
+& 50.57\% & 7.62\% & 35.80\% & \multicolumn{1}{c|}{15.15\%}
+& 67.00\% & 19.73\% & 26.40\% & \multicolumn{1}{c|}{30.67\%}
+& 11.33\% & 65.25\% & 44.80\% & \multicolumn{1}{c|}{63.33\%}
+& 30.32\% & 33.33\% & 26.20\% & 27.66\% \\
+\bottomrule
+\end{tabular}
+
+\caption{Multi-choice task performance across datasets.}
+\end{subtable}
+
+\vspace{6pt}
+
+% =========================
+% (b) Forecasting results
+% =========================
+\begin{subtable}[t]{\textwidth}
+\centering
+\setlength{\tabcolsep}{12pt}
+\renewcommand{\arraystretch}{1}
+
+\begin{tabular}{c|c|cc|cc|cc!{\vrule width 1.2pt}cc}
+\toprule
+\multirow{2}{*}{Agent} & \multirow{2}{*}{Metric}
+& \multicolumn{2}{c|}{FreshRetailNet}
+& \multicolumn{2}{c|}{PSML}
+& \multicolumn{2}{c!{\vrule width 1.2pt}}{Causal Chambers}
+& \multicolumn{2}{c}{MIMIC} \\
+\cmidrule(lr){3-4}
+\cmidrule(lr){5-6}
+\cmidrule(lr){7-8}
+\cmidrule(lr){9-10}
+
+&
+& T2 & T4
+& T2 & T4
+& T2 & T4
+& T2 & T4 \\
+\midrule
+
+\multirow{3}{*}{Single LLM}
+& SR
+& 61.36\% & 47.73\%
+& 34.00\% & 40.00\%
+& 48.00\% & 46.00\%
+& 0.00\% & 97.87\% \\
+& MAE
+& 0.11 & 0.14
+& 0.26 & 0.29
+& 2.31 & 2.70
+&  & 12.14 \\
+& sMAPE
+& 1.25 & 1.22
+& 0.28 & 0.30
+& 2.40E{-}05 & 2.80E{-}05
+&  & 0.47 \\
+\midrule
+
+\multirow{3}{*}{\makecell[c]{TimeSeries\\Scientist}}
+& SR
+& 36.36\% & 43.18\%
+& 22.00\% & 14.00\%
+& 54.00\% & 30.00\%
+& 89.36\% & 89.36\% \\
+& MAE
+& 0.14 & 0.16
+& 0.26 & 0.26
+& 2.32 & 2.57
+& 9.75 & 10.54 \\
+& sMAPE
+& 1.29 & 1.21
+& 0.29 & 0.24
+& 2.41E{-}05 & 2.68E{-}05
+& 0.34 & 0.38 \\
+\midrule
+
+\multirow{3}{*}{AgentScope}
+& SR
+& 65.91\% & 88.64\%
+& 30.00\% & 34.00\%
+& 62.00\% & 32.00\%
+& 97.87\% & 95.74\% \\
+& MAE
+& 0.13 & 0.11
+& 0.27 & 0.24
+& 2.16 & 2.79
+& 9.86 & 13.45 \\
+& sMAPE
+& 121.00 & 121.96
+& 26.92 & 20.07
+& 2.25E{-}03 & 2.90E{-}03
+& 0.41 & 0.48 \\
+\midrule
+
+\multirow{3}{*}{MetaGPT}
+& SR
+& 29.55\% & 70.45\%
+& 14.00\% & 26.00\%
+& 50.00\% & 36.00\%
+& 97.87\% & 97.87\% \\
+& MAE
+& 0.12 & 0.14
+& 0.16 & 0.24
+& 2.07 & 2.87
+& 9.90 & 11.36 \\
+& sMAPE
+& 126.50 & 120.66
+& 16.88 & 26.33
+& 2.15E{-}03 & 2.99E{-}03
+& 0.41 & 0.49 \\
+\midrule
+
+\multirow{3}{*}{CAMEL}
+& SR
+& 65.91\% & 88.64\%
+& 30.00\% & 34.00\%
+& 62.00\% & 32.00\%
+& 97.87\% & 95.74\% \\
+& MAE
+& 0.13 & 0.11
+& 0.27 & 0.24
+& 2.16 & 2.79
+& 9.86 & 13.45 \\
+& sMAPE
+& 121.00 & 121.96
+& 26.92 & 20.07
+& 2.25E{-}03 & 2.90E{-}03
+& 0.41 & 0.48 \\
+\bottomrule
+\end{tabular}
+
+\caption{Forecasting performance on T2 and T4 tasks across datasets.}
+\end{subtable}
+
+\caption{Performance of different agent frameworks across multi-choice and forecasting tasks using \texttt{claude-3.7-sonnet} as the base model.}
+\label{tab:main_results_claude}
+\end{table*}
+
+\begin{table*}[t]
+\centering
+\footnotesize
+
+% =========================
+% (a) Multi-choice results
+% =========================
+\begin{subtable}[t]{\textwidth}
+\centering
+\setlength{\tabcolsep}{2.8pt}
+\renewcommand{\arraystretch}{1.2}
+
+\begin{tabular}{c|c|cccc|cccc|cccc|cccc}
+\toprule
+\multirow{2}{*}{Agent} & Dataset
+& \multicolumn{4}{c|}{FreshRetailNet}
+& \multicolumn{4}{c|}{PSML}
+& \multicolumn{4}{c|}{Causal Chambers}
+& \multicolumn{4}{c}{MIMIC} \\
+\cmidrule(lr){3-6}
+\cmidrule(lr){7-10}
+\cmidrule(lr){11-14}
+\cmidrule(lr){15-18}
+
+& Task
+& T1 & T2 & T3 & \multicolumn{1}{c|}{T4}
+& T1 & T2 & T3 & \multicolumn{1}{c|}{T4}
+& T1 & T2 & T3 & \multicolumn{1}{c|}{T4}
+& T1 & T2 & T3 & T4 \\
+\midrule
+
+\multirow{2}{*}{Single LLM}
+& SR
+& 100.00\% & 0.00\% & 76.70\% & \multicolumn{1}{c|}{9.09\%}
+& 100.00\% & 74.00\% & 100.00\% & \multicolumn{1}{c|}{82.00\%}
+& 100.00\% & 100.00\% & 100.00\% & \multicolumn{1}{c|}{100.00\%}
+& 100.00\% & 100.00\% & 94.66\% & 100.00\% \\
+& ACC
+& 19.89\% & 0.00\% & 16.56\% & \multicolumn{1}{c|}{1.52\%}
+& 47.50\% & 12.00\% & 13.60\% & \multicolumn{1}{c|}{21.33\%}
+& 11.33\% & 29.33\% & 50.40\% & \multicolumn{1}{c|}{14.67\%}
+& 26.60\% & 20.57\% & 40.94\% & 21.99\% \\
+\midrule
+
+\multirow{2}{*}{\makecell[c]{TimeSeries\\Scientist}}
+& SR
+& 76.14\% & 100.00\% & 100.00\% & \multicolumn{1}{c|}{100.00\%}
+& 72.50\% & 100.00\% & 99.60\% & \multicolumn{1}{c|}{100.00\%}
+& 100.00\% & 100.00\% & 96.80\% & \multicolumn{1}{c|}{100.00\%}
+& 77.13\% & 100.00\% & 100.00\% & 100.00\% \\
+& ACC
+& 26.14\% & 56.82\% & 3.98\% & \multicolumn{1}{c|}{56.82\%}
+& 22.00\% & 26.67\% & 13.20\% & \multicolumn{1}{c|}{27.33\%}
+& 28.67\% & 2.67\% & 23.60\% & \multicolumn{1}{c|}{2.67\%}
+& 25.00\% & 23.40\% & 27.20\% & 23.40\% \\
+\midrule
+
+\multirow{2}{*}{AgentScope}
+& SR
+& 100.00\% & 72.73\% & 85.80\% & \multicolumn{1}{c|}{59.09\%}
+& 100.00\% & 70.00\% & 98.40\% & \multicolumn{1}{c|}{68.00\%}
+& 75.00\% & 100.00\% & 100.00\% & \multicolumn{1}{c|}{98.00\%}
+& 100.00\% & 100.00\% & 100.00\% & 100.00\% \\
+& ACC
+& 27.27\% & 4.17\% & 26.70\% & \multicolumn{1}{c|}{15.38\%}
+& 48.50\% & 23.81\% & 14.80\% & \multicolumn{1}{c|}{28.43\%}
+& 12.00\% & 30.67\% & 38.40\% & \multicolumn{1}{c|}{29.93\%}
+& 28.19\% & 18.44\% & 23.76\% & 24.82\% \\
+\midrule
+
+\multirow{2}{*}{MetaGPT}
+& SR
+& 100.00\% & 40.91\% & 71.59\% & \multicolumn{1}{c|}{15.91\%}
+& 100.00\% & 82.00\% & 99.60\% & \multicolumn{1}{c|}{70.00\%}
+& 75.00\% & 96.00\% & 100.00\% & \multicolumn{1}{c|}{100.00\%}
+& 100.00\% & 100.00\% & 95.82\% & 100.00\% \\
+& ACC
+& 18.18\% & 7.41\% & 20.39\% & \multicolumn{1}{c|}{4.76\%}
+& 47.50\% & 16.26\% & 15.20\% & \multicolumn{1}{c|}{23.81\%}
+& 14.67\% & 30.56\% & 37.20\% & \multicolumn{1}{c|}{22.00\%}
+& 27.13\% & 16.31\% & 23.71\% & 19.15\% \\
+\midrule
+
+\multirow{2}{*}{CAMEL}
+& SR
+& 100.00\% & 15.91\% & 85.23\% & \multicolumn{1}{c|}{9.09\%}
+& 100.00\% & 76.00\% & 99.60\% & \multicolumn{1}{c|}{80.00\%}
+& 75.00\% & 100.00\% & 100.00\% & \multicolumn{1}{c|}{94.00\%}
+& 100.00\% & 100.00\% & 100.00\% & 100.00\% \\
+& ACC
+& 25.57\% & 9.52\% & 25.00\% & \multicolumn{1}{c|}{41.67\%}
+& 48.00\% & 20.18\% & 10.40\% & \multicolumn{1}{c|}{24.17\%}
+& 16.67\% & 28.67\% & 45.60\% & \multicolumn{1}{c|}{29.79\%}
+& 23.94\% & 20.57\% & 24.61\% & 20.57\% \\
+\bottomrule
+\end{tabular}
+
+\caption{Multi-choice task performance across datasets.}
+\end{subtable}
+
+\vspace{6pt}
+
+% =========================
+% (b) Forecasting results
+% =========================
+\begin{subtable}[t]{\textwidth}
+\centering
+\setlength{\tabcolsep}{12pt}
+\renewcommand{\arraystretch}{1}
+
+\begin{tabular}{c|c|cc|cc|cc!{\vrule width 1.2pt}cc}
+\toprule
+\multirow{2}{*}{Agent} & \multirow{2}{*}{Metric}
+& \multicolumn{2}{c|}{FreshRetailNet}
+& \multicolumn{2}{c|}{PSML}
+& \multicolumn{2}{c!{\vrule width 1.2pt}}{Causal Chambers}
+& \multicolumn{2}{c}{MIMIC} \\
+\cmidrule(lr){3-4}
+\cmidrule(lr){5-6}
+\cmidrule(lr){7-8}
+\cmidrule(lr){9-10}
+
+&
+& T2 & T4
+& T2 & T4
+& T2 & T4
+& T2 & T4 \\
+\midrule
+
+\multirow{3}{*}{Single LLM}
+& SR
+& 0.00\% & 2.27\%
+& 0.00\% & 4.00\%
+& 36.00\% & 38.00\%
+& 0.00\% & 89.36\% \\
+& MAE
+&  & 0.06
+&  & 0.11
+& 2.18 & 2.90
+&  & 11.80 \\
+& sMAPE
+&  & 1.29
+&  & 0.16
+& 2.26E{-}05 & 3.02E{-}05
+&  & 0.38 \\
+\midrule
+
+\multirow{3}{*}{\makecell[c]{TimeSeries\\Scientist}}
+& SR
+& 36.36\% & 43.18\%
+& 22.00\% & 14.00\%
+& 54.00\% & 30.00\%
+& 89.36\% & 89.36\% \\
+& MAE
+& 0.14 & 0.16
+& 0.26 & 0.26
+& 2.32 & 2.57
+& 9.75 & 10.54 \\
+& sMAPE
+& 1.29 & 1.21
+& 0.29 & 0.24
+& 2.41E{-}05 & 2.68E{-}05
+& 0.34 & 0.38 \\
+\midrule
+
+\multirow{3}{*}{AgentScope}
+& SR
+& 0.00\% & 2.33\%
+& 0.00\% & 2.04\%
+& 30.19\% & 28.30\%
+& 75.47\% & 82.35\% \\
+& MAE
+&  & 0.15
+&  & 0.14
+& 2.32 & 2.20
+& 11.60 & 12.06 \\
+& sMAPE
+&  & 143.19
+&  & 16.93
+& 2.41E{-}03 & 2.29E{-}03
+& 0.41 & 0.36 \\
+\midrule
+
+\multirow{3}{*}{MetaGPT}
+& SR
+& 0.00\% & 4.55\%
+& 4.00\% & 6.00\%
+& 50.00\% & 42.00\%
+& 76.60\% & 89.36\% \\
+& MAE
+&  & 0.39
+& 0.24 & 0.20
+& 2.48 & 2.55
+& 11.26 & 10.93 \\
+& sMAPE
+&  & 124.81
+& 24.13 & 21.58
+& 2.58E{-}03 & 2.65E{-}03
+& 0.40 & 0.35 \\
+\midrule
+
+\multirow{3}{*}{CAMEL}
+& SR
+& 0.00\% & 0.00\%
+& 2.00\% & 4.00\%
+& 34.00\% & 46.00\%
+& 53.19\% & 87.23\% \\
+& MAE
+&  & 0.16
+& 0.16 & 0.16
+& 2.34 & 2.62
+& 11.08 & 11.58 \\
+& sMAPE
+&  & 22.22
+& 19.38 & 19.38
+& 2.43E{-}03 & 2.73E{-}03
+& 0.39 & 0.36 \\
+\bottomrule
+\end{tabular}
+
+\caption{Forecasting performance on T2 and T4 tasks across datasets.}
+\end{subtable}
+
+\caption{Performance of different agent frameworks across multi-choice and forecasting tasks using \texttt{gemini-2.5-flash} as the base model.}
+\label{tab:main_results_gemini}
+\end{table*}
+
+\begin{table*}[t]
+\centering
+\footnotesize
+
+% =========================
+% (a) Multi-choice results
+% =========================
+\begin{subtable}[t]{\textwidth}
+\centering
+\setlength{\tabcolsep}{2.8pt}
+\renewcommand{\arraystretch}{1.2}
+
+\begin{tabular}{c|c|cccc|cccc|cccc|cccc}
+\toprule
+\multirow{2}{*}{Agent} & Dataset
+& \multicolumn{4}{c|}{FreshRetailNet}
+& \multicolumn{4}{c|}{PSML}
+& \multicolumn{4}{c|}{Causal Chambers}
+& \multicolumn{4}{c}{MIMIC} \\
+\cmidrule(lr){3-6}
+\cmidrule(lr){7-10}
+\cmidrule(lr){11-14}
+\cmidrule(lr){15-18}
+
+& Task
+& T1 & T2 & T3 & \multicolumn{1}{c|}{T4}
+& T1 & T2 & T3 & \multicolumn{1}{c|}{T4}
+& T1 & T2 & T3 & \multicolumn{1}{c|}{T4}
+& T1 & T2 & T3 & T4 \\
+\midrule
+
+\multirow{2}{*}{Single LLM}
+& SR
+& 100.00\% & 100.00\% & 82.39\% & \multicolumn{1}{c|}{100.00\%}
+& 100.00\% & 100.00\% & 100.00\% & \multicolumn{1}{c|}{100.00\%}
+& 100.00\% & 100.00\% & 100.00\% & \multicolumn{1}{c|}{100.00\%}
+& 100.00\% & 100.00\% & 100.00\% & 100.00\% \\
+& ACC
+& 68.18\% & 56.82\% & 16.85\% & \multicolumn{1}{c|}{26.52\%}
+& 74.00\% & 24.67\% & 34.80\% & \multicolumn{1}{c|}{36.00\%}
+& 15.33\% & 19.33\% & 44.40\% & \multicolumn{1}{c|}{29.33\%}
+& 33.00\% & 22.67\% & 39.14\% & 22.67\% \\
+\midrule
+
+\multirow{2}{*}{\makecell[c]{TimeSeries\\Scientist}}
+& SR
+& 100.00\% & 100.00\% & 100.00\% & \multicolumn{1}{c|}{100.00\%}
+& 100.00\% & 100.00\% & 100.00\% & \multicolumn{1}{c|}{100.00\%}
+& 100.00\% & 100.00\% & 100.00\% & \multicolumn{1}{c|}{100.00\%}
+& 100.00\% & 100.00\% & 100.00\% & 100.00\% \\
+& ACC
+& 36.36\% & 56.82\% & 34.09\% & \multicolumn{1}{c|}{56.82\%}
+& 38.50\% & 26.67\% & 22.80\% & \multicolumn{1}{c|}{27.33\%}
+& 28.67\% & 2.67\% & 29.60\% & \multicolumn{1}{c|}{2.67\%}
+& 15.43\% & 23.40\% & 25.94\% & 23.40\% \\
+\midrule
+
+\multirow{2}{*}{AgentScope}
+& SR
+& 100.00\% & 100.00\% & 96.02\% & \multicolumn{1}{c|}{100.00\%}
+& 100.00\% & 78.00\% & 100.00\% & \multicolumn{1}{c|}{100.00\%}
+& 75.00\% & 100.00\% & 100.00\% & \multicolumn{1}{c|}{100.00\%}
+& 100.00\% & 100.00\% & 100.00\% & 100.00\% \\
+& ACC
+& 70.45\% & 34.85\% & 5.68\% & \multicolumn{1}{c|}{42.42\%}
+& 68.50\% & 20.51\% & 24.80\% & \multicolumn{1}{c|}{31.33\%}
+& 16.00\% & 47.33\% & 46.40\% & \multicolumn{1}{c|}{42.00\%}
+& 32.98\% & 22.70\% & 25.71\% & 24.82\% \\
+\midrule
+
+\multirow{2}{*}{MetaGPT}
+& SR
+& 100.00\% & 100.00\% & 97.16\% & \multicolumn{1}{c|}{100.00\%}
+& 100.00\% & 98.00\% & 100.00\% & \multicolumn{1}{c|}{100.00\%}
+& 75.00\% & 100.00\% & 100.00\% & \multicolumn{1}{c|}{100.00\%}
+& 100.00\% & 100.00\% & 100.00\% & 100.00\% \\
+& ACC
+& 69.89\% & 41.67\% & 5.11\% & \multicolumn{1}{c|}{37.12\%}
+& 71.50\% & 19.73\% & 28.00\% & \multicolumn{1}{c|}{30.67\%}
+& 15.33\% & 22.00\% & 46.40\% & \multicolumn{1}{c|}{40.00\%}
+& 32.98\% & 22.70\% & 25.79\% & 30.50\% \\
+\midrule
+
+\multirow{2}{*}{CAMEL}
+& SR
+& 100.00\% & 100.00\% & 90.91\% & \multicolumn{1}{c|}{100.00\%}
+& 100.00\% & 74.00\% & 100.00\% & \multicolumn{1}{c|}{100.00\%}
+& 75.00\% & 100.00\% & 100.00\% & \multicolumn{1}{c|}{100.00\%}
+& 100.00\% & 100.00\% & 100.00\% & 100.00\% \\
+& ACC
+& 67.05\% & 8.33\% & 19.89\% & \multicolumn{1}{c|}{29.55\%}
+& 65.00\% & 18.02\% & 25.20\% & \multicolumn{1}{c|}{30.67\%}
+& 12.67\% & 65.33\% & 46.80\% & \multicolumn{1}{c|}{48.00\%}
+& 31.38\% & 24.82\% & 25.61\% & 31.21\% \\
+\bottomrule
+\end{tabular}
+
+\caption{Multi-choice task performance across datasets.}
+\end{subtable}
+
+\vspace{6pt}
+
+% =========================
+% (b) Forecasting results
+% =========================
+\begin{subtable}[t]{\textwidth}
+\centering
+\setlength{\tabcolsep}{12pt}
+\renewcommand{\arraystretch}{1}
+
+\begin{tabular}{c|c|cc|cc|cc!{\vrule width 1.2pt}cc}
+\toprule
+\multirow{2}{*}{Agent} & \multirow{2}{*}{Metric}
+& \multicolumn{2}{c|}{FreshRetailNet}
+& \multicolumn{2}{c|}{PSML}
+& \multicolumn{2}{c!{\vrule width 1.2pt}}{Causal Chambers}
+& \multicolumn{2}{c}{MIMIC} \\
+\cmidrule(lr){3-4}
+\cmidrule(lr){5-6}
+\cmidrule(lr){7-8}
+\cmidrule(lr){9-10}
+
+&
+& T2 & T4
+& T2 & T4
+& T2 & T4
+& T2 & T4 \\
+\midrule
+
+\multirow{3}{*}{Single LLM}
+& SR
+& 0.00\% & 2.27\%
+& 20.00\% & 46.00\%
+& 52.00\% & 48.00\%
+& 0.00\% & 98.00\% \\
+& MAE
+&  & 0.10
+& 0.29 & 0.38
+& 1.97 & 2.53
+&  & 12.12 \\
+& sMAPE
+&  & 0.97
+& 0.27 & 0.28
+& 2.05E{-}05 & 2.63E{-}05
+&  & 0.48 \\
+\midrule
+
+\multirow{3}{*}{\makecell[c]{TimeSeries\\Scientist}}
+& SR
+& 34.09\% & 25.00\%
+& 68.00\% & 60.00\%
+& 64.00\% & 40.00\%
+& 89.36\% & 89.36\% \\
+& MAE
+& 0.17 & 0.12
+& 0.34 & 0.34
+& 2.11 & 2.51
+& 10.70 & 0.34 \\
+& sMAPE
+& 1.30 & 1.25
+& 0.32 & 0.27
+& 2.19E{-}05 & 2.61E{-}05
+& 12.34 & 0.45 \\
+\midrule
+
+\multirow{3}{*}{AgentScope}
+& SR
+& 27.54\% & 1.15\%
+& 12.36\% & 25.00\%
+& 58.00\% & 40.00\%
+& 97.87\% & 95.74\% \\
+& MAE
+& 0.10 & 0.07
+& 0.29 & 0.36
+& 2.43 & 2.72
+& 10.22 & 11.43 \\
+& sMAPE
+& 124.06 & 129.35
+& 27.39 & 27.94
+& 2.52E{-}03 & 2.82E{-}03
+& 0.46 & 0.39 \\
+\midrule
+
+\multirow{3}{*}{MetaGPT}
+& SR
+& 38.64\% & 0.00\%
+& 22.00\% & 38.00\%
+& 58.00\% & 44.00\%
+& 97.87\% & 97.87\% \\
+& MAE
+&  & 0.09
+& 0.31 & 0.35
+& 2.33 & 2.70
+& 10.29 & 10.88 \\
+& sMAPE
+&  & 125.21
+& 25.15 & 29.31
+& 2.42E{-}03 & 2.81E{-}03
+& 0.41 & 0.41 \\
+\midrule
+
+\multirow{3}{*}{CAMEL}
+& SR
+& 45.45\% & 18.18\%
+& 20.00\% & 30.00\%
+& 56.00\% & 38.00\%
+& 97.87\% & 97.87\% \\
+& MAE
+& 0.11 & 0.22
+& 0.28 & 0.39
+& 2.37 & 2.55
+& 11.36 & 11.32 \\
+& sMAPE
+& 129.65 & 132.99
+& 25.78 & 32.22
+& 2.46E{-}03 & 2.65E{-}03
+& 0.47 & 0.46 \\
+\bottomrule
+\end{tabular}
+
+\caption{Forecasting performance on T2 and T4 tasks across datasets.}
+\end{subtable}
+
+\caption{Performance of different agent frameworks across multi-choice and forecasting tasks using \texttt{deepseek-chat} as the base model.}
+\label{tab:main_results_deepseek}
+\end{table*}
+
+\begin{table*}[t]
+\centering
+\footnotesize
+
+% =========================
+% (a) Multi-choice results
+% =========================
+\begin{subtable}[t]{\textwidth}
+\centering
+\setlength{\tabcolsep}{2.8pt}
+\renewcommand{\arraystretch}{1.2}
+
+\begin{tabular}{c|c|cccc|cccc|cccc|cccc}
+\toprule
+\multirow{2}{*}{Agent} & Dataset
+& \multicolumn{4}{c|}{FreshRetailNet}
+& \multicolumn{4}{c|}{PSML}
+& \multicolumn{4}{c|}{Causal Chambers}
+& \multicolumn{4}{c}{MIMIC} \\
+\cmidrule(lr){3-6}
+\cmidrule(lr){7-10}
+\cmidrule(lr){11-14}
+\cmidrule(lr){15-18}
+
+& Task
+& T1 & T2 & T3 & \multicolumn{1}{c|}{T4}
+& T1 & T2 & T3 & \multicolumn{1}{c|}{T4}
+& T1 & T2 & T3 & \multicolumn{1}{c|}{T4}
+& T1 & T2 & T3 & T4 \\
+\midrule
+
+\multirow{2}{*}{Single LLM}
+& SR
+& 100.00\% & 100.00\% & 64.20\% & \multicolumn{1}{c|}{70.45\%}
+& 100.00\% & 54.00\% & 100.00\% & \multicolumn{1}{c|}{26.00\%}
+& 100.00\% & 100.00\% & 100.00\% & \multicolumn{1}{c|}{100.00\%}
+& 100.00\% & 100.00\% & 100.00\% & 100.00\% \\
+& ACC
+& 60.80\% & 11.36\% & 7.30\% & \multicolumn{1}{c|}{9.85\%}
+& 49.00\% & 10.67\% & 23.20\% & \multicolumn{1}{c|}{8.00\%}
+& 20.00\% & 18.00\% & 50.40\% & \multicolumn{1}{c|}{35.33\%}
+& 43.50\% & 27.33\% & 40.84\% & 35.33\% \\
+\midrule
+
+\multirow{2}{*}{\makecell[c]{TimeSeries\\Scientist}}
+& SR
+& 17.61\% & 100.00\% & 100.00\% & \multicolumn{1}{c|}{100.00\%}
+& 18.00\% & 100.00\% & 100.00\% & \multicolumn{1}{c|}{100.00\%}
+& 100.00\% & 100.00\% & 75.20\% & \multicolumn{1}{c|}{100.00\%}
+& 22.87\% & 100.00\% & 99.58\% & 100.00\% \\
+& ACC
+& 7.95\% & 56.82\% & 23.30\% & \multicolumn{1}{c|}{56.82\%}
+& 12.50\% & 26.67\% & 14.00\% & \multicolumn{1}{c|}{27.33\%}
+& 28.67\% & 2.67\% & 20.80\% & \multicolumn{1}{c|}{2.67\%}
+& 5.85\% & 23.40\% & 28.45\% & 23.40\% \\
+\midrule
+
+\multirow{2}{*}{AgentScope}
+& SR
+& 100.00\% & 100.00\% & 100.00\% & \multicolumn{1}{c|}{90.91\%}
+& 100.00\% & 84.00\% & 100.00\% & \multicolumn{1}{c|}{78.00\%}
+& 75.00\% & 100.00\% & 100.00\% & \multicolumn{1}{c|}{100.00\%}
+& 100.00\% & 100.00\% & 100.00\% & 100.00\% \\
+& ACC
+& 58.52\% & 7.58\% & 39.77\% & \multicolumn{1}{c|}{8.33\%}
+& 54.50\% & 19.05\% & 27.60\% & \multicolumn{1}{c|}{26.50\%}
+& 24.00\% & 42.67\% & 49.60\% & \multicolumn{1}{c|}{42.00\%}
+& 44.15\% & 25.53\% & 28.24\% & 29.79\% \\
+\midrule
+
+\multirow{2}{*}{MetaGPT}
+& SR
+& 100.00\% & 22.73\% & 100.00\% & \multicolumn{1}{c|}{56.82\%}
+& 100.00\% & 86.00\% & 100.00\% & \multicolumn{1}{c|}{88.00\%}
+& 75.00\% & 100.00\% & 100.00\% & \multicolumn{1}{c|}{96.00\%}
+& 100.00\% & 100.00\% & 100.00\% & 97.87\% \\
+& ACC
+& 65.34\% & 16.67\% & 40.34\% & \multicolumn{1}{c|}{10.67\%}
+& 53.50\% & 18.60\% & 29.20\% & \multicolumn{1}{c|}{28.03\%}
+& 26.00\% & 34.00\% & 49.20\% & \multicolumn{1}{c|}{39.58\%}
+& 47.34\% & 26.24\% &  & 31.88\% \\
+\midrule
+
+\multirow{2}{*}{CAMEL}
+& SR
+& 100.00\% & 100.00\% & 15.91\% & \multicolumn{1}{c|}{100.00\%}
+& 100.00\% & 75.00\% & 100.00\% & \multicolumn{1}{c|}{75.00\%}
+& 74.00\% & 100.00\% & 100.00\% & \multicolumn{1}{c|}{100.00\%}
+& 100.00\% & 100.00\% & 100.00\% & 100.00\% \\
+& ACC
+& 64.20\% & 12.88\% & 35.80\% & \multicolumn{1}{c|}{12.88\%}
+& 75.00\% & 44.44\% & 32.00\% & \multicolumn{1}{c|}{44.44\%}
+& 22.67\% & 33.33\% & 48.40\% & \multicolumn{1}{c|}{42.67\%}
+& 41.49\% & 25.53\% & 27.62\% & 34.04\% \\
+\bottomrule
+\end{tabular}
+
+\caption{Multi-choice task performance across datasets.}
+\end{subtable}
+
+\vspace{6pt}
+
+% =========================
+% (b) Forecasting results
+% =========================
+\begin{subtable}[t]{\textwidth}
+\centering
+\setlength{\tabcolsep}{12pt}
+\renewcommand{\arraystretch}{1}
+
+\begin{tabular}{c|c|cc|cc|cc!{\vrule width 1.2pt}cc}
+\toprule
+\multirow{2}{*}{Agent} & \multirow{2}{*}{Metric}
+& \multicolumn{2}{c|}{FreshRetailNet}
+& \multicolumn{2}{c|}{PSML}
+& \multicolumn{2}{c!{\vrule width 1.2pt}}{Causal Chambers}
+& \multicolumn{2}{c}{MIMIC} \\
+\cmidrule(lr){3-4}
+\cmidrule(lr){5-6}
+\cmidrule(lr){7-8}
+\cmidrule(lr){9-10}
+
+&
+& T2 & T4
+& T2 & T4
+& T2 & T4
+& T2 & T4 \\
+\midrule
+
+\multirow{3}{*}{Single LLM}
+& SR
+& 0.00\% & 4.55\%
+& 6.00\% & 12.00\%
+& 46.00\% & 46.00\%
+& 0.00\% & 92.00\% \\
+& MAE
+&  & 0.32
+& 0.32 & 0.54
+& 2.17 & 2.83
+&  & 17.02 \\
+& sMAPE
+&  & 1.32
+& 0.27 & 0.34
+& 2.26E{-}05 & 2.95E{-}05
+&  & 0.54 \\
+\midrule
+
+\multirow{3}{*}{\makecell[c]{TimeSeries\\Scientist}}
+& SR
+& 4.55\% & 6.82\%
+& 0.00\% & 16.00\%
+& 46.00\% & 44.00\%
+& 82.98\% & 80.85\% \\
+& MAE
+& 0.06 & 0.28
+&  & 0.39
+& 2.43 & 2.46
+& 15.08 & 18.80 \\
+& sMAPE
+& 1.30 & 1.34
+&  & 0.32
+& 2.52E{-}05 & 2.55E{-}05
+& 0.42 & 0.58 \\
+\midrule
+
+\multirow{3}{*}{AgentScope}
+& SR
+& 1.15\% & 8.64\%
+& 6.38\% & 6.38\%
+& 39.22\% & 35.29\%
+& 54.10\% & 89.80\% \\
+& MAE
+& 0.23 & 0.27
+& 0.31 & 0.66
+& 2.39 & 2.77
+& 15.67 & 18.65 \\
+& sMAPE
+& 135.87 & 136.62
+& 29.69 & 40.12
+& 2.48E{-}03 & 2.88E{-}03
+& 0.52 & 0.53 \\
+\midrule
+
+\multirow{3}{*}{MetaGPT}
+& SR
+& 0.00\% & 6.82\%
+& 16.00\% & 12.00\%
+& 42.00\% & 32.00\%
+& 59.57\% & 100.00\% \\
+& MAE
+&  & 0.35
+& 0.47 & 0.34
+& 2.13 & 2.49
+& 15.97 & 17.68 \\
+& sMAPE
+&  & 134.81
+& 35.39 & 28.81
+& 2.22E{-}03 & 2.59E{-}03
+& 0.46 & 0.58 \\
+\midrule
+
+\multirow{3}{*}{CAMEL}
+& SR
+& 2.27\% & 100.00\%
+& 20.00\% & 40.00\%
+& 44.00\% & 40.00\%
+& 72.34\% & 95.74\% \\
+& MAE
+& 0.16 & 0.23
+& 0.08 & 0.32
+& 2.15 & 2.54
+& 14.62 & 18.26 \\
+& sMAPE
+& 125.89 & 120.09
+& 7.58 & 24.99
+& 2.24E{-}03 & 2.64E{-}03
+& 0.50 & 0.56 \\
+\bottomrule
+\end{tabular}
+
+\caption{Forecasting performance on T2 and T4 tasks across datasets.}
+\end{subtable}
+
+\caption{Performance of different agent frameworks across multi-choice and forecasting tasks using \texttt{qwen-max} as the base model.}
+\label{tab:main_results_qwen}
+\end{table*}
